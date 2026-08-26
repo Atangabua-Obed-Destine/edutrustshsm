@@ -1,0 +1,1 @@
+@include('admin.hr._simple-config', ['title' => __('Allowance Type'), 'storeRoute' => route('admin.allowance-types.store'), 'updateRouteName' => 'admin.allowance-types.update', 'destroyRouteName' => 'admin.allowance-types.destroy', 'items' => $items])

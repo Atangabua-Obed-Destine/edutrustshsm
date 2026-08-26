@@ -1,0 +1,1 @@
+@include('admin.hr._simple-config', ['title' => __('Deduction Type'), 'storeRoute' => route('admin.deduction-types.store'), 'updateRouteName' => 'admin.deduction-types.update', 'destroyRouteName' => 'admin.deduction-types.destroy', 'items' => $items])

@@ -1,0 +1,1 @@
+@include('admin.hr._simple-config', ['title' => __('Designation'), 'storeRoute' => route('admin.designations.store'), 'updateRouteName' => 'admin.designations.update', 'destroyRouteName' => 'admin.designations.destroy', 'items' => $items])

@@ -1,0 +1,1 @@
+@include('admin.hr._simple-config', ['title' => __('Work Shift'), 'storeRoute' => route('admin.work-shifts.store'), 'updateRouteName' => 'admin.work-shifts.update', 'destroyRouteName' => 'admin.work-shifts.destroy', 'items' => $items])

@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\Designation;
+use Illuminate\Http\Request;
+
+class DesignationController extends Controller
+{
+    public function index()
+    {
+        $items = Designation::orderBy('title')->get();
+        return view('admin.hr.designations.index', compact('items'));
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate(['title' => ['required', 'string', 'max:191']]);
+        $item = Designation::create($data + ['status' => true]);
+        AuditLog::log('created', Designation::class, $item->id, null, $item->toArray());
+        return back()->with('success', __('Designation created.'));
+    }
+
+    public function update(Request $request, Designation $designation)
+    {
+        $data = $request->validate(['title' => ['required', 'string', 'max:191'], 'status' => ['required', 'boolean']]);
+        $designation->update($data);
+        return back()->with('success', __('Designation updated.'));
+    }
+
+    public function destroy(Designation $designation)
+    {
+        $designation->delete();
+        return back()->with('success', __('Designation deleted.'));
+    }
+}
