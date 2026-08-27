@@ -3,18 +3,25 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Models\PaymentAccountTransfer;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
-class PaymentAccountTransferController extends Controller
+class PaymentAccountTransferController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'fund-transfer';
+
     public function __construct(private PaymentAccountService $accounts)
     {
     }

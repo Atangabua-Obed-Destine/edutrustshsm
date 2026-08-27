@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\Expense;
 use App\Models\Income;
@@ -12,12 +13,27 @@ use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-class PaymentAccountReportController extends Controller
+class PaymentAccountReportController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'payment-account-report';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('payment-account-report.view', ['cashflow', 'statement', 'summary', 'unlinked']),
+            static::can('payment-account-report.link', ['link']),
+        ];
+    }
+
     public function __construct(private PaymentAccountService $accounts)
     {
     }

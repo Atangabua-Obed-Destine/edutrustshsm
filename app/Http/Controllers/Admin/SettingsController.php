@@ -3,13 +3,29 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\GradeScale;
 use App\Models\SchoolSetting;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Storage;
 
-class SettingsController extends Controller
+class SettingsController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'school-settings';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('school-settings.view', ['index']),
+            static::can('school-settings.edit', ['update', 'updateGradeScale', 'setLevelMode']),
+        ];
+    }
+
     public function index()
     {
         if (\App\Support\BranchContext::isAllBranches()) {

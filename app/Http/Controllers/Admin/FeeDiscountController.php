@@ -3,16 +3,23 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\FeeCategory;
 use App\Models\FeeDiscount;
 use App\Models\StudentEnrollment;
 use App\Models\StudentFee;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class FeeDiscountController extends Controller
+class FeeDiscountController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'fee-discount';
+
     public function index(Request $request)
     {
         $currentSession = AcademicSession::current();

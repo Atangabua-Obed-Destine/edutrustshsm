@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AllowanceType;
 use App\Models\AuditLog;
 use App\Models\Department;
@@ -16,12 +17,30 @@ use App\Services\PaymentAccountService;
 use App\Services\PayrollAccountingService;
 use App\Services\TaxCalculationService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-class PayrollController extends Controller
+class PayrollController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'payroll';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('payroll.view', ['index']),
+            static::can('payroll.generate', ['generate', 'store']),
+            static::can('payroll.pay', ['pay']),
+            static::can('payroll.unpay', ['unpay']),
+            static::can('payroll.report', ['report']),
+        ];
+    }
+
     public function __construct(
         private TaxCalculationService $tax,
         private PayrollAccountingService $gl,

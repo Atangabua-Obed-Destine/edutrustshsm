@@ -3,12 +3,29 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\ParentPaymentSubmission;
 use App\Services\PaymentRecorder;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ParentPaymentVerificationController extends Controller
+class ParentPaymentVerificationController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'parent-payment';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('parent-payment.view', ['index', 'show']),
+            static::can('parent-payment.approve', ['approve']),
+            static::can('parent-payment.reject', ['reject']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $status = $request->query('status', 'pending');

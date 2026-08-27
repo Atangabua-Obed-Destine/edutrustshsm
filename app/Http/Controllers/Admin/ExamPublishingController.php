@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Form;
@@ -15,10 +16,26 @@ use App\Models\StudentSubject;
 use App\Models\Subject;
 use App\Models\Term;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class ExamPublishingController extends Controller
+class ExamPublishingController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'exam-publishing';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('exam-publishing.view', ['index', 'sectionsByForm', 'termsByForm', 'sequencesByFormTerm']),
+            static::can('exam-publishing.publish', ['publishSubject', 'bulkTransition']),
+            static::can('exam-publishing.unpublish', ['unpublishSubject']),
+        ];
+    }
+
     /**
      * Show the Exam Publishing page with filters and optionally loaded data.
      */

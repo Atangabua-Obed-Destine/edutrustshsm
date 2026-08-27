@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\Attendance;
 use App\Models\ClassSection;
@@ -17,10 +18,25 @@ use App\Models\Term;
 use App\Models\TermResult;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class ReportCardController extends Controller
+class ReportCardController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'report-card';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('report-card.view', ['index', 'sectionsByForm', 'show', 'generate', 'publish']),
+            static::can('report-card.print', ['bulkDownload']),
+        ];
+    }
+
     /**
      * Selection screen: pick session + form + section + term, view generated report cards.
      */

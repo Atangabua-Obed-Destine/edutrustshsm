@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\FeeCategory;
@@ -16,10 +17,26 @@ use App\Models\PaymentPlanInstallment;
 use App\Models\StudentEnrollment;
 use App\Models\StudentFee;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class FeeCollectionController extends Controller
+class FeeCollectionController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'fee-collection';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('fee-collection.view', ['index', 'streamsByForm', 'sectionsByForm']),
+            static::can('fee-collection.collect', ['storePayment']),
+            static::can('fee-collection.receipt', ['receipt']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $sessions = AcademicSession::orderByDesc('start_date')->get();

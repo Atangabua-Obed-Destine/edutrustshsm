@@ -38,7 +38,7 @@
                     {{ __('Dashboard') }}
                 </a>
 
-                @if(in_array(auth()->user()->role, ['super_admin', 'admin']))
+                @if(auth()->user()->canAny(['academic-session.view', 'term.view', 'exam-sequence.view', 'form.view', 'stream.view', 'subject.view', 'class-section.view', 'classroom.view', 'batch.view', 'subject-enrollment.view', 'sequence-enrollment.view']))
                 <!-- Academic Config -->
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('academic-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
@@ -65,7 +65,7 @@
                 @endif
 
                 <!-- Admissions -->
-                @if(in_array(auth()->user()->role, ['super_admin', 'admin']))
+                @if(auth()->user()->canAny(['admission.view', 'id-card.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('admissions-portal-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -82,7 +82,7 @@
                 @endif
 
                 <!-- Students -->
-                @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'staff']))
+                @if(auth()->user()->canAny(['student.view', 'group-enrol.view', 'subject-add-drop.view', 'bulk-upload.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('admissions-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -171,7 +171,7 @@
                 </div>
 
                 <!-- Promotion -->
-                @if(in_array(auth()->user()->role, ['super_admin', 'admin']))
+                @if(auth()->user()->canAny(['promotion.view']))
                 <a href="{{ route('admin.promotion.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.promotion.*') ? 'active bg-white/10' : 'hover:bg-white/5' }}">
                     <svg class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                     {{ __('Promotion') }}
@@ -184,7 +184,7 @@
                     {{ __('Reports & Analytics') }}
                 </a>
 
-                @if(in_array(auth()->user()->role, ['super_admin', 'admin']))
+                @if(auth()->user()->canAny(['staff.view', 'role-and-permission.view']))
                 <!-- User Accounts -->
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('user-accounts-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
@@ -224,7 +224,7 @@
                 @endif
 
                 <!-- Income & Expense -->
-                @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'accountant']))
+                @if(auth()->user()->canAny(['income.view', 'expense.view', 'outcome.view', 'payment-account.view', 'fund-transfer.view', 'budget.view', 'chart-of-accounts.view', 'journal-entry.view', 'general-ledger.view', 'payroll.view']))
             <div class="sidebar-group">
                 <button onclick="toggleSubmenu('accounts-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                     <span class="flex items-center">
@@ -319,7 +319,7 @@
             </nav>
 
             <!-- System Settings -->
-            @if(in_array(auth()->user()->role, ['super_admin', 'admin']))
+            @if(auth()->user()->canAny(['school-settings.view', 'branch.view', 'parent-portal.view', 'pta.view']))
             <div class="px-3 pb-2">
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('system-settings-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
@@ -393,7 +393,7 @@
                         @endif
 
                         {{-- School Level Switcher — only when the school runs more than one level --}}
-                        @if(in_array(auth()->user()->role, ['super_admin', 'admin']) && \App\Support\LevelContext::showSwitcher())
+                        @if(auth()->user()->canAny(['academic-session.view', 'form.view', 'student.view']) && \App\Support\LevelContext::showSwitcher())
                         <form method="POST" action="{{ route('admin.level-context.switch') }}" id="level-context-form" class="flex items-center">
                             @csrf
                             <label class="sr-only" for="school-level-select">{{ __('School Level') }}</label>

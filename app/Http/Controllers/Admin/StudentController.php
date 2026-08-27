@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\Batch;
 use App\Models\ClassSection;
@@ -13,10 +14,24 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class StudentController extends Controller
+class StudentController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'student';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('student.view', ['getFormStreams', 'getFormSections']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $currentSession = AcademicSession::current();

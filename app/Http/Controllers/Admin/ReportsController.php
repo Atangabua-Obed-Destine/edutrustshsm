@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\Attendance;
 use App\Models\ClassSection;
@@ -16,10 +17,24 @@ use App\Models\Term;
 use App\Models\TermResult;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class ReportsController extends Controller
+class ReportsController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'report-and-analytics';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('report-and-analytics.view', ['index']),
+        ];
+    }
+
     public function index()
     {
         $currentSession = AcademicSession::current();

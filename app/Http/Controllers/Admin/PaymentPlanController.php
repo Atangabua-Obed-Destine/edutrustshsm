@@ -3,16 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\PaymentPlan;
 use App\Models\PaymentPlanInstallment;
 use App\Models\Student;
 use App\Models\StudentFee;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class PaymentPlanController extends Controller
+class PaymentPlanController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'payment-plan';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('payment-plan.view', ['studentFees']),
+            static::can('payment-plan.cancel', ['cancel']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $query = PaymentPlan::with([

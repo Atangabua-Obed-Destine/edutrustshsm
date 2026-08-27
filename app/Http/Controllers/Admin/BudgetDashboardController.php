@@ -3,13 +3,28 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Budget;
 use App\Models\BudgetAllocation;
 use App\Models\Expense;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class BudgetDashboardController extends Controller
+class BudgetDashboardController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'budget';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('budget.view', ['index', 'summary']),
+        ];
+    }
+
     public function index()
     {
         $budgets = Budget::active()->with(['department', 'allocations.expenseCategory'])->get();

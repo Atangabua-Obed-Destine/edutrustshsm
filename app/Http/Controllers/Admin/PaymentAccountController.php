@@ -3,18 +3,37 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Models\PaymentAccountType;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
-class PaymentAccountController extends Controller
+class PaymentAccountController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'payment-account';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('payment-account.view', ['accountBook']),
+            static::can('payment-account.deposit', ['depositForm', 'deposit']),
+            static::can('payment-account.withdraw', ['withdrawForm', 'withdraw']),
+            static::can('payment-account.recompute', ['recompute']),
+            static::can('payment-account.delete', ['destroyTransaction']),
+        ];
+    }
+
     public function __construct(private PaymentAccountService $accounts)
     {
     }

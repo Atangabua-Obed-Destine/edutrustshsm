@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\ChartOfAccount;
 use App\Models\DefaultAccountMapping;
 use App\Models\Expense;
@@ -13,10 +14,26 @@ use App\Models\Payment;
 use App\Models\TransactionMapping;
 use App\Services\TransactionAutoMapService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Carbon;
 
-class AccountMappingController extends Controller
+class AccountMappingController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'account-mapping';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('account-mapping.view', ['index', 'unmapped']),
+            static::can('account-mapping.edit', ['save']),
+            static::can('account-mapping.post', ['postUnmapped']),
+        ];
+    }
+
     public function __construct(private TransactionAutoMapService $mapper)
     {
     }

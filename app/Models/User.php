@@ -39,6 +39,9 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    /** @var array<int, string>|null Memoized permission names for this request. */
+    protected ?array $permissionNames = null;
+
     protected function casts(): array
     {
         return [
@@ -208,10 +211,33 @@ class User extends Authenticatable
             return true;
         }
 
-        // Check across all assigned roles (pivot)
-        return $this->roles()
-            ->whereHas('permissions', fn ($q) => $q->where('name', $permission))
-            ->exists();
+        return in_array($permission, $this->permissionNames(), true);
+    }
+
+    /**
+     * Every permission name granted by this user's roles, loaded once per
+     * request. Authorization is checked on nearly every nav item and action, so
+     * a query per check would add hundreds of round-trips to a single page.
+     *
+     * @return array<int, string>
+     */
+    public function permissionNames(): array
+    {
+        return $this->permissionNames ??= $this->roles()
+            ->with('permissions:id,name')
+            ->get()
+            ->pluck('permissions')
+            ->flatten()
+            ->pluck('name')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** Drop the memoized permission set (after a role change). */
+    public function forgetPermissions(): void
+    {
+        $this->permissionNames = null;
     }
 
     /**

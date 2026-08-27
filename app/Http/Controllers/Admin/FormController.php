@@ -3,14 +3,21 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Form;
 use App\Models\Stream;
 use App\Support\LevelContext;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 
-class FormController extends Controller
+class FormController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'form';
+
     public function index()
     {
         $forms = Form::with('streams')->forCurrentLevel()->ordered()->get();

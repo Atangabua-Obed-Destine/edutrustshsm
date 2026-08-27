@@ -3,16 +3,35 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Guardian;
 use App\Models\ParentPaymentSubmission;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rule;
 
-class ParentPortalController extends Controller
+class ParentPortalController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'parent-portal';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('parent-portal.view', ['index', 'show']),
+            static::can('parent-portal.invite', ['invite']),
+            static::can('parent-portal.password', ['resetPassword', 'setPassword']),
+            static::can('parent-portal.revoke', ['disable']),
+            static::can('parent-portal.view', ['update']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $search = trim((string) $request->query('q', ''));

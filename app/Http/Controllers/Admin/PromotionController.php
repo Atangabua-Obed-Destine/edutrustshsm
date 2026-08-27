@@ -3,16 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Form;
 use App\Models\SchoolSetting;
 use App\Models\StudentEnrollment;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class PromotionController extends Controller
+class PromotionController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'promotion';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('promotion.view', ['index']),
+            static::can('promotion.process', ['process']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $currentSession = AcademicSession::current();

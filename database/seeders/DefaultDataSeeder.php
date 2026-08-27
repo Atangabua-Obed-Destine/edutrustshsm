@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\FeeCategory;
 use App\Models\Form;
 use App\Models\GradeScale;
+use App\Models\Role;
 use App\Models\SchoolSetting;
 use App\Models\Stream;
 use App\Models\Subject;
@@ -40,7 +41,7 @@ class DefaultDataSeeder extends Seeder
         ]);
 
         // Super Admin
-        User::create([
+        $superAdmin = User::create([
             'first_name' => 'Super',
             'last_name' => 'Admin',
             'email' => 'admin@edutrustschool.local',
@@ -49,6 +50,12 @@ class DefaultDataSeeder extends Seeder
             'gender' => 'male',
             'is_active' => true,
         ]);
+
+        // Attach the matching RBAC role so permission checks resolve for this
+        // user exactly as they do for anyone created through the UI.
+        if ($superAdminRole = Role::where('name', 'super_admin')->first()) {
+            $superAdmin->roles()->sync([$superAdminRole->id]);
+        }
 
         // Secondary forms (Form 1-5 = First Cycle, Lower/Upper Sixth = Second Cycle)
         $forms = [

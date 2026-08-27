@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Form;
@@ -10,10 +11,26 @@ use App\Models\SchoolSetting;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Storage;
 
-class IdCardController extends Controller
+class IdCardController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'id-card';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('id-card.view', ['index', 'sectionsByForm']),
+            static::can('id-card.print', ['print']),
+            static::can('id-card.settings', ['updatePhoto']),
+        ];
+    }
+
     /**
      * Show the ID card generator page with filters.
      */

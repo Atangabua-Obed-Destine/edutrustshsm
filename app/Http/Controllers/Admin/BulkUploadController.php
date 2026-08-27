@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Guardian;
@@ -11,11 +12,26 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
-class BulkUploadController extends Controller
+class BulkUploadController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'bulk-upload';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('bulk-upload.view', ['index', 'template']),
+            static::can('bulk-upload.upload', ['upload']),
+        ];
+    }
+
     public function index()
     {
         $currentSession = AcademicSession::current();

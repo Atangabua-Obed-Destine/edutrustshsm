@@ -51,6 +51,46 @@ class RolesAndPermissionsSeeder extends Seeder
             'Staff' => ['view', 'create', 'edit', 'delete'],
             'Role & Permission' => ['view', 'create', 'edit', 'delete'],
             'School Settings' => ['view', 'edit'],
+
+            // ── Finance: Accounts & Treasury ──
+            'Income' => ['view', 'create', 'edit', 'delete'],
+            'Income Category' => ['view', 'create', 'edit', 'delete'],
+            'Expense' => ['view', 'create', 'edit', 'delete'],
+            'Expense Category' => ['view', 'create', 'edit', 'delete'],
+            'Outcome' => ['view'],
+            'Payment Account' => ['view', 'create', 'edit', 'delete', 'deposit', 'withdraw', 'recompute'],
+            'Fund Transfer' => ['view', 'create', 'delete'],
+            'Payment Account Report' => ['view', 'link'],
+
+            // ── Budget ──
+            'Budget' => ['view', 'create', 'edit', 'delete', 'approve', 'revise'],
+            'Budget Allocation' => ['view', 'create', 'edit', 'delete'],
+            'Budget Report' => ['view', 'export'],
+
+            // ── OHADA Accounting ──
+            'Chart of Accounts' => ['view', 'create', 'edit', 'delete'],
+            'Fiscal Year' => ['view', 'create', 'close', 'delete'],
+            'Journal Entry' => ['view', 'create', 'post', 'unpost', 'delete'],
+            'General Ledger' => ['view', 'export'],
+            'Account Mapping' => ['view', 'edit', 'post'],
+
+            // ── HR / Payroll ──
+            'Department' => ['view', 'create', 'edit', 'delete'],
+            'Designation' => ['view', 'create', 'edit', 'delete'],
+            'Work Shift Type' => ['view', 'create', 'edit', 'delete'],
+            'Allowance Type' => ['view', 'create', 'edit', 'delete'],
+            'Deduction Type' => ['view', 'create', 'edit', 'delete'],
+            'Tax Group' => ['view', 'create', 'edit', 'delete'],
+            'Tax Setting' => ['view', 'create', 'edit', 'delete'],
+            'Payroll' => ['view', 'generate', 'pay', 'unpay', 'report'],
+            'Staff Tax Report' => ['view', 'export'],
+
+            // ── Platform ──
+            'Branch' => ['view', 'create', 'edit', 'assign'],
+            'Parent Portal' => ['view', 'invite', 'password', 'revoke'],
+            'Parent Payment' => ['view', 'approve', 'reject'],
+            'PTA' => ['view', 'create', 'edit', 'delete'],
+            'Audit Log' => ['view', 'export'],
         ];
 
         $allPermissions = [];
@@ -110,10 +150,30 @@ class RolesAndPermissionsSeeder extends Seeder
             collect($allPermissions)->reject(fn ($p) => str_starts_with($p->name, 'role-and-permission.'))->pluck('id')
         );
 
-        // Accountant gets fee-related + dashboard + student view
-        $feeGroups = ['Dashboard', 'Fee Category', 'Fee Structure', 'Fee Collection', 'Payment Plan', 'Quick Assign Fee', 'Assignment History', 'Fee Discount', 'Fee Report', 'Payment'];
+        // Accountant gets the whole money surface: fees, treasury, budget, OHADA
+        // and payroll — the modules the finance route group actually serves.
+        $feeGroups = [
+            'Dashboard',
+            // Fees
+            'Fee Category', 'Fee Structure', 'Fee Collection', 'Payment Plan',
+            'Quick Assign Fee', 'Assignment History', 'Fee Discount', 'Fee Report', 'Payment',
+            // Accounts & treasury
+            'Income', 'Income Category', 'Expense', 'Expense Category', 'Outcome',
+            'Payment Account', 'Fund Transfer', 'Payment Account Report',
+            // Budget
+            'Budget', 'Budget Allocation', 'Budget Report',
+            // OHADA
+            'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'General Ledger', 'Account Mapping',
+            // Payroll
+            'Payroll', 'Staff Tax Report', 'Tax Group', 'Tax Setting',
+            'Allowance Type', 'Deduction Type',
+            // Parent-submitted payments land in the accountant's queue
+            'Parent Payment',
+        ];
         $accountant->permissions()->sync(
-            collect($allPermissions)->filter(fn ($p) => in_array($p->group_name, $feeGroups) || $p->name === 'student.view')->pluck('id')
+            collect($allPermissions)
+                ->filter(fn ($p) => in_array($p->group_name, $feeGroups) || $p->name === 'student.view')
+                ->pluck('id')
         );
 
         // Teacher gets academic/exam + attendance + student view + dashboard

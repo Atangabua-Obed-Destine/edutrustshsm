@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Designation;
@@ -11,11 +12,17 @@ use App\Models\StaffBankAccount;
 use App\Models\User;
 use App\Models\WorkShiftType;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-class StaffController extends Controller
+class StaffController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'staff';
+
     public function index(Request $request)
     {
         $query = User::staff()->with(['department', 'designation', 'workShift'])

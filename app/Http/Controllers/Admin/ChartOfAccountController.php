@@ -3,12 +3,28 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\ChartOfAccount;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ChartOfAccountController extends Controller
+class ChartOfAccountController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'chart-of-accounts';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('chart-of-accounts.edit', ['toggleStatus']),
+            static::can('chart-of-accounts.view', ['getByClass']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $class = $request->input('class');

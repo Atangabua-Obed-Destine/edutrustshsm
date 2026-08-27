@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\FeeCategory;
 use App\Models\FeeStructure;
@@ -10,9 +11,24 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentFee;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class FeeQuickAssignController extends Controller
+class FeeQuickAssignController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'quick-assign-fee';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('quick-assign-fee.view', ['create', 'searchStudents', 'checkFee']),
+            static::can('quick-assign-fee.assign', ['store']),
+        ];
+    }
+
     public function create()
     {
         $currentSession = AcademicSession::current();

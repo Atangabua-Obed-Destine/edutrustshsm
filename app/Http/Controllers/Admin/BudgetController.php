@@ -3,15 +3,31 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\Budget;
 use App\Models\BudgetRevision;
 use App\Models\Department;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class BudgetController extends Controller
+class BudgetController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'budget';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('budget.approve', ['submitForApproval', 'approve', 'activate', 'close', 'cancel']),
+            static::can('budget.revise', ['revise']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $query = Budget::with('department')

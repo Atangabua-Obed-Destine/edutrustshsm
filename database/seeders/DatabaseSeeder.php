@@ -16,6 +16,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            // Must run first: authorization is enforced through these tables, so
+            // a fresh install without them locks out everyone but super_admin.
+            RolesAndPermissionsSeeder::class,
             DefaultDataSeeder::class,
             PaymentAccountTypeSeeder::class,
             OhadaChartOfAccountsSeeder::class,

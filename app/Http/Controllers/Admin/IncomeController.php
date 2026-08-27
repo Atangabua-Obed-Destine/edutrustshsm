@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\Income;
 use App\Models\IncomeCategory;
@@ -10,11 +11,17 @@ use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-class IncomeController extends Controller
+class IncomeController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'income';
+
     /** Payment method options shared across finance forms. */
     public const METHODS = ['Cash', 'Bank', 'MTN Mobile Money', 'Orange Money', 'Cheque', 'Other'];
 

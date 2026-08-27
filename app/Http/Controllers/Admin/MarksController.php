@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Form;
@@ -14,10 +15,26 @@ use App\Models\StudentEnrollment;
 use App\Models\Subject;
 use App\Models\Term;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class MarksController extends Controller
+class MarksController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'marks-entry';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('marks-entry.view', ['index', 'subjectsByForm', 'termsByForm', 'sequencesByFormTerm', 'sectionsByForm']),
+            static::can('marks-entry.enter', ['save', 'submit']),
+            static::can('marks-entry.edit', ['approve', 'returnMarks']),
+        ];
+    }
+
     /**
      * Marks entry page — cascading filter + marks grid.
      */

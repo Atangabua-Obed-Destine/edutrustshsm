@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
@@ -11,10 +12,25 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentFee;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class PaymentController extends Controller
+class PaymentController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'payment';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('payment.view', ['index', 'show', 'studentFees']),
+            static::can('fee-collection.collect', ['create', 'store']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $query = Payment::with(['enrollment.student', 'enrollment.classSection.form', 'receivedBy']);

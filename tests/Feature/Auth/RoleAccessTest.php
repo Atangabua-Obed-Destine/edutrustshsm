@@ -40,7 +40,14 @@ class RoleAccessTest extends TestCase
 
     public function test_accountant_reaches_finance_routes(): void
     {
-        $this->actingAs($this->user('accountant'))
+        // Needs BOTH: the legacy role string to clear the route group's
+        // role: middleware, and the seeded RBAC grants to clear permission:.
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
+        $user = $this->user('accountant');
+        $user->roles()->sync([\App\Models\Role::where('name', 'accountant')->firstOrFail()->id]);
+
+        $this->actingAs($user)
             ->get(route('admin.account.income.index'))
             ->assertSuccessful();
     }
@@ -56,9 +63,30 @@ class RoleAccessTest extends TestCase
     {
         // Regression: this group used to be nested inside role:super_admin,admin,
         // so the outer middleware rejected staff before the carve-out was consulted.
-        $this->actingAs($this->user('staff'))
+        // Both gates must now pass: the route group's role: check and student.view.
+        $user = $this->user('staff');
+        $role = \App\Models\Role::firstOrCreate(
+            ['name' => 'registrar'],
+            ['display_name' => 'Registrar', 'is_system' => false]
+        );
+        $role->permissions()->sync([
+            \App\Models\Permission::firstOrCreate(
+                ['name' => 'student.view'],
+                ['display_name' => 'View', 'group_name' => 'Student']
+            )->id,
+        ]);
+        $user->roles()->sync([$role->id]);
+
+        $this->actingAs($user)
             ->get(route('admin.students.index'))
             ->assertSuccessful();
+    }
+
+    public function test_staff_without_the_permission_is_denied_student_management(): void
+    {
+        $this->actingAs($this->user('staff'))
+            ->get(route('admin.students.index'))
+            ->assertForbidden();
     }
 
     public function test_staff_is_denied_finance_routes(): void

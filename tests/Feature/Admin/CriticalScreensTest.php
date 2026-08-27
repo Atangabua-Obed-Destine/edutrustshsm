@@ -45,7 +45,7 @@ class CriticalScreensTest extends TestCase
         $this->admin = User::create([
             'first_name' => 'Ada', 'last_name' => 'Admin',
             'email' => 'admin@example.test', 'password' => 'password',
-            'role' => 'admin', 'is_active' => true,
+            'role' => 'super_admin', 'is_active' => true,
         ]);
         $this->admin->branches()->attach($branch->id, ['is_default' => true]);
 

@@ -26,9 +26,17 @@ class Role extends Model
         return $this->belongsToMany(Permission::class, 'role_permission')->withTimestamps();
     }
 
-    public function users()
+    /**
+     * Users holding this role.
+     *
+     * Roles are assigned through the `role_user` pivot, not a `users.role_id`
+     * column. This was a hasMany on role_id, so withCount('users') always
+     * reported 0 and the destroy() guard `users()->exists()` never fired —
+     * a role could be deleted out from under every user holding it.
+     */
+    public function users(): BelongsToMany
     {
-        return $this->hasMany(User::class);
+        return $this->belongsToMany(User::class, 'role_user')->withTimestamps();
     }
 
     public function hasPermission(string $permission): bool

@@ -3,14 +3,31 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\StaffTaxExemption;
 use App\Models\TaxGroup;
 use App\Models\TaxSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class TaxSettingController extends Controller
+class TaxSettingController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'tax-setting';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('tax-setting.view', ['exemptions']),
+            static::can('tax-setting.edit', ['storeExemption']),
+            static::can('tax-setting.delete', ['destroyExemption']),
+        ];
+    }
+
     public function index()
     {
         $settings = TaxSetting::with('taxGroup')->orderBy('bracket_order')->paginate(20);

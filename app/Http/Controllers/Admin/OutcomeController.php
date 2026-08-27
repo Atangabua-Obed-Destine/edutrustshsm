@@ -3,14 +3,29 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Income;
 use App\Models\IncomeCategory;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class OutcomeController extends Controller
+class OutcomeController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'outcome';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('outcome.view', ['index']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $from = $request->input('from_date', now()->subYear()->toDateString());

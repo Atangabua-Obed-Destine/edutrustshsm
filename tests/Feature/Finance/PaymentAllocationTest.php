@@ -34,10 +34,12 @@ class PaymentAllocationTest extends TestCase
 
         $branch = Branch::firstOrCreate(['code' => 'MAIN'], ['name' => 'Main', 'is_active' => true]);
 
+        // super_admin so this test stays about allocation maths, not authorization
+        // (PermissionGateTest and FinancePermissionTest cover that separately).
         $this->admin = User::create([
             'first_name' => 'Ada', 'last_name' => 'Admin',
             'email' => 'admin@example.test', 'password' => 'password',
-            'role' => 'admin', 'is_active' => true,
+            'role' => 'super_admin', 'is_active' => true,
         ]);
         $this->admin->branches()->attach($branch->id, ['is_default' => true]);
 
