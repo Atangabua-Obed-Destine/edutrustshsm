@@ -9,6 +9,7 @@ use App\Models\Guardian;
 use App\Models\SchoolSetting;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
+use App\Models\Term;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -18,13 +19,13 @@ class BulkUploadController extends Controller
     public function index()
     {
         $currentSession = AcademicSession::current();
-        $classSections = $currentSession
-            ? ClassSection::with('form')
-                ->where('academic_session_id', $currentSession->id)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get()
-            : collect();
+        // Class sections are not session-scoped (no academic_session_id column);
+        // they belong to a Form and are reused every year.
+        $classSections = ClassSection::with('form')
+            ->where('is_active', true)
+            ->whereHas('form', fn ($q) => $q->forCurrentLevel())
+            ->orderBy('name')
+            ->get();
 
         return view('admin.students.bulk-upload', compact('classSections', 'currentSession'));
     }
@@ -67,6 +68,11 @@ class BulkUploadController extends Controller
         $currentSession = AcademicSession::current();
         if (!$currentSession) {
             return back()->with('error', 'No active academic session found.');
+        }
+
+        $currentTerm = Term::where('is_current', true)->first();
+        if (!$currentTerm) {
+            return back()->with('error', __('No current term is set. Set one before importing students.'));
         }
 
         $classSection = ClassSection::with('form')->find($request->class_section_id);
@@ -155,9 +161,13 @@ class BulkUploadController extends Controller
                 ]);
 
                 // Create enrollment
+                // term_id is REQUIRED: marks entry, report cards and the report-card
+                // listing all filter on it, so an enrollment without one is invisible
+                // to the entire assessment pipeline.
                 StudentEnrollment::create([
                     'student_id' => $student->id,
                     'academic_session_id' => $currentSession->id,
+                    'term_id' => $currentTerm?->id,
                     'class_section_id' => $classSection->id,
                     'residence_type' => in_array($data['residence_type'] ?? '', ['day', 'boarding', 'half_boarding']) ? $data['residence_type'] : 'day',
                     'enrollment_date' => now()->toDateString(),

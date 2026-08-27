@@ -348,10 +348,12 @@ class StudentController extends Controller
             if ($validated['class_section_id'] ?? null) {
                 $enrollment = $student->currentEnrollment;
                 if ($enrollment) {
-                    $classSection = ClassSection::find($validated['class_section_id']);
+                    // Do NOT derive stream_id from the section: class_sections has no
+                    // stream_id column, so this used to write null and silently wipe
+                    // the student's stream (breaking subject sync and fee resolution).
+                    // The edit form has no stream field, so preserve what's there.
                     $enrollment->update([
                         'class_section_id' => $validated['class_section_id'],
-                        'stream_id' => $classSection?->stream_id,
                         'residence_type' => $validated['residence_type'] ?? $enrollment->residence_type,
                     ]);
                 }

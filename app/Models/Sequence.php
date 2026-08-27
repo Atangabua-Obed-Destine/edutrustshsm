@@ -30,6 +30,12 @@ class Sequence extends Model
         return $this->belongsTo(Term::class);
     }
 
+    /** Marks recorded against this sequence (guards deletion). */
+    public function marks()
+    {
+        return $this->hasMany(Mark::class);
+    }
+
     public function forms()
     {
         return $this->belongsToMany(Form::class, 'form_sequence');

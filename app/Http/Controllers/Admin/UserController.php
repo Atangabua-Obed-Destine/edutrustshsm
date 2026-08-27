@@ -144,6 +144,7 @@ class UserController extends Controller
 
         if (in_array('super_admin', $names)) return 'super_admin';
         if (in_array('admin', $names)) return 'admin';
+        if (in_array('accountant', $names)) return 'accountant';
         if (in_array('teacher', $names)) return 'teacher';
         return 'staff';
     }

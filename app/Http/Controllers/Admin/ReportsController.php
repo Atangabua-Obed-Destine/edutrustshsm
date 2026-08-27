@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\ClassSection;
 use App\Models\Mark;
 use App\Models\Payment;
+use App\Models\SchoolSetting;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentFee;
@@ -56,16 +57,24 @@ class ReportsController extends Controller
         if ($currentSession) {
             $currentTerm = $currentSession->currentTerm();
             if ($currentTerm) {
-                $classPerformance = TermResult::select(
-                        'class_section_id',
-                        DB::raw('AVG(overall_average) as avg_score'),
+                // term_results has no class_section_id / overall_average / decision.
+                // The class is reached through the enrollment, the score column is
+                // `term_average`, and "pass" is derived from the configured pass mark.
+                $passMark = (float) (SchoolSetting::current()?->pass_mark ?? 10);
+
+                $classPerformance = TermResult::query()
+                    ->join('student_enrollments', 'term_results.student_enrollment_id', '=', 'student_enrollments.id')
+                    ->join('class_sections', 'student_enrollments.class_section_id', '=', 'class_sections.id')
+                    ->select(
+                        'student_enrollments.class_section_id',
+                        DB::raw('MAX(class_sections.name) as class_section_name'),
+                        DB::raw('AVG(term_results.term_average) as avg_score'),
                         DB::raw('COUNT(*) as student_count'),
-                        DB::raw('SUM(CASE WHEN decision = \'pass\' THEN 1 ELSE 0 END) as pass_count')
+                        DB::raw('SUM(CASE WHEN term_results.term_average >= ' . $passMark . ' THEN 1 ELSE 0 END) as pass_count')
                     )
-                    ->where('term_id', $currentTerm->id)
-                    ->whereHas('classSection.form', fn($q) => $q->forCurrentLevel())
-                    ->groupBy('class_section_id')
-                    ->with('classSection.form')
+                    ->where('term_results.term_id', $currentTerm->id)
+                    ->whereHas('enrollment.classSection.form', fn ($q) => $q->forCurrentLevel())
+                    ->groupBy('student_enrollments.class_section_id')
                     ->get();
             }
         }

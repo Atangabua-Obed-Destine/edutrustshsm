@@ -9,6 +9,12 @@ class Mark extends Model
 {
     use BelongsToBranch;
 
+    /**
+     * Statuses a mark must have reached before it may appear on a report card.
+     * Draft / submitted / returned marks are still being worked on.
+     */
+    public const REPORTABLE_STATUSES = ['approved', 'published'];
+
     protected $fillable = [
         'branch_id',
         'student_enrollment_id', 'subject_id', 'sequence_id', 'score', 'grade',

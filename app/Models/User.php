@@ -141,9 +141,31 @@ class User extends Authenticatable
         return $this->role === 'teacher';
     }
 
+    public function isAccountant(): bool
+    {
+        return in_array($this->role, ['super_admin', 'admin', 'accountant']);
+    }
+
     public function isStaff(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin', 'teacher', 'staff']);
+        return in_array($this->role, ['super_admin', 'admin', 'accountant', 'teacher', 'staff']);
+    }
+
+    /**
+     * The route this user should land on after logging in.
+     *
+     * Returns null when the role has no portal yet (teacher, parent, student on
+     * the web guard) — callers must handle that rather than sending them to the
+     * admin dashboard, which is admin-only and would 403 immediately.
+     */
+    public function homeRoute(): ?string
+    {
+        return match ($this->role) {
+            'super_admin', 'admin' => 'admin.dashboard',
+            'accountant' => 'admin.account.income.index',
+            'staff' => 'admin.students.index',
+            default => null,
+        };
     }
 
     public function classSections()

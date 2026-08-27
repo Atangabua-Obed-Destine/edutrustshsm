@@ -7,9 +7,20 @@
 <div class="space-y-4">
     <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-700">{{ __('Unmapped Transactions') }} <span class="text-sm text-red-500">({{ $transactions->count() }})</span></h3>
-        <a href="{{ route('admin.account-mappings.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('← Mapping Settings') }}</a>
+        <div class="flex items-center gap-4">
+            <a href="{{ route('admin.account-mappings.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('← Mapping Settings') }}</a>
+            @if($transactions->isNotEmpty())
+            <form method="POST" action="{{ route('admin.account-mappings.post-unmapped') }}">
+                @csrf
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 text-sm font-medium transition">
+                    {{ __('Post to Ledger') }}
+                </button>
+            </form>
+            @endif
+        </div>
     </div>
-    <p class="text-sm text-gray-500">{{ __('Records not yet posted to the ledger. Configure a mapping for their category, then re-save the record (or create new ones) to post them.') }}</p>
+    <p class="text-sm text-gray-500">{{ __('Records not yet posted to the ledger. Configure a mapping for their category, then use "Post to Ledger" to post them all.') }}</p>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
         <table class="w-full">

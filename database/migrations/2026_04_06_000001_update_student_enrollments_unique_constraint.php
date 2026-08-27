@@ -9,18 +9,27 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        // A student now has one enrollment row per TERM, not per session, so the
+        // unique key gains term_id. Written portably so the test suite (sqlite)
+        // can run the same migration set as production (mysql).
+        Schema::disableForeignKeyConstraints();
 
-        // Drop old index if it exists
-        $indexExists = DB::select("SHOW INDEX FROM student_enrollments WHERE Key_name = 'student_enrollments_student_id_academic_session_id_unique'");
-        if (!empty($indexExists)) {
-            DB::statement('ALTER TABLE student_enrollments DROP INDEX student_enrollments_student_id_academic_session_id_unique');
-        }
+        Schema::table('student_enrollments', function (Blueprint $table) {
+            try {
+                $table->dropUnique('student_enrollments_student_id_academic_session_id_unique');
+            } catch (\Throwable $e) {
+                // Index already absent — nothing to drop.
+            }
+        });
 
-        // Add new composite unique (student + session + term)
-        DB::statement('ALTER TABLE student_enrollments ADD UNIQUE INDEX enroll_student_session_term_unique (student_id, academic_session_id, term_id)');
+        Schema::table('student_enrollments', function (Blueprint $table) {
+            $table->unique(
+                ['student_id', 'academic_session_id', 'term_id'],
+                'enroll_student_session_term_unique'
+            );
+        });
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        Schema::enableForeignKeyConstraints();
     }
 
     public function down(): void

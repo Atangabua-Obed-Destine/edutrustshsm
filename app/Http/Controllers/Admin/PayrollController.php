@@ -11,6 +11,8 @@ use App\Models\Designation;
 use App\Models\PaymentAccount;
 use App\Models\Payroll;
 use App\Models\User;
+use App\Models\PaymentAccountTransaction;
+use App\Services\PaymentAccountService;
 use App\Services\PayrollAccountingService;
 use App\Services\TaxCalculationService;
 use Illuminate\Http\Request;
@@ -23,6 +25,7 @@ class PayrollController extends Controller
     public function __construct(
         private TaxCalculationService $tax,
         private PayrollAccountingService $gl,
+        private PaymentAccountService $accounts,
     ) {
     }
 
@@ -154,7 +157,26 @@ class PayrollController extends Controller
 
         try {
             DB::transaction(function () use ($payroll, $validated) {
+                if ($payroll->isPaid()) {
+                    throw new RuntimeException(__('This payroll has already been paid.'));
+                }
+
                 $payroll->update($validated + ['status' => Payroll::STATUS_PAID]);
+
+                // Money actually leaves the chosen account. Without this the GL
+                // recorded the outflow but the treasury balance never moved, so
+                // cash overstated by the full payroll every month.
+                if ($payroll->payment_account_id) {
+                    $account = PaymentAccount::findOrFail($payroll->payment_account_id);
+                    $this->accounts->debit($account, $payroll->net_salary, [
+                        'reference_type' => PaymentAccountTransaction::REF_PAYROLL,
+                        'reference_id' => $payroll->id,
+                        'transaction_date' => $payroll->pay_date,
+                        'description' => __('Salary payment').' - '.$payroll->salary_month
+                            .' - '.($payroll->user?->full_name ?? ''),
+                    ]);
+                }
+
                 // Post to the OHADA ledger.
                 $this->gl->createPayrollJournalEntry($payroll);
             });
@@ -169,10 +191,22 @@ class PayrollController extends Controller
 
     public function unpay(Payroll $payroll)
     {
-        DB::transaction(function () use ($payroll) {
-            $this->gl->reversePayrollJournalEntry($payroll);
-            $payroll->update(['status' => Payroll::STATUS_UNPAID, 'pay_date' => null]);
-        });
+        try {
+            DB::transaction(function () use ($payroll) {
+                if (! $payroll->isPaid()) {
+                    throw new RuntimeException(__('This payroll is not marked as paid.'));
+                }
+
+                $this->gl->reversePayrollJournalEntry($payroll);
+
+                // Put the cash back in the account it left.
+                $this->accounts->reverseFor(PaymentAccountTransaction::REF_PAYROLL, $payroll->id);
+
+                $payroll->update(['status' => Payroll::STATUS_UNPAID, 'pay_date' => null]);
+            });
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         AuditLog::log('unpaid', Payroll::class, $payroll->id, null, null);
 

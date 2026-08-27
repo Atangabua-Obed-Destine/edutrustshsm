@@ -19,10 +19,13 @@ class PromotionController extends Controller
         $sessions = AcademicSession::orderByDesc('start_date')->get();
         $fromSessionId = $request->input('from_session_id', $currentSession?->id);
 
+        // Class sections are NOT session-scoped (they belong to a Form and are
+        // reused every year). "Classes in session X" therefore means the sections
+        // that actually have enrollments in X.
         $classSections = $fromSessionId
             ? ClassSection::with('form')
-                ->where('academic_session_id', $fromSessionId)
                 ->where('is_active', true)
+                ->whereHas('studentEnrollments', fn ($q) => $q->where('academic_session_id', $fromSessionId))
                 ->orderBy('name')
                 ->get()
             : collect();
@@ -37,10 +40,12 @@ class PromotionController extends Controller
             $selectedClass = ClassSection::with('form')->find($classSectionId);
             $students = StudentEnrollment::with(['student', 'classSection.form', 'termResults'])
                 ->where('class_section_id', $classSectionId)
+                ->when($fromSessionId, fn ($q) => $q->where('academic_session_id', $fromSessionId))
                 ->where('status', 'active')
                 ->get()
                 ->map(function ($enrollment) use ($threshold) {
-                    $termAvg = $enrollment->termResults->avg('overall_average');
+                    // term_results.term_average — there is no `overall_average` column.
+                    $termAvg = $enrollment->termResults->avg('term_average');
                     $enrollment->computed_average = $termAvg ? round($termAvg, 2) : null;
                     $enrollment->recommended_decision = null;
 
@@ -60,8 +65,9 @@ class PromotionController extends Controller
 
         $targetClasses = collect();
         if ($nextSession) {
+            // Sections are session-agnostic, so every active section is a valid
+            // promotion target for the next session.
             $targetClasses = ClassSection::with('form')
-                ->where('academic_session_id', $nextSession->id)
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get();

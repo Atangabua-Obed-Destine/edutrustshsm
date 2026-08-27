@@ -26,8 +26,11 @@ return new class extends Migration
             $table->date('marks_entry_deadline')->nullable()->change();
         });
 
-        // Change status enum to include all values and make nullable with default
-        DB::statement("ALTER TABLE sequences MODIFY COLUMN status ENUM('draft','active','completed','published') DEFAULT 'draft'");
+        // Change status enum to include all values and make nullable with default.
+        // MySQL-only DDL; on sqlite the column is plain text.
+        if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            DB::statement("ALTER TABLE sequences MODIFY COLUMN status ENUM('draft','active','completed','published') DEFAULT 'draft'");
+        }
 
         // Add back a simpler unique on just name
         Schema::table('sequences', function (Blueprint $table) {

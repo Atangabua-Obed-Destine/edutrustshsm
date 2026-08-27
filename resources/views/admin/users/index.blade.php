@@ -34,8 +34,8 @@
     @endif
 
     {{-- Role Summary Cards --}}
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        @php $roles = ['super_admin' => 'Super Admin', 'admin' => 'Admin', 'teacher' => 'Teacher', 'staff' => 'Staff']; @endphp
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        @php $roles = ['super_admin' => __('Super Admin'), 'admin' => __('Admin'), 'accountant' => __('Accountant'), 'teacher' => __('Teacher'), 'staff' => __('Staff')]; @endphp
         @foreach($roles as $rKey => $rLabel)
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 text-center">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">{{ $rLabel }}</p>

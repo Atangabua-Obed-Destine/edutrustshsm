@@ -33,11 +33,19 @@ class AccountingPeriod extends Model
         return $this->hasMany(JournalEntry::class);
     }
 
-    /** Find the open period containing a given date (auto-posting targets this). */
+    /**
+     * Find the period containing a given date, OPEN OR CLOSED.
+     *
+     * This deliberately does not filter on is_closed. It used to, which meant a
+     * date inside a closed period resolved to null — so the entry was created
+     * with accounting_period_id = NULL and JournalEntry::post()'s closed-period
+     * guard (`if ($this->accountingPeriod && ...->is_closed)`) never fired.
+     * Back-dated postings slipped into closed periods, unattributed. Returning
+     * the real period lets post() refuse it properly.
+     */
     public static function forDate(string $date): ?self
     {
-        return static::where('is_closed', false)
-            ->whereDate('start_date', '<=', $date)
+        return static::whereDate('start_date', '<=', $date)
             ->whereDate('end_date', '>=', $date)
             ->first();
     }

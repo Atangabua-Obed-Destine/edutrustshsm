@@ -21,7 +21,10 @@ return new class extends Migration
     public function up(): void
     {
         // Widen `level` from enum to a plain string (preserves existing rows).
-        DB::statement("ALTER TABLE forms MODIFY level VARCHAR(20) NOT NULL");
+        // MySQL-only DDL; on sqlite the column is already plain text.
+        if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            DB::statement('ALTER TABLE forms MODIFY level VARCHAR(20) NOT NULL');
+        }
 
         Schema::table('forms', function (Blueprint $table) {
             $table->string('school_level', 20)->default('secondary')->after('level');
@@ -41,6 +44,8 @@ return new class extends Migration
         });
 
         // Restore the original enum constraint on `level`.
-        DB::statement("ALTER TABLE forms MODIFY level ENUM('first_cycle','second_cycle') NOT NULL");
+        if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            DB::statement("ALTER TABLE forms MODIFY level ENUM('first_cycle','second_cycle') NOT NULL");
+        }
     }
 };

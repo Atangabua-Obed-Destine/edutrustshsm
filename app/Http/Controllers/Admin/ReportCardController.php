@@ -146,9 +146,14 @@ class ReportCardController extends Controller
                     $localIdx = 0;
                     foreach ($sequences as $seq) {
                         $localIdx++;
+                        // Only marks that have cleared the approval workflow may
+                        // reach a report card. Without this filter the whole
+                        // draft -> submitted -> approved -> published pipeline had
+                        // no effect on results.
                         $mark = Mark::where('student_enrollment_id', $enrollment->id)
                             ->where('subject_id', $subject->id)
                             ->where('sequence_id', $seq->id)
+                            ->whereIn('status', Mark::REPORTABLE_STATUSES)
                             ->first();
 
                         $seqScores[$localIdx] = ($mark && !$mark->is_absent) ? (float) $mark->score : null;
@@ -218,7 +223,11 @@ class ReportCardController extends Controller
                     'days_present' => $daysPresent,
                     'days_absent' => $daysAbsent,
                     'total_school_days' => $daysPresent + $daysAbsent,
-                    'is_published' => false,
+                    // Do NOT reset is_published here. Regenerating after a mark
+                    // correction used to silently unpublish every report card in the
+                    // class, immediately revoking parent-portal access. Publishing is
+                    // an explicit action (see publish()); a new result defaults to
+                    // unpublished via the column default.
                 ]);
                 $termResult->save();
 

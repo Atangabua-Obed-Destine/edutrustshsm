@@ -22,7 +22,7 @@ class DashboardController extends Controller
             'total_students' => 0,
             'active_students' => 0,
             'total_teachers' => User::where('role', 'teacher')->where('is_active', true)->inBranchContext()->count(),
-            'total_staff' => User::whereIn('role', ['staff', 'admin'])->where('is_active', true)->inBranchContext()->count(),
+            'total_staff' => User::whereIn('role', ['staff', 'admin', 'accountant'])->where('is_active', true)->inBranchContext()->count(),
             'total_classes' => 0,
             'present_today' => 0,
             'absent_today' => 0,

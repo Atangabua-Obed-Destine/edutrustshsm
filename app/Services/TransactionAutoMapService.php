@@ -80,7 +80,7 @@ class TransactionAutoMapService
                 $mapping->credit_account_id,
                 $mapping->debit_account_id,
                 $mapping->amount,
-                now()->toDateString(),
+                $this->reversalDate($original),
                 'Reversal of ' . ($original?->entry_number ?? "{$type} #{$id}"),
                 $type,
                 $id,
@@ -92,6 +92,32 @@ class TransactionAutoMapService
             }
             $mapping->update(['status' => 'reversed']);
         });
+    }
+
+    /**
+     * Where a reversal belongs in time.
+     *
+     * Same date as the original entry, so the period it distorted is the period
+     * it is corrected in — dating every reversal `now()` left the original month
+     * overstated and the current one understated. If that period is already
+     * closed the books cannot be reopened, so the reversal falls forward to
+     * today, which is the standard correcting-entry treatment.
+     */
+    private function reversalDate(?JournalEntry $original): string
+    {
+        $date = $original?->entry_date?->toDateString();
+        if (! $date) {
+            return now()->toDateString();
+        }
+
+        $period = AccountingPeriod::forDate($date);
+        $fiscalYearClosed = (bool) $original?->fiscalYear?->is_closed;
+
+        if (($period && $period->is_closed) || $fiscalYearClosed) {
+            return now()->toDateString();
+        }
+
+        return $date;
     }
 
     /** reverse() then autoMap() — used when a posted amount/category changes. */

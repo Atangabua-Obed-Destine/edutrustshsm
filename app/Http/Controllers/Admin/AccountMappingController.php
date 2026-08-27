@@ -11,10 +11,16 @@ use App\Models\Income;
 use App\Models\IncomeCategory;
 use App\Models\Payment;
 use App\Models\TransactionMapping;
+use App\Services\TransactionAutoMapService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class AccountMappingController extends Controller
 {
+    public function __construct(private TransactionAutoMapService $mapper)
+    {
+    }
+
     public function index()
     {
         $accounts = ChartOfAccount::postable()->orderBy('account_code')->get();
@@ -77,5 +83,74 @@ class AccountMappingController extends Controller
         $transactions = $rows->sortByDesc('date')->values();
 
         return view('admin.accounting.mappings.unmapped', compact('transactions'));
+    }
+
+    /**
+     * Post every currently-unmapped fact through the auto-mapper.
+     *
+     * Auto-posting fails silently when no DefaultAccountMapping exists — the
+     * service logs a warning and returns false, and the observers ignore it. So
+     * facts recorded before the mappings were configured never reach the ledger
+     * and nothing retries them. This is that retry.
+     */
+    public function postUnmapped()
+    {
+        $posted = 0;
+        $skipped = 0;
+
+        foreach ($this->unmappedFacts() as $fact) {
+            $ok = $this->mapper->autoMap($fact->type, $fact->id, $fact->category_id, [
+                'amount' => $fact->amount,
+                'date' => $fact->date ? Carbon::parse($fact->date)->toDateString() : now()->toDateString(),
+                'description' => $fact->label,
+            ]);
+
+            $ok ? $posted++ : $skipped++;
+        }
+
+        if ($posted === 0 && $skipped === 0) {
+            return back()->with('success', __('Nothing to post — every transaction is already in the ledger.'));
+        }
+
+        $message = trans_choice(':count transaction posted to the ledger.|:count transactions posted to the ledger.', $posted, ['count' => $posted]);
+        if ($skipped > 0) {
+            $message .= ' ' . trans_choice(':count still has no account mapping.|:count still have no account mapping.', $skipped, ['count' => $skipped]);
+        }
+
+        return back()->with($skipped > 0 ? 'error' : 'success', $message);
+    }
+
+    /**
+     * Operational facts with no active TransactionMapping, with the category id
+     * the auto-mapper needs to pick a rule.
+     *
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    private function unmappedFacts()
+    {
+        $mappedIds = fn (string $type) => TransactionMapping::where('transaction_type', $type)
+            ->where('status', 'active')->pluck('transaction_id');
+
+        $rows = collect();
+
+        foreach ([
+            ['income', Income::class, 'title', 'category_id', 'date'],
+            ['expense', Expense::class, 'title', 'category_id', 'date'],
+            ['fee_payment', Payment::class, 'receipt_number', null, 'payment_date'],
+        ] as [$type, $model, $label, $categoryKey, $dateKey]) {
+            $model::whereNotIn('id', $mappedIds($type))->orderBy('id')->get()
+                ->each(function ($r) use (&$rows, $type, $label, $categoryKey, $dateKey) {
+                    $rows->push((object) [
+                        'type' => $type,
+                        'id' => $r->id,
+                        'label' => $r->{$label},
+                        'amount' => $r->amount,
+                        'date' => $r->{$dateKey},
+                        'category_id' => $categoryKey ? $r->{$categoryKey} : null,
+                    ]);
+                });
+        }
+
+        return $rows;
     }
 }

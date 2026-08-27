@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Payment;
+use App\Models\Payroll;
 use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Services\PaymentAccountService;
@@ -119,7 +120,16 @@ class PaymentAccountReportController extends Controller
             'Fee Receipt ' . $r->receipt_number, 'credit', $r->payment_method, $r->transaction_ref
         ));
 
-        $merged = $incomes->concat($expenses)->concat($fees)
+        // Paid payrolls whose cash outflow was never attached to an account.
+        $payrolls = Payroll::where('status', Payroll::STATUS_PAID)
+            ->whereNull('payment_account_id')->with('user')->get()
+            ->map(fn ($r) => $this->row(
+                PaymentAccountTransaction::REF_PAYROLL, $r->id, $r->pay_date, $r->net_salary,
+                __('Salary').' '.$r->salary_month.' - '.($r->user?->full_name ?? ''),
+                'debit', $r->payment_method, null
+            ));
+
+        $merged = $incomes->concat($expenses)->concat($fees)->concat($payrolls)
             ->sortByDesc('date')->values();
 
         $page = (int) $request->input('page', 1);

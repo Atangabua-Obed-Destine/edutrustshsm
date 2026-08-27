@@ -106,15 +106,23 @@ class PaymentController extends Controller
             if (!empty($validated['allocations'])) {
                 foreach ($validated['allocations'] as $alloc) {
                     if ($alloc['amount'] <= 0 || $remaining <= 0) continue;
-                    $allocAmount = min($alloc['amount'], $remaining);
+
+                    $fee = StudentFee::find($alloc['fee_id']);
+                    if (! $fee) continue;
+
+                    // Cap at the fee's OUTSTANDING balance as well as at what is
+                    // left of the payment. Without the balance cap an operator could
+                    // post 100,000 against a 10,000 fee, driving `balance` to
+                    // -90,000 and corrupting every downstream SUM(balance).
+                    $allocAmount = min((float) $alloc['amount'], (float) $remaining, (float) $fee->balance);
+                    if ($allocAmount <= 0) continue;
 
                     PaymentAllocation::create([
                         'payment_id' => $payment->id,
-                        'student_fee_id' => $alloc['fee_id'],
+                        'student_fee_id' => $fee->id,
                         'amount' => $allocAmount,
                     ]);
 
-                    $fee = StudentFee::find($alloc['fee_id']);
                     $fee->paid_amount += $allocAmount;
                     $fee->balance = $fee->net_amount - $fee->paid_amount;
                     $fee->status = $fee->balance <= 0 ? 'paid' : ($fee->paid_amount > 0 ? 'partial' : 'unpaid');

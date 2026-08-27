@@ -217,6 +217,8 @@ class PaymentAccountController extends Controller
     {
         return \App\Models\Income::whereNull('payment_account_id')->count()
             + \App\Models\Expense::whereNull('payment_account_id')->count()
-            + \App\Models\Payment::whereNull('payment_account_id')->count();
+            + \App\Models\Payment::whereNull('payment_account_id')->count()
+            + \App\Models\Payroll::where('status', \App\Models\Payroll::STATUS_PAID)
+                ->whereNull('payment_account_id')->count();
     }
 }

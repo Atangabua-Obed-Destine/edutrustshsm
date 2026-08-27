@@ -84,7 +84,9 @@ use App\Http\Controllers\Admin\PtaController;
 use Illuminate\Support\Facades\Route;
 
 // Redirect root to login or dashboard
-Route::get('/', fn () => auth()->check() ? redirect()->route('admin.dashboard') : redirect()->route('login'));
+Route::get('/', fn () => auth()->check()
+    ? redirect()->route(auth()->user()->homeRoute() ?? 'login')
+    : redirect()->route('login'));
 
 // Language switcher
 Route::get('/lang/{locale}', function (string $locale) {
@@ -296,7 +298,6 @@ Route::middleware('auth')->group(function () {
         Route::get('timetable/sections-by-form/{form}', [TimetableController::class, 'getSectionsByForm'])->name('timetable.sections-by-form');
         Route::post('timetable/save-day-schedule', [TimetableController::class, 'saveDaySchedule'])->name('timetable.save-day-schedule');
         Route::get('timetable/teacher-schedule', [TimetableController::class, 'teacherSchedule'])->name('timetable.teacher-schedule');
-        Route::post('timetable/entries', [TimetableController::class, 'storeEntry'])->name('timetable.entries.store');
         Route::delete('timetable/entries/{entry}', [TimetableController::class, 'destroyEntry'])->name('timetable.entries.destroy');
 
         // Report Cards
@@ -401,8 +402,15 @@ Route::middleware('auth')->group(function () {
         // Reports & Analytics
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
 
-        // Student Management (also accessible by staff)
-        Route::middleware('role:super_admin,admin,staff')->group(function () {
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // Student Management — admin AND staff.
+    // A SIBLING of the admin-only group above, not a child: nesting it inside
+    // `role:super_admin,admin` meant the outer middleware rejected `staff`
+    // before this one was ever consulted, so the carve-out never applied.
+    // ═══════════════════════════════════════════════════════════════
+    Route::middleware('role:super_admin,admin,staff')->prefix('admin')->name('admin.')->group(function () {
             Route::get('students/form-streams/{form}', [StudentController::class, 'getFormStreams'])->name('students.form-streams');
             Route::get('students/form-sections/{form}', [StudentController::class, 'getFormSections'])->name('students.form-sections');
             Route::resource('students', StudentController::class)->except(['destroy']);
@@ -419,7 +427,6 @@ Route::middleware('auth')->group(function () {
             Route::get('subject-add-drop/load/{student}', [SubjectAddDropController::class, 'loadStudent'])->name('subject-add-drop.load');
             Route::post('subject-add-drop/add', [SubjectAddDropController::class, 'addSubject'])->name('subject-add-drop.add');
             Route::post('subject-add-drop/drop', [SubjectAddDropController::class, 'dropSubject'])->name('subject-add-drop.drop');
-        });
     });
 });
 
@@ -508,6 +515,7 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::get('account-mappings', [AccountMappingController::class, 'index'])->name('account-mappings.index');
     Route::post('account-mappings/save', [AccountMappingController::class, 'save'])->name('account-mappings.save');
     Route::get('account-mappings/unmapped', [AccountMappingController::class, 'unmapped'])->name('account-mappings.unmapped');
+    Route::post('account-mappings/unmapped/post', [AccountMappingController::class, 'postUnmapped'])->name('account-mappings.post-unmapped');
 
     // Accounting Reports (all summed from posted journal lines)
     Route::get('accounting-reports/general-ledger', [GeneralLedgerController::class, 'index'])->name('accounting-reports.general-ledger');
