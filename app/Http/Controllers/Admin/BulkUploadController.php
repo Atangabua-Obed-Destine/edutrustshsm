@@ -180,7 +180,7 @@ class BulkUploadController extends Controller implements HasMiddleware
                 // term_id is REQUIRED: marks entry, report cards and the report-card
                 // listing all filter on it, so an enrollment without one is invisible
                 // to the entire assessment pipeline.
-                StudentEnrollment::create([
+                $enrollment = StudentEnrollment::create([
                     'student_id' => $student->id,
                     'academic_session_id' => $currentSession->id,
                     'term_id' => $currentTerm?->id,
@@ -189,6 +189,10 @@ class BulkUploadController extends Controller implements HasMiddleware
                     'enrollment_date' => now()->toDateString(),
                     'status' => 'active',
                 ]);
+
+                // Register the form's core subjects, or the student arrives
+                // enrolled in a class but studying nothing.
+                $enrollment->syncCoreSubjects();
 
                 $successCount++;
             }

@@ -6,9 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
-use App\Models\Form;
 use App\Models\SchoolSetting;
 use App\Models\StudentEnrollment;
+use App\Models\Term;
+use App\Services\PromotionEligibilityService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -19,6 +20,8 @@ class PromotionController extends Controller implements HasMiddleware
     use AuthorizesModule;
 
     protected static string $access = 'promotion';
+
+    public function __construct(private PromotionEligibilityService $eligibility) {}
 
     /** @return array<int, Middleware> */
     protected static function extraMiddleware(): array
@@ -49,45 +52,36 @@ class PromotionController extends Controller implements HasMiddleware
         $classSectionId = $request->input('class_section_id');
         $students = collect();
         $selectedClass = null;
-        $settings = SchoolSetting::current();
-        $threshold = $settings?->promotion_threshold ?? 10.0;
+        $threshold = SchoolSetting::current()?->promotion_threshold ?? 10.0;
 
-        if ($classSectionId) {
+        if ($classSectionId && $fromSessionId) {
             $selectedClass = ClassSection::with('form')->find($classSectionId);
-            $students = StudentEnrollment::with(['student', 'classSection.form', 'termResults'])
-                ->where('class_section_id', $classSectionId)
-                ->when($fromSessionId, fn ($q) => $q->where('academic_session_id', $fromSessionId))
-                ->where('status', 'active')
-                ->get()
-                ->map(function ($enrollment) use ($threshold) {
-                    // term_results.term_average — there is no `overall_average` column.
-                    $termAvg = $enrollment->termResults->avg('term_average');
-                    $enrollment->computed_average = $termAvg ? round($termAvg, 2) : null;
-                    $enrollment->recommended_decision = null;
 
-                    if ($termAvg !== null) {
-                        $enrollment->recommended_decision = $termAvg >= $threshold ? 'promote' : 'repeat';
-                    }
+            // The eligibility service owns the arithmetic and the verdict. The
+            // screen used to compute a recommendation off a column that does not
+            // exist, so every recommendation came out null.
+            $students = $this->eligibility->forClass((int) $classSectionId, (int) $fromSessionId)
+                ->map(function ($assessment) {
+                    $enrollment = $assessment->enrollment;
+                    $enrollment->computed_average = $assessment->average;
+                    $enrollment->recommended_decision = $assessment->recommendation;
+                    $enrollment->is_eligible = $assessment->eligible;
+                    $enrollment->ineligible_reason = $assessment->reason;
+                    $enrollment->terms_completed = $assessment->terms_completed;
+                    $enrollment->terms_expected = $assessment->terms_expected;
 
                     return $enrollment;
                 })
-                ->sortByDesc('computed_average');
+                ->sortByDesc(fn ($e) => $e->computed_average ?? -1);
         }
 
-        // Next session classes for promotion target
-        $nextSession = AcademicSession::where('start_date', '>', $currentSession?->end_date ?? now())
-            ->orderBy('start_date')
-            ->first();
+        $nextSession = $currentSession ? $this->eligibility->nextSession($currentSession) : null;
 
-        $targetClasses = collect();
-        if ($nextSession) {
-            // Sections are session-agnostic, so every active section is a valid
-            // promotion target for the next session.
-            $targetClasses = ClassSection::with('form')
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get();
-        }
+        // Sections are session-agnostic, so every active section is a valid
+        // promotion target for the next session.
+        $targetClasses = $nextSession
+            ? ClassSection::with('form')->where('is_active', true)->orderBy('name')->get()
+            : collect();
 
         return view('admin.promotion.index', compact(
             'sessions', 'fromSessionId', 'classSections', 'classSectionId',
@@ -104,82 +98,147 @@ class PromotionController extends Controller implements HasMiddleware
             'decisions.*.target_class_id' => ['nullable', 'exists:class_sections,id'],
         ]);
 
-        $nextSession = AcademicSession::where('start_date', '>', AcademicSession::current()?->end_date ?? now())
-            ->orderBy('start_date')
-            ->first();
+        $currentSession = AcademicSession::current();
+        $nextSession = $currentSession ? $this->eligibility->nextSession($currentSession) : null;
 
-        if (!$nextSession) {
-            return back()->with('error', 'No next academic session found. Please create one first.');
+        if (! $nextSession) {
+            return back()->with('error', __('No next academic session found. Please create one first.'));
         }
 
-        $promoted = 0;
-        $repeated = 0;
-        $graduated = 0;
-        $skipped = 0;
+        // A promoted student starts the new year at its beginning. Without a
+        // term_id the new enrollment is invisible to every marks and report-card
+        // query, so this is a hard requirement, not a nicety.
+        $landingTerm = $this->eligibility->landingTerm();
 
-        DB::transaction(function () use ($validated, $nextSession, &$promoted, &$repeated, &$graduated, &$skipped) {
+        if (! $landingTerm) {
+            return back()->with('error', __('No terms are configured, so promoted students cannot be placed. Set up the academic terms first.'));
+        }
+
+        $counts = ['promoted' => 0, 'repeated' => 0, 'graduated' => 0, 'skipped' => 0];
+        $refused = [];
+
+        DB::transaction(function () use ($validated, $nextSession, $landingTerm, &$counts, &$refused) {
+            $enrollments = StudentEnrollment::with(['student', 'classSection.form'])
+                ->whereIn('id', array_column($validated['decisions'], 'enrollment_id'))
+                ->get()
+                ->keyBy('id');
+
+            // Stamp the year's annual average and rank before closing it out.
+            // final_average / final_rank have been displayed on the student page
+            // since the beginning and written by nothing at all.
+            $enrollments
+                ->groupBy(fn ($e) => $e->class_section_id.':'.$e->academic_session_id)
+                ->each(function ($rows) {
+                    $first = $rows->first();
+                    $this->eligibility->recordAnnualResults($first->class_section_id, $first->academic_session_id);
+                });
+
             foreach ($validated['decisions'] as $decision) {
-                $enrollment = StudentEnrollment::with(['student', 'classSection.form'])->find($decision['enrollment_id']);
-                if (!$enrollment) continue;
+                $enrollment = $enrollments->get((int) $decision['enrollment_id']);
+
+                if (! $enrollment) {
+                    continue;
+                }
 
                 switch ($decision['action']) {
                     case 'promote':
-                        if (empty($decision['target_class_id'])) continue 2;
+                        if (empty($decision['target_class_id'])) {
+                            $refused[] = $this->name($enrollment).' — '.__('no target class was chosen');
+                            continue 2;
+                        }
+
+                        // The gate. Promotion previously moved students up with no
+                        // marks at all, or with marks still sitting in draft.
+                        $assessment = $this->eligibility->assess($enrollment, $enrollment->academic_session_id);
+
+                        if (! $assessment->eligible) {
+                            $refused[] = $this->name($enrollment).' — '.$assessment->reason;
+                            continue 2;
+                        }
 
                         $enrollment->update(['status' => 'promoted']);
-
-                        // Create new enrollment in next session
-                        StudentEnrollment::create([
-                            'student_id' => $enrollment->student_id,
-                            'academic_session_id' => $nextSession->id,
-                            'class_section_id' => $decision['target_class_id'],
-                            'stream_id' => $enrollment->stream_id,
-                            'residence_type' => $enrollment->residence_type,
-                            'enrollment_date' => $nextSession->start_date,
-                            'status' => 'active',
-                        ]);
-                        $promoted++;
+                        $this->enroll($enrollment, (int) $decision['target_class_id'], $nextSession, $landingTerm);
+                        $counts['promoted']++;
                         break;
 
                     case 'repeat':
                         $enrollment->update(['status' => 'repeated']);
 
-                        // Find equivalent class in next session (same form)
-                        $targetClass = $decision['target_class_id']
-                            ? ClassSection::find($decision['target_class_id'])
-                            : ClassSection::where('form_id', $enrollment->classSection->form_id)
-                                ->where('is_active', true)
-                                ->first();
+                        // Repeating means the same year again: default to the class
+                        // the student is already in, not whichever section of the
+                        // form happens to sort first.
+                        $targetId = $decision['target_class_id'] ?: $enrollment->class_section_id;
 
-                        if ($targetClass) {
-                            StudentEnrollment::create([
-                                'student_id' => $enrollment->student_id,
-                                'academic_session_id' => $nextSession->id,
-                                'class_section_id' => $targetClass->id,
-                                'stream_id' => $enrollment->stream_id,
-                                'residence_type' => $enrollment->residence_type,
-                                'enrollment_date' => $nextSession->start_date,
-                                'status' => 'active',
-                            ]);
-                        }
-                        $repeated++;
+                        $this->enroll($enrollment, (int) $targetId, $nextSession, $landingTerm);
+                        $counts['repeated']++;
                         break;
 
                     case 'graduate':
                         $enrollment->update(['status' => 'completed']);
                         $enrollment->student->update(['status' => 'graduated']);
-                        $graduated++;
+                        $counts['graduated']++;
                         break;
 
                     case 'skip':
-                        $skipped++;
+                        $counts['skipped']++;
                         break;
                 }
             }
         });
 
-        $message = "Promotion complete: {$promoted} promoted, {$repeated} repeated, {$graduated} graduated, {$skipped} skipped.";
-        return redirect()->route('admin.promotion.index')
-            ->with('success', $message);
+        $message = __('Promotion complete: :promoted promoted, :repeated repeated, :graduated graduated, :skipped skipped.', [
+            'promoted' => $counts['promoted'],
+            'repeated' => $counts['repeated'],
+            'graduated' => $counts['graduated'],
+            'skipped' => $counts['skipped'],
+        ]);
+
+        $redirect = redirect()->route('admin.promotion.index')->with('success', $message);
+
+        if ($refused !== []) {
+            // Name who was refused and why. Silently dropping them would leave
+            // students behind with nothing on screen to say so.
+            $redirect->with('error', __('Not promoted (:count):', ['count' => count($refused)]).' '.implode('; ', $refused));
+        }
+
+        return $redirect;
+    }
+
+    /**
+     * Place a student into the next session's first term.
+     *
+     * Idempotent: the unique key is (student, session, term), so re-running a
+     * promotion returns the existing row rather than failing halfway through.
+     */
+    private function enroll(StudentEnrollment $from, int $classSectionId, AcademicSession $session, Term $term): void
+    {
+        $enrollment = StudentEnrollment::firstOrCreate(
+            [
+                'student_id' => $from->student_id,
+                'academic_session_id' => $session->id,
+                'term_id' => $term->id,
+            ],
+            [
+                // Stamped explicitly: BelongsToBranch does not stamp branch_id
+                // while an admin is in All-Branches mode, which would orphan the
+                // row from every scoped query.
+                'branch_id' => $from->branch_id,
+                'class_section_id' => $classSectionId,
+                'stream_id' => $from->stream_id,
+                'residence_type' => $from->residence_type,
+                'enrollment_date' => $session->start_date,
+                'status' => 'active',
+            ]
+        );
+
+        // Without this the student is enrolled but registered for no subjects, so
+        // marks entry and report cards show them with an empty subject list.
+        $enrollment->syncCoreSubjects();
+    }
+
+    private function name(StudentEnrollment $enrollment): string
+    {
+        return trim(($enrollment->student?->first_name ?? '').' '.($enrollment->student?->last_name ?? ''))
+            ?: '#'.$enrollment->id;
     }
 }

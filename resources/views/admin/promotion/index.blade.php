@@ -131,11 +131,17 @@
                                 @else
                                     <span class="text-gray-400 text-xs">{{ __('No Data') }}</span>
                                 @endif
+                                @if($enrollment->ineligible_reason)
+                                    {{-- Say why now, rather than refusing the promotion after it is submitted. --}}
+                                    <div class="text-[11px] text-gray-500 mt-1 leading-tight">{{ $enrollment->ineligible_reason }}</div>
+                                @endif
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
-                                    <label class="flex items-center gap-1 cursor-pointer">
-                                        <input type="radio" name="decisions[{{ $i }}][action]" value="promote" {{ $enrollment->recommended_decision === 'promote' ? 'checked' : '' }} class="text-emerald-600 focus:ring-emerald-500" onchange="toggleTargetClass({{ $enrollment->id }}, true)">
+                                    {{-- Promotion is gated on a complete, passing year, so the option is
+                                         off where the server would refuse it anyway. --}}
+                                    <label class="flex items-center gap-1 {{ $enrollment->is_eligible ? 'cursor-pointer' : 'cursor-not-allowed opacity-40' }}" @if(! $enrollment->is_eligible) title="{{ $enrollment->ineligible_reason }}" @endif>
+                                        <input type="radio" name="decisions[{{ $i }}][action]" value="promote" {{ $enrollment->recommended_decision === 'promote' ? 'checked' : '' }} @disabled(! $enrollment->is_eligible) class="text-emerald-600 focus:ring-emerald-500 disabled:opacity-50" onchange="toggleTargetClass({{ $enrollment->id }}, true)">
                                         <span class="text-xs text-gray-600">P</span>
                                     </label>
                                     <label class="flex items-center gap-1 cursor-pointer">

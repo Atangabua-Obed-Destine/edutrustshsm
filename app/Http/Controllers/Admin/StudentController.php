@@ -234,7 +234,7 @@ class StudentController extends Controller implements HasMiddleware
             // 5. Create enrollment for current session
             $currentSession = AcademicSession::current();
             if ($currentSession) {
-                StudentEnrollment::create([
+                $enrollment = StudentEnrollment::create([
                     'student_id'          => $student->id,
                     'academic_session_id' => $currentSession->id,
                     'term_id'             => $validated['term_id'],
@@ -244,6 +244,10 @@ class StudentController extends Controller implements HasMiddleware
                     'enrollment_date'     => $validated['admission_date'],
                     'status'              => 'active',
                 ]);
+
+                // Register the form's core subjects, or the student arrives
+                // enrolled in a class but studying nothing.
+                $enrollment->syncCoreSubjects();
             }
 
             return $student;
