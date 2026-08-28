@@ -61,6 +61,7 @@ use App\Http\Controllers\Admin\FeeFineController;
 use App\Http\Controllers\Admin\LeaveController;
 use App\Http\Controllers\Admin\LeaveTypeController;
 use App\Http\Controllers\Admin\StaffAttendanceController;
+use App\Http\Controllers\Admin\StudentCreditController;
 use App\Http\Controllers\Admin\GeneralLedgerController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\DesignationController;
@@ -543,6 +544,10 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::post('leave-types', [LeaveTypeController::class, 'store'])->name('leave-types.store');
     Route::put('leave-types/{leaveType}', [LeaveTypeController::class, 'update'])->name('leave-types.update');
     Route::delete('leave-types/{leaveType}', [LeaveTypeController::class, 'destroy'])->name('leave-types.destroy');
+
+    // Student credits (over-payments held on account)
+    Route::get('student-credits', [StudentCreditController::class, 'index'])->name('student-credits.index');
+    Route::post('student-credits/apply', [StudentCreditController::class, 'apply'])->name('student-credits.apply');
 
     // Late-payment penalties
     Route::get('fee-fines', [FeeFineController::class, 'index'])->name('fee-fines.index');

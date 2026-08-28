@@ -139,6 +139,9 @@
                         @can('fee-fine.view')
                         <a href="{{ route('admin.fee-fines.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-fines.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Late Fees') }}</a>
                         @endcan
+                        @can('student-credit.view')
+                        <a href="{{ route('admin.student-credits.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.student-credits.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student Credits') }}</a>
+                        @endcan
                         <a href="{{ route('admin.fee-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Reports') }}</a>
                     </div>
                 </div>

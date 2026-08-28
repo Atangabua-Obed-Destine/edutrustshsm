@@ -39,6 +39,8 @@ class OhadaChartOfAccountsSeeder extends Seeder
             ['401', 'Accounts Payable', 'Fournisseurs', 4, 'liability', 'detail', 'credit'],
             ['41', 'Students / Customers', 'Clients', 4, 'asset', 'heading', 'debit'],
             ['411', 'Student Fees Receivable', 'Clients - frais scolaires', 4, 'asset', 'detail', 'debit'],
+            // Over-payments held on a student's behalf: a liability, not revenue.
+            ['419', 'Student Advances / Credits', 'Clients crediteurs - avances recues', 4, 'liability', 'detail', 'credit'],
             ['42', 'Personnel', 'Personnel', 4, 'liability', 'heading', 'credit'],
             ['421', 'Staff Salaries Payable', 'Personnel - salaires dus', 4, 'liability', 'detail', 'credit'],
             ['44', 'State & Taxes', 'État et collectivités', 4, 'liability', 'heading', 'credit'],

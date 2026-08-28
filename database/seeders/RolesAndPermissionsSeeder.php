@@ -42,6 +42,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Assignment History' => ['view', 'delete'],
             'Fee Discount' => ['view', 'create', 'edit', 'delete'],
             'Fee Fine' => ['view', 'create', 'edit', 'delete'],
+            'Student Credit' => ['view', 'apply'],
             'Fee Report' => ['view', 'export'],
             'Payment' => ['view', 'refund'],
             'Attendance' => ['view', 'mark', 'edit', 'report'],
@@ -161,7 +162,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Dashboard',
             // Fees
             'Fee Category', 'Fee Structure', 'Fee Collection', 'Payment Plan',
-            'Quick Assign Fee', 'Assignment History', 'Fee Discount', 'Fee Fine', 'Fee Report', 'Payment',
+            'Quick Assign Fee', 'Assignment History', 'Fee Discount', 'Fee Fine', 'Student Credit', 'Fee Report', 'Payment',
             // Accounts & treasury
             'Income', 'Income Category', 'Expense', 'Expense Category', 'Outcome',
             'Payment Account', 'Fund Transfer', 'Payment Account Report',

@@ -52,6 +52,10 @@ class AccountMappingController extends Controller implements HasMiddleware
             'fee_payment' => FeeCategory::where('is_active', true)->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn ($c) => (object) ['id' => $c->id, 'title' => $c->name]),
+            // Over-payments held on account, and those credits later applied.
+            // Both are catch-all rules — they do not vary by fee category.
+            'student_credit' => collect(),
+            'credit_applied' => collect(),
         ];
 
         return view('admin.accounting.mappings.index', compact('accounts', 'mappings', 'groups'));
@@ -61,7 +65,7 @@ class AccountMappingController extends Controller implements HasMiddleware
     public function save(Request $request)
     {
         $validated = $request->validate([
-            'mapping_type' => ['required', 'in:income,expense,fee_payment'],
+            'mapping_type' => ['required', 'in:income,expense,fee_payment,student_credit,credit_applied'],
             'category_id' => ['nullable', 'integer'],
             'debit_account_id' => ['required', 'exists:chart_of_accounts,id'],
             'credit_account_id' => ['required', 'exists:chart_of_accounts,id', 'different:debit_account_id'],

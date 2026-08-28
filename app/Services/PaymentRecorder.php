@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\PaymentPlan;
 use App\Models\SchoolSetting;
+use App\Models\StudentCredit;
 use App\Models\StudentFee;
 use App\Support\BranchContext;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,7 @@ class PaymentRecorder
             );
 
             $this->syncPaymentPlans($payment, $allocated);
+            $this->captureOverpayment($payment, (float) $data['amount'], $allocated);
 
             return $payment->load('allocations');
         });
@@ -276,6 +278,42 @@ class PaymentRecorder
                 $plan->update(['status' => 'completed']);
             }
         }
+    }
+
+    /**
+     * Whatever the payment could not be allocated to becomes a student credit.
+     *
+     * The remainder used to be dropped: the Payment recorded the full amount,
+     * the allocations summed to less, and the difference existed nowhere. It is
+     * not revenue — the school holds it on the student's behalf — so it is
+     * carried as a credit and, in the ledger, as a liability.
+     *
+     * @param  array<int, float>  $allocated
+     */
+    protected function captureOverpayment(Payment $payment, float $amount, array $allocated): void
+    {
+        // Applying an existing credit must not create a new one from its own
+        // rounding, and a credit is drawn down elsewhere.
+        if ($payment->payment_method === 'student_credit') {
+            return;
+        }
+
+        $unallocated = round($amount - array_sum($allocated), 2);
+
+        if ($unallocated < 0.01) {
+            return;
+        }
+
+        StudentCredit::create([
+            'student_enrollment_id' => $payment->student_enrollment_id,
+            'payment_id' => $payment->id,
+            'amount' => $unallocated,
+            'used_amount' => 0,
+            'balance' => $unallocated,
+            'source' => 'overpayment',
+            'note' => __('Over-payment on receipt :r', ['r' => $payment->receipt_number]),
+            'created_by' => $payment->received_by,
+        ]);
     }
 
     private function currentBranchId(): ?int

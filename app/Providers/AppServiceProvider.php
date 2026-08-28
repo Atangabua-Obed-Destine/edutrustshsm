@@ -5,11 +5,13 @@ namespace App\Providers;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\PaymentAllocation;
+use App\Models\StudentCredit;
 use App\Models\StudentEnrollment;
 use App\Models\User;
 use App\Observers\ExpenseObserver;
 use App\Observers\IncomeObserver;
 use App\Observers\PaymentAllocationObserver;
+use App\Observers\StudentCreditObserver;
 use App\Observers\StudentEnrollmentObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -44,6 +46,9 @@ class AppServiceProvider extends ServiceProvider
         // Fee revenue posts per ALLOCATION, not per payment: a payment can span
         // several fee categories, and the ledger needs to tell them apart.
         PaymentAllocation::observe(PaymentAllocationObserver::class);
+
+        // An over-payment is a liability until it is applied to a fee.
+        StudentCredit::observe(StudentCreditObserver::class);
     }
 
     /**

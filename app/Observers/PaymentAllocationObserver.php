@@ -30,7 +30,7 @@ class PaymentAllocationObserver
     public function created(PaymentAllocation $allocation): void
     {
         $this->mapper->autoMap(
-            'fee_payment',
+            $this->mappingType($allocation),
             $allocation->id,
             $allocation->studentFee?->fee_category_id,
             $this->data($allocation)
@@ -41,7 +41,7 @@ class PaymentAllocationObserver
     {
         if ($allocation->wasChanged('amount')) {
             $this->mapper->remap(
-                'fee_payment',
+                $this->mappingType($allocation),
                 $allocation->id,
                 $allocation->studentFee?->fee_category_id,
                 $this->data($allocation)
@@ -51,7 +51,22 @@ class PaymentAllocationObserver
 
     public function deleted(PaymentAllocation $allocation): void
     {
-        $this->mapper->reverse('fee_payment', $allocation->id);
+        $this->mapper->reverse($this->mappingType($allocation), $allocation->id);
+    }
+
+    /**
+     * Which posting rule this allocation follows.
+     *
+     * Money funded by an existing student credit is NOT a fresh cash receipt —
+     * the cash arrived when the credit was created. It clears the advances
+     * liability instead: DR 419 → CR revenue. Posting it as a normal fee
+     * payment would record the same cash twice.
+     */
+    private function mappingType(PaymentAllocation $allocation): string
+    {
+        return $allocation->payment?->payment_method === 'student_credit'
+            ? 'credit_applied'
+            : 'fee_payment';
     }
 
     /** @return array{amount: mixed, date: string, description: string} */
