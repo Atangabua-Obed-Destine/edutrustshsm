@@ -76,6 +76,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'General Ledger' => ['view', 'export'],
             'Account Mapping' => ['view', 'edit', 'post'],
             'Accounting Report' => ['view', 'export'],
+            'Fixed Asset' => ['view', 'create', 'edit', 'delete', 'depreciate', 'dispose'],
 
             // ── HR / Payroll ──
             'Department' => ['view', 'create', 'edit', 'delete'],
@@ -170,7 +171,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Budget', 'Budget Allocation', 'Budget Report',
             // OHADA
             'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'General Ledger', 'Account Mapping',
-            'Accounting Report',
+            'Accounting Report', 'Fixed Asset',
             // Payroll
             'Payroll', 'Staff Tax Report', 'Tax Group', 'Tax Setting',
             'Allowance Type', 'Deduction Type',

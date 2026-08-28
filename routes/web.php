@@ -58,6 +58,7 @@ use App\Http\Controllers\Admin\JournalEntryController;
 use App\Http\Controllers\Admin\AccountMappingController;
 use App\Http\Controllers\Admin\AccountingReportsController;
 use App\Http\Controllers\Admin\FeeFineController;
+use App\Http\Controllers\Admin\FixedAssetController;
 use App\Http\Controllers\Admin\LeaveController;
 use App\Http\Controllers\Admin\LeaveTypeController;
 use App\Http\Controllers\Admin\StaffAttendanceController;
@@ -556,6 +557,17 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::put('fee-fines/{feeFine}', [FeeFineController::class, 'update'])->name('fee-fines.update');
     Route::delete('fee-fines/{feeFine}', [FeeFineController::class, 'destroy'])->name('fee-fines.destroy');
     Route::post('fee-fines/accrue', [FeeFineController::class, 'accrue'])->name('fee-fines.accrue');
+
+    // Fixed assets and depreciation
+    Route::get('fixed-assets', [FixedAssetController::class, 'index'])->name('fixed-assets.index');
+    Route::post('fixed-assets', [FixedAssetController::class, 'store'])->name('fixed-assets.store');
+    Route::get('fixed-assets/categories', [FixedAssetController::class, 'categories'])->name('fixed-assets.categories');
+    Route::post('fixed-assets/categories', [FixedAssetController::class, 'storeCategory'])->name('fixed-assets.categories.store');
+    Route::post('fixed-assets/post-due', [FixedAssetController::class, 'postDue'])->name('fixed-assets.post-due');
+    Route::get('fixed-assets/{fixedAsset}/schedule', [FixedAssetController::class, 'schedule'])->name('fixed-assets.schedule');
+    Route::post('fixed-assets/{fixedAsset}/generate', [FixedAssetController::class, 'generate'])->name('fixed-assets.generate');
+    Route::post('fixed-assets/{fixedAsset}/dispose', [FixedAssetController::class, 'dispose'])->name('fixed-assets.dispose');
+    Route::post('depreciation/{schedule}/post', [FixedAssetController::class, 'postPeriod'])->name('depreciation.post');
 
     // Accounting reports (read-only analysis)
     Route::prefix('accounting-reports')->name('accounting-reports.')->group(function () {
