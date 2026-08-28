@@ -18,7 +18,11 @@ use RuntimeException;
  *
  *  - straight_line: the depreciable amount spread evenly.
  *  - declining:     a fixed percentage of the REMAINING book value each year,
- *                   split monthly, which front-loads the charge.
+ *                   split monthly, switching to straight line over the
+ *                   remaining life once that gives the larger charge. Pure
+ *                   declining balance never reaches zero, so without the switch
+ *                   an asset either stays undepreciated or needs an absurd
+ *                   catch-up in the final period.
  *
  * Both stop at the salvage value — an asset is never depreciated below what it
  * is expected to be worth at the end, and rounding is absorbed by the final
@@ -271,9 +275,15 @@ class DepreciationService
     }
 
     /**
-     * Declining balance: a fixed percentage of the remaining book value per
-     * year, split across its months. Falls back to double-declining when no
-     * rate is set.
+     * Declining balance, switching to straight line when that becomes larger.
+     *
+     * Pure declining balance never reaches zero — it takes a percentage of an
+     * ever-smaller base — so it would either leave the asset undepreciated or
+     * need a huge catch-up charge in the final period, which is neither
+     * front-loaded nor defensible. The standard treatment is to switch to
+     * straight line over the REMAINING life once that gives the bigger charge.
+     * The result stays front-loaded and still sums exactly to the depreciable
+     * amount.
      *
      * @return array<int, float>
      */
@@ -284,19 +294,19 @@ class DepreciationService
         $amounts = [];
 
         for ($month = 0; $month < $months; $month++) {
-            $yearly = $remaining * ($rate / 100);
-            $amount = round($yearly / 12, 2);
+            $monthsLeft = $months - $month;
 
-            // Never take the asset below its salvage value.
-            $amount = min($amount, round($remaining, 2));
+            $declining = $remaining * ($rate / 100) / 12;
+            $straightLine = $remaining / $monthsLeft;
+
+            $amount = round(max($declining, $straightLine), 2);
+
+            // Never take the asset below its salvage value, and let the final
+            // period absorb whatever rounding has left behind.
+            $amount = $monthsLeft === 1 ? round($remaining, 2) : min($amount, round($remaining, 2));
 
             $amounts[] = max(0, $amount);
             $remaining = round($remaining - $amount, 2);
-        }
-
-        // Anything left over from rounding lands in the last period.
-        if ($remaining > 0.001) {
-            $amounts[$months - 1] = round($amounts[$months - 1] + $remaining, 2);
         }
 
         return $amounts;

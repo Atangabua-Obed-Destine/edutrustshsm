@@ -127,7 +127,7 @@ class DepreciationTest extends TestCase
         $asset = $this->asset(['cost' => 1000000, 'salvage_value' => 250000]);
 
         $this->service()->generateSchedule($asset);
-        $last = $asset->schedules()->orderByDesc('period_number')->first();
+        $last = $asset->schedules()->reorder('period_number', 'desc')->first();
 
         $this->assertEquals(250000, round((float) $last->book_value, 2));
     }

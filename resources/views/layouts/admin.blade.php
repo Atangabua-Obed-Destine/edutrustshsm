@@ -300,6 +300,9 @@
                         @can('accounting-report.view')
                         <a href="{{ route('admin.accounting-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.accounting-reports.index') || request()->routeIs('admin.accounting-reports.*-aging') || request()->routeIs('admin.accounting-reports.budget-vs-actual') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Accounting Reports') }}</a>
                         @endcan
+                        @can('fixed-asset.view')
+                        <a href="{{ route('admin.fixed-assets.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fixed-assets.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fixed Assets') }}</a>
+                        @endcan
                     </div>
                 </div>
 
