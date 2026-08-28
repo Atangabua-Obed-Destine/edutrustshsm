@@ -84,6 +84,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'Deduction Type' => ['view', 'create', 'edit', 'delete'],
             'Tax Group' => ['view', 'create', 'edit', 'delete'],
             'Tax Setting' => ['view', 'create', 'edit', 'delete'],
+            'Staff Leave' => ['view', 'create', 'approve', 'delete'],
+            'Leave Type' => ['view', 'create', 'edit', 'delete'],
             'Payroll' => ['view', 'generate', 'pay', 'unpay', 'report'],
             'Staff Tax Report' => ['view', 'export'],
 

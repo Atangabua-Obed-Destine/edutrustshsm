@@ -58,6 +58,8 @@ use App\Http\Controllers\Admin\JournalEntryController;
 use App\Http\Controllers\Admin\AccountMappingController;
 use App\Http\Controllers\Admin\AccountingReportsController;
 use App\Http\Controllers\Admin\FeeFineController;
+use App\Http\Controllers\Admin\LeaveController;
+use App\Http\Controllers\Admin\LeaveTypeController;
 use App\Http\Controllers\Admin\GeneralLedgerController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\DesignationController;
@@ -521,6 +523,19 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::resource('journal-entries', JournalEntryController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
 
     // Transaction Mappings (auto-posting config)
+    // Staff leave
+    Route::get('leaves', [LeaveController::class, 'index'])->name('leaves.index');
+    Route::post('leaves', [LeaveController::class, 'store'])->name('leaves.store');
+    Route::get('leaves/remaining', [LeaveController::class, 'remaining'])->name('leaves.remaining');
+    Route::post('leaves/{leave}/approve', [LeaveController::class, 'approve'])->name('leaves.approve');
+    Route::post('leaves/{leave}/reject', [LeaveController::class, 'reject'])->name('leaves.reject');
+    Route::delete('leaves/{leave}', [LeaveController::class, 'destroy'])->name('leaves.destroy');
+
+    Route::get('leave-types', [LeaveTypeController::class, 'index'])->name('leave-types.index');
+    Route::post('leave-types', [LeaveTypeController::class, 'store'])->name('leave-types.store');
+    Route::put('leave-types/{leaveType}', [LeaveTypeController::class, 'update'])->name('leave-types.update');
+    Route::delete('leave-types/{leaveType}', [LeaveTypeController::class, 'destroy'])->name('leave-types.destroy');
+
     // Late-payment penalties
     Route::get('fee-fines', [FeeFineController::class, 'index'])->name('fee-fines.index');
     Route::post('fee-fines', [FeeFineController::class, 'store'])->name('fee-fines.store');
