@@ -24,3 +24,10 @@ Schedule::command('fees:accrue-fines')
     ->dailyAt('01:00')
     ->withoutOverlapping()
     ->onOneServer();
+
+// Recurring journal entries. Generation is idempotent per run date, so a
+// missed day or a repeated run cannot produce duplicates.
+Schedule::command('accounting:recurring-entries')
+    ->dailyAt('01:30')
+    ->withoutOverlapping()
+    ->onOneServer();

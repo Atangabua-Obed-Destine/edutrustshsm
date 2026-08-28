@@ -402,6 +402,7 @@ Route::middleware('auth')->group(function () {
         Route::post('payment-plans', [PaymentPlanController::class, 'store'])->name('payment-plans.store');
         Route::get('payment-plans/{paymentPlan}', [PaymentPlanController::class, 'show'])->name('payment-plans.show');
         Route::patch('payment-plans/{paymentPlan}/cancel', [PaymentPlanController::class, 'cancel'])->name('payment-plans.cancel');
+        Route::post('payment-plans/{paymentPlan}/pay', [PaymentPlanController::class, 'pay'])->name('payment-plans.pay');
 
         // Bulk Student Upload
         Route::get('bulk-upload', [BulkUploadController::class, 'index'])->name('bulk-upload.index');
