@@ -14,6 +14,7 @@ use App\Models\Sequence;
 use App\Models\StudentEnrollment;
 use App\Models\Subject;
 use App\Models\Term;
+use App\Models\SchoolSetting;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -235,13 +236,17 @@ class MarksController extends Controller implements HasMiddleware
      */
     public function save(Request $request)
     {
+        $settings = SchoolSetting::current();
+        $maxMark = (float) ($settings?->max_mark ?? 20);
+
         $validated = $request->validate([
             'class_section_id' => ['required', 'exists:class_sections,id'],
             'subject_id' => ['required', 'exists:subjects,id'],
             'sequence_id' => ['required', 'exists:sequences,id'],
             'marks' => ['required', 'array'],
             'marks.*.enrollment_id' => ['required', 'exists:student_enrollments,id'],
-            'marks.*.score' => ['nullable', 'numeric', 'min:0', 'max:20'],
+            // Bounds come from School Settings, not a hardcoded /20.
+            'marks.*.score' => ['nullable', 'numeric', 'min:0', 'max:'.$maxMark],
             'marks.*.is_absent' => ['nullable'],
         ]);
 
@@ -292,7 +297,7 @@ class MarksController extends Controller implements HasMiddleware
                 ->first();
 
             if ($submission) {
-                $passmark = 10.0;
+                $passmark = (float) (SchoolSetting::current()?->pass_mark ?? 10);
                 $submission->update([
                     'marks_entered' => $marksEntered,
                     'class_average' => count($scores) > 0 ? round(array_sum($scores) / count($scores), 2) : null,

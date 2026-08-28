@@ -15,6 +15,7 @@ use App\Models\StudentEnrollment;
 use App\Models\StudentSubject;
 use App\Models\Subject;
 use App\Models\Term;
+use App\Services\TermResultCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -39,7 +40,7 @@ class ExamPublishingController extends Controller implements HasMiddleware
     /**
      * Show the Exam Publishing page with filters and optionally loaded data.
      */
-    public function index(Request $request)
+    public function index(Request $request, TermResultCalculator $calculator)
     {
         $sessions = AcademicSession::orderByDesc('start_date')->get();
         $forms = Form::active()->forCurrentLevel()->ordered()->get();
@@ -180,153 +181,71 @@ class ExamPublishingController extends Controller implements HasMiddleware
                 ];
 
                 // ── Students Results Preview ──
-                // Get ALL sequences for this term+form
-                $termSequenceIds = DB::table('form_sequence')
-                    ->where('form_id', $classSection->form_id)
-                    ->where('term_id', $termId)
-                    ->pluck('sequence_id');
-                $termSequences = Sequence::whereIn('id', $termSequenceIds)
-                    ->orderBy('sequence_number')->get();
+                // Computed by the SAME service that writes report cards, so the
+                // preview cannot drift from what will be saved. It previously
+                // carried its own copy of the arithmetic, which used a different
+                // subject universe, a different coefficient source, and let
+                // subjects a student is NOT registered for change their average.
+                $computed = $calculator->compute($classSection, Term::findOrFail($termId), (int) $sessionId);
 
-                // Get enrolled students with student info
-                $enrollments = StudentEnrollment::where('class_section_id', $classSectionId)
-                    ->where('academic_session_id', $sessionId)
-                    ->where('status', 'active')
-                    ->with('student')
-                    ->get()
-                    ->sortBy(fn ($e) => $e->student->last_name . ' ' . $e->student->first_name)
-                    ->values();
+                $termSequences = $computed['sequences'];
+                $passMark = $computed['pass_mark'];
 
-                // Fetch all marks at once (enrollment × subject × sequence)
-                $allMarks = Mark::whereIn('student_enrollment_id', $enrollments->pluck('id'))
-                    ->whereIn('subject_id', $formSubjects->pluck('subject_id'))
-                    ->whereIn('sequence_id', $termSequences->pluck('id'))
-                    ->get()
-                    ->groupBy('student_enrollment_id');
+                $previewStudents = $computed['students']->values()->map(function ($student, $idx) {
+                    $subjects = [];
 
-                // Subjects the student is registered for (from student_subjects)
-                $studentSubjectMap = StudentSubject::whereIn('student_enrollment_id', $enrollments->pluck('id'))
-                    ->pluck('subject_id', 'student_enrollment_id')
-                    ->groupBy(fn ($val, $key) => $key);
-                // Rebuild as enrollment_id => [subject_ids]
-                $regMap = [];
-                foreach (StudentSubject::whereIn('student_enrollment_id', $enrollments->pluck('id'))->get() as $ss) {
-                    $regMap[$ss->student_enrollment_id][] = $ss->subject_id;
-                }
-
-                // Load all grade scales once
-                $gradeScales = GradeScale::orderByDesc('min_mark')->get();
-                $getGrade = function ($score) use ($gradeScales) {
-                    if ($score === null) return null;
-                    foreach ($gradeScales as $gs) {
-                        if ($score >= (float) $gs->min_mark && $score <= (float) $gs->max_mark) {
-                            return $gs;
-                        }
-                    }
-                    return null;
-                };
-
-                $previewStudents = [];
-                $subjectSummaries = []; // subject_id => [registered, with_marks, pass, fail]
-
-                foreach ($formSubjects as $fs) {
-                    $subjectSummaries[$fs->subject_id] = [
-                        'registered' => 0, 'with_marks' => 0, 'pass' => 0, 'fail' => 0,
-                    ];
-                }
-
-                foreach ($enrollments as $idx => $enrollment) {
-                    $studentMarks = $allMarks->get($enrollment->id, collect());
-                    $registeredSubjects = $regMap[$enrollment->id] ?? [];
-
-                    $subjectsData = [];
-                    $overallWeightedSum = 0;
-                    $overallCoeffSum = 0;
-
-                    foreach ($formSubjects as $fs) {
-                        $isRegistered = in_array($fs->subject_id, $registeredSubjects);
-                        $seqScores = [];
-                        $weightedSum = 0;
-                        $totalWeight = 0;
-
-                        foreach ($termSequences as $seq) {
-                            $mark = $studentMarks->first(function ($m) use ($fs, $seq) {
-                                return $m->subject_id == $fs->subject_id && $m->sequence_id == $seq->id;
-                            });
-                            $score = ($mark && !$mark->is_absent && $mark->score !== null) ? (float) $mark->score : null;
-                            $seqScores[$seq->id] = [
-                                'score' => $score,
-                                'is_absent' => $mark?->is_absent ?? false,
-                            ];
-                            if ($score !== null) {
-                                $w = (float) ($seq->weight ?? 1);
-                                $weightedSum += $score * $w;
-                                $totalWeight += $w;
-                            }
-                        }
-
-                        $termAvg = $totalWeight > 0 ? round($weightedSum / $totalWeight, 2) : null;
-                        $coeff = (float) $fs->coefficient;
-                        $weightedScore = ($termAvg !== null) ? round($termAvg * $coeff, 2) : null;
-                        $gradeObj = $getGrade($termAvg);
-
-                        if ($isRegistered) {
-                            $subjectSummaries[$fs->subject_id]['registered']++;
-                            if ($termAvg !== null) {
-                                $subjectSummaries[$fs->subject_id]['with_marks']++;
-                                if ($termAvg >= 10) {
-                                    $subjectSummaries[$fs->subject_id]['pass']++;
-                                } else {
-                                    $subjectSummaries[$fs->subject_id]['fail']++;
-                                }
-                            }
-                        }
-
-                        if ($weightedScore !== null) {
-                            $overallWeightedSum += $weightedScore;
-                            $overallCoeffSum += $coeff;
-                        }
-
-                        $subjectsData[$fs->subject_id] = [
-                            'is_registered' => $isRegistered,
-                            'seq_scores' => $seqScores,
-                            'term_avg' => $termAvg,
-                            'weighted_score' => $weightedScore,
-                            'grade' => $gradeObj?->grade ?? '-',
-                            'grade_desc' => $gradeObj?->description ?? '',
+                    foreach ($student->subjects as $subject) {
+                        $subjects[$subject['subject_id']] = [
+                            'is_registered' => true,
+                            'seq_scores' => collect($subject['scores'])
+                                ->map(fn ($score) => ['score' => $score, 'is_absent' => $score === null])
+                                ->all(),
+                            'term_avg' => $subject['term_average'],
+                            'weighted_score' => $subject['weighted_score'],
+                            'grade' => $subject['grade'],
+                            'grade_desc' => '',
                         ];
                     }
 
-                    $overallAvg = $overallCoeffSum > 0 ? round($overallWeightedSum / $overallCoeffSum, 2) : null;
-                    $overallGradeObj = $getGrade($overallAvg);
-
-                    $previewStudents[] = (object) [
+                    return (object) [
                         'sn' => $idx + 1,
-                        'matricule' => $enrollment->student->student_id,
-                        'name' => strtoupper($enrollment->student->last_name) . ' ' . $enrollment->student->first_name,
-                        'enrollment_id' => $enrollment->id,
-                        'subjects' => $subjectsData,
-                        'overall_weighted' => round($overallWeightedSum, 2),
-                        'overall_coeff' => $overallCoeffSum,
-                        'overall_avg' => $overallAvg,
-                        'overall_grade' => $overallGradeObj?->grade ?? '-',
+                        'matricule' => $student->student?->student_id,
+                        'name' => strtoupper($student->student?->last_name ?? '').' '.($student->student?->first_name ?? ''),
+                        'enrollment_id' => $student->enrollment_id,
+                        'subjects' => $subjects,
+                        'overall_weighted' => $student->total_weighted,
+                        'overall_coeff' => $student->total_coefficient,
+                        'overall_avg' => $student->average,
+                        'overall_grade' => $student->grade,
+                        'rank' => $student->rank ?? '-',
                     ];
+                })->all();
+
+                // Per-subject summary across the class.
+                $subjectSummaries = [];
+                foreach ($formSubjects as $fs) {
+                    $subjectSummaries[$fs->subject_id] = ['registered' => 0, 'with_marks' => 0, 'pass' => 0, 'fail' => 0];
                 }
 
-                // Rank students by overall average (dense rank)
-                usort($previewStudents, fn ($a, $b) => ($b->overall_avg ?? 0) <=> ($a->overall_avg ?? 0));
-                $rank = 0;
-                $lastAvg = null;
-                foreach ($previewStudents as $i => $ps) {
-                    if ($ps->overall_avg !== $lastAvg) {
-                        $rank = $i + 1;
+                foreach ($computed['students'] as $student) {
+                    foreach ($student->subjects as $subject) {
+                        $id = $subject['subject_id'];
+                        $subjectSummaries[$id] ??= ['registered' => 0, 'with_marks' => 0, 'pass' => 0, 'fail' => 0];
+                        $subjectSummaries[$id]['registered']++;
+
+                        if ($subject['term_average'] !== null) {
+                            $subjectSummaries[$id]['with_marks']++;
+                            $subject['term_average'] >= $passMark
+                                ? $subjectSummaries[$id]['pass']++
+                                : $subjectSummaries[$id]['fail']++;
+                        }
                     }
-                    $ps->rank = $ps->overall_avg !== null ? $rank : '-';
-                    $lastAvg = $ps->overall_avg;
                 }
 
-                $previewPassCount = collect($previewStudents)->where('overall_avg', '>=', 10)->count();
-                $previewFailCount = collect($previewStudents)->filter(fn ($s) => $s->overall_avg !== null && $s->overall_avg < 10)->count();
+                $previewPassCount = $computed['students']
+                    ->filter(fn ($s) => $s->average !== null && $s->average >= $passMark)->count();
+                $previewFailCount = $computed['students']
+                    ->filter(fn ($s) => $s->average !== null && $s->average < $passMark)->count();
             }
         }
 

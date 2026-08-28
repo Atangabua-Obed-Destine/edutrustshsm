@@ -5,17 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
-use App\Models\Attendance;
 use App\Models\ClassSection;
 use App\Models\Form;
-use App\Models\GradeScale;
-use App\Models\Mark;
 use App\Models\SchoolSetting;
 use App\Models\Sequence;
-use App\Models\StudentEnrollment;
-use App\Models\SubjectTermResult;
 use App\Models\Term;
 use App\Models\TermResult;
+use App\Services\TermResultCalculator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -101,230 +97,45 @@ class ReportCardController extends Controller implements HasMiddleware
     /**
      * Generate/recalculate report cards for a class + term.
      */
-    public function generate(Request $request)
+    /**
+     * Generate/recalculate report cards for a class + term.
+     *
+     * The arithmetic lives in TermResultCalculator, shared with the exam
+     * publishing preview, so what a teacher approves on that screen is by
+     * construction what lands here.
+     */
+    public function generate(Request $request, TermResultCalculator $calculator)
     {
-        $request->validate([
+        $validated = $request->validate([
             'class_section_id' => 'required|exists:class_sections,id',
             'term_id' => 'required|exists:terms,id',
             'form_id' => 'required|exists:forms,id',
             'academic_session_id' => 'required|exists:academic_sessions,id',
         ]);
 
-        $classSection = ClassSection::with('form')->findOrFail($request->class_section_id);
-        $term = Term::findOrFail($request->term_id);
-        $formId = $request->form_id;
-        $sessionId = $request->academic_session_id;
+        $classSection = ClassSection::with('form')->findOrFail($validated['class_section_id']);
+        $term = Term::findOrFail($validated['term_id']);
 
-        // Find sequences through form_sequence pivot (same pattern as exam-publishing)
-        $seqIds = DB::table('form_sequence')
-            ->where('form_id', $formId)
-            ->where('term_id', $term->id)
-            ->distinct()
-            ->pluck('sequence_id');
-        $sequences = Sequence::whereIn('id', $seqIds)->orderBy('sequence_number')->get();
-
-        if ($sequences->isEmpty()) {
-            return back()->with('error', 'No sequences found for this term.');
+        if ($calculator->sequencesFor($classSection->form_id, $term->id)->isEmpty()) {
+            return back()->with('error', __('No sequences are mapped to this form and term.'));
         }
 
-        $enrollments = StudentEnrollment::where('class_section_id', $classSection->id)
-            ->where('academic_session_id', $sessionId)
-            ->where('term_id', $term->id)
-            ->whereIn('status', ['active', 'completed'])
-            ->with(['studentSubjects.subject.forms' => fn ($q) => $q->where('form_id', $classSection->form_id)])
-            ->get();
+        $processed = $calculator->persist($classSection, $term, (int) $validated['academic_session_id']);
 
-        if ($enrollments->isEmpty()) {
-            return back()->with('error', 'No active students in this class.');
+        if ($processed === 0) {
+            return back()->with('error', __('No students with approved marks were found for this class and term.'));
         }
-
-        DB::transaction(function () use ($enrollments, $sequences, $term, $classSection) {
-            $allTermAverages = [];
-
-            foreach ($enrollments as $enrollment) {
-                $termResult = TermResult::firstOrNew([
-                    'student_enrollment_id' => $enrollment->id,
-                    'term_id' => $term->id,
-                ]);
-
-                $totalWeighted = 0;
-                $totalCoeff = 0;
-                $subjectResults = [];
-
-                foreach ($enrollment->studentSubjects as $studentSubject) {
-                    $subject = $studentSubject->subject;
-                    // Get coefficient from form_subject pivot
-                    $formSubject = $subject->forms->first();
-                    $coefficient = $formSubject?->pivot?->coefficient ?? 1.0;
-
-                    // Get marks for each sequence (use local 1-based index, not global sequence_number)
-                    $seqScores = [];
-                    $localIdx = 0;
-                    foreach ($sequences as $seq) {
-                        $localIdx++;
-                        // Only marks that have cleared the approval workflow may
-                        // reach a report card. Without this filter the whole
-                        // draft -> submitted -> approved -> published pipeline had
-                        // no effect on results.
-                        $mark = Mark::where('student_enrollment_id', $enrollment->id)
-                            ->where('subject_id', $subject->id)
-                            ->where('sequence_id', $seq->id)
-                            ->whereIn('status', Mark::REPORTABLE_STATUSES)
-                            ->first();
-
-                        $seqScores[$localIdx] = ($mark && !$mark->is_absent) ? (float) $mark->score : null;
-                    }
-
-                    // Calculate term average for subject (weighted by sequence weight)
-                    $totalWeight = 0;
-                    $weightedSum = 0;
-                    $localIdx = 0;
-                    foreach ($sequences as $seq) {
-                        $localIdx++;
-                        $score = $seqScores[$localIdx] ?? null;
-                        if ($score !== null) {
-                            $w = (float) ($seq->weight ?? 1);
-                            $weightedSum += $score * $w;
-                            $totalWeight += $w;
-                        }
-                    }
-
-                    $termAvg = $totalWeight > 0 ? round($weightedSum / $totalWeight, 2) : null;
-                    $weightedScore = ($termAvg !== null) ? round($termAvg * $coefficient, 2) : null;
-                    $grade = $termAvg !== null ? (GradeScale::getGrade($termAvg)?->grade ?? '-') : '-';
-
-                    // Find teacher from assignment
-                    $assignment = $classSection->teacherAssignments()
-                        ->where('subject_id', $subject->id)
-                        ->with('teacher')
-                        ->first();
-
-                    $subjectResults[] = [
-                        'subject_id' => $subject->id,
-                        'coefficient' => $coefficient,
-                        'sequence_1_score' => $seqScores[1] ?? null,
-                        'sequence_2_score' => $seqScores[2] ?? null,
-                        'sequence_3_score' => $seqScores[3] ?? null,
-                        'term_average' => $termAvg,
-                        'weighted_score' => $weightedScore,
-                        'grade' => $grade,
-                        'teacher_name' => $assignment?->teacher?->full_name,
-                    ];
-
-                    if ($termAvg !== null) {
-                        $totalWeighted += $weightedScore;
-                        $totalCoeff += $coefficient;
-                    }
-                }
-
-                $termAverage = $totalCoeff > 0 ? round($totalWeighted / $totalCoeff, 2) : 0;
-                $overallGrade = GradeScale::getGrade($termAverage)?->grade ?? '-';
-
-                // Attendance
-                $daysPresent = Attendance::where('student_enrollment_id', $enrollment->id)
-                    ->whereIn('status', ['present', 'late'])
-                    ->when($term->start_date && $term->end_date, fn ($q) => $q->whereBetween('date', [$term->start_date, $term->end_date]))
-                    ->count();
-
-                $daysAbsent = Attendance::where('student_enrollment_id', $enrollment->id)
-                    ->where('status', 'absent')
-                    ->when($term->start_date && $term->end_date, fn ($q) => $q->whereBetween('date', [$term->start_date, $term->end_date]))
-                    ->count();
-
-                $termResult->fill([
-                    'total_weighted_score' => $totalWeighted,
-                    'total_coefficient' => $totalCoeff,
-                    'term_average' => $termAverage,
-                    'overall_grade' => $overallGrade,
-                    'days_present' => $daysPresent,
-                    'days_absent' => $daysAbsent,
-                    'total_school_days' => $daysPresent + $daysAbsent,
-                    // Do NOT reset is_published here. Regenerating after a mark
-                    // correction used to silently unpublish every report card in the
-                    // class, immediately revoking parent-portal access. Publishing is
-                    // an explicit action (see publish()); a new result defaults to
-                    // unpublished via the column default.
-                ]);
-                $termResult->save();
-
-                // Save subject results
-                foreach ($subjectResults as $sr) {
-                    SubjectTermResult::updateOrCreate(
-                        [
-                            'term_result_id' => $termResult->id,
-                            'subject_id' => $sr['subject_id'],
-                        ],
-                        $sr
-                    );
-                }
-
-                $allTermAverages[$enrollment->id] = [
-                    'term_result' => $termResult,
-                    'average' => $termAverage,
-                ];
-            }
-
-            // Compute class statistics and ranks
-            $averages = collect($allTermAverages)->pluck('average')->filter(fn ($v) => $v > 0)->sort()->values();
-            $classAvg = $averages->avg() ? round($averages->avg(), 2) : 0;
-            $highestAvg = $averages->max() ?? 0;
-            $lowestAvg = $averages->min() ?? 0;
-            $totalStudents = $averages->count();
-
-            // Sort by average descending for ranking
-            $ranked = collect($allTermAverages)->sortByDesc('average')->values();
-            $rank = 0;
-            $lastAvg = null;
-            foreach ($ranked as $i => $item) {
-                if ($item['average'] !== $lastAvg) {
-                    $rank = $i + 1;
-                }
-                $lastAvg = $item['average'];
-
-                $item['term_result']->update([
-                    'class_rank' => $rank,
-                    'total_students' => $totalStudents,
-                    'class_average' => $classAvg,
-                    'highest_average' => $highestAvg,
-                    'lowest_average' => $lowestAvg,
-                ]);
-            }
-
-            // Subject ranks
-            $subjectIds = SubjectTermResult::whereIn('term_result_id', collect($allTermAverages)->pluck('term_result.id'))
-                ->distinct('subject_id')
-                ->pluck('subject_id');
-
-            foreach ($subjectIds as $subjectId) {
-                $subResults = SubjectTermResult::whereIn('term_result_id', collect($allTermAverages)->pluck('term_result.id'))
-                    ->where('subject_id', $subjectId)
-                    ->whereNotNull('term_average')
-                    ->orderByDesc('term_average')
-                    ->get();
-
-                $subRank = 0;
-                $lastScore = null;
-                $totalSubStudents = $subResults->count();
-
-                foreach ($subResults as $si => $sr) {
-                    if ((float) $sr->term_average !== $lastScore) {
-                        $subRank = $si + 1;
-                    }
-                    $lastScore = (float) $sr->term_average;
-                    $sr->update([
-                        'subject_rank' => $subRank,
-                        'subject_total_students' => $totalSubStudents,
-                    ]);
-                }
-            }
-        });
 
         return redirect()->route('admin.report-cards.index', [
-            'academic_session_id' => $request->academic_session_id,
-            'form_id' => $request->form_id,
-            'class_section_id' => $request->class_section_id,
-            'term_id' => $request->term_id,
-        ])->with('success', 'Report cards generated successfully. ' . $enrollments->count() . ' students processed.');
+            'academic_session_id' => $validated['academic_session_id'],
+            'form_id' => $validated['form_id'],
+            'class_section_id' => $validated['class_section_id'],
+            'term_id' => $validated['term_id'],
+        ])->with('success', trans_choice(
+            'Report cards generated. :count student processed.|Report cards generated. :count students processed.',
+            $processed,
+            ['count' => $processed]
+        ));
     }
 
     /**
