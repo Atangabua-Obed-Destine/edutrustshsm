@@ -315,6 +315,9 @@
                         @can('staff-leave.view')
                         <a href="{{ route('admin.leaves.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.leaves.*') || request()->routeIs('admin.leave-types.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff Leave') }}</a>
                         @endcan
+                        @can('staff-attendance.view')
+                        <a href="{{ route('admin.staff-attendance.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.staff-attendance.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff Attendance') }}</a>
+                        @endcan
                         <a href="{{ route('admin.payroll.report') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payroll.report') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payroll Reports') }}</a>
                         <a href="{{ route('admin.work-shifts.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.work-shifts.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Work Shift Types') }}</a>
                         <a href="{{ route('admin.designations.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.designations.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Designations') }}</a>
