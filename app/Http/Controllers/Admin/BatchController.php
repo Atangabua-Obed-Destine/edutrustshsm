@@ -3,11 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Batch;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class BatchController extends Controller
+class BatchController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'batch';
+
     public function index()
     {
         $batches = Batch::orderBy('name')->get();

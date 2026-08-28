@@ -169,7 +169,7 @@
                     @foreach($classPerformance as $cp)
                     @php $passRate = $cp->student_count > 0 ? round(($cp->pass_count / $cp->student_count) * 100) : 0; @endphp
                     <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-3 font-medium text-gray-900">{{ $cp->classSection?->name ?? 'N/A' }}</td>
+                        <td class="px-6 py-3 font-medium text-gray-900">{{ $cp->class_section_name ?? __('N/A') }}</td>
                         <td class="px-6 py-3 text-center text-gray-600">{{ $cp->student_count }}</td>
                         <td class="px-6 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold {{ $cp->avg_score >= 10 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700' }}">

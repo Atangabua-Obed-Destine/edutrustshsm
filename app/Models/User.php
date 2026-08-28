@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -9,6 +10,8 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
+    use Auditable;
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -38,6 +41,23 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    /**
+     * Signing in updates last_login_at, which would otherwise write an audit
+     * row on every login. Authentication events belong in their own log.
+     *
+     * @return array<int, string>
+     */
+    protected function auditExcluded(): array
+    {
+        return array_merge(
+            ['password', 'remember_token', 'invite_token', 'updated_at', 'created_at', 'last_login_at'],
+            $this->hidden ?? []
+        );
+    }
+
+    /** @var array<int, string>|null Memoized permission names for this request. */
+    protected ?array $permissionNames = null;
 
     protected function casts(): array
     {
@@ -141,9 +161,31 @@ class User extends Authenticatable
         return $this->role === 'teacher';
     }
 
+    public function isAccountant(): bool
+    {
+        return in_array($this->role, ['super_admin', 'admin', 'accountant']);
+    }
+
     public function isStaff(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin', 'teacher', 'staff']);
+        return in_array($this->role, ['super_admin', 'admin', 'accountant', 'teacher', 'staff']);
+    }
+
+    /**
+     * The route this user should land on after logging in.
+     *
+     * Returns null when the role has no portal yet (teacher, parent, student on
+     * the web guard) — callers must handle that rather than sending them to the
+     * admin dashboard, which is admin-only and would 403 immediately.
+     */
+    public function homeRoute(): ?string
+    {
+        return match ($this->role) {
+            'super_admin', 'admin' => 'admin.dashboard',
+            'accountant' => 'admin.account.income.index',
+            'staff' => 'admin.students.index',
+            default => null,
+        };
     }
 
     public function classSections()
@@ -186,10 +228,33 @@ class User extends Authenticatable
             return true;
         }
 
-        // Check across all assigned roles (pivot)
-        return $this->roles()
-            ->whereHas('permissions', fn ($q) => $q->where('name', $permission))
-            ->exists();
+        return in_array($permission, $this->permissionNames(), true);
+    }
+
+    /**
+     * Every permission name granted by this user's roles, loaded once per
+     * request. Authorization is checked on nearly every nav item and action, so
+     * a query per check would add hundreds of round-trips to a single page.
+     *
+     * @return array<int, string>
+     */
+    public function permissionNames(): array
+    {
+        return $this->permissionNames ??= $this->roles()
+            ->with('permissions:id,name')
+            ->get()
+            ->pluck('permissions')
+            ->flatten()
+            ->pluck('name')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** Drop the memoized permission set (after a role change). */
+    public function forgetPermissions(): void
+    {
+        $this->permissionNames = null;
     }
 
     /**

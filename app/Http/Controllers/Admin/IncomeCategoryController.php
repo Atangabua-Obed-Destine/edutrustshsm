@@ -3,13 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\IncomeCategory;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Str;
 
-class IncomeCategoryController extends Controller
+class IncomeCategoryController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'income-category';
+
     public function index()
     {
         $categories = IncomeCategory::orderBy('title')->get();
@@ -28,7 +34,6 @@ class IncomeCategoryController extends Controller
             'status' => true,
         ]);
 
-        AuditLog::log('created', IncomeCategory::class, $category->id, null, $category->toArray());
 
         return redirect()->route('admin.account.income-category.index')
             ->with('success', __('Income category created successfully.'));
@@ -48,7 +53,6 @@ class IncomeCategoryController extends Controller
             'status' => $validated['status'],
         ]);
 
-        AuditLog::log('updated', IncomeCategory::class, $income_category->id, $old, $income_category->toArray());
 
         return redirect()->route('admin.account.income-category.index')
             ->with('success', __('Income category updated successfully.'));
@@ -59,7 +63,6 @@ class IncomeCategoryController extends Controller
         $old = $income_category->toArray();
         $income_category->delete();
 
-        AuditLog::log('deleted', IncomeCategory::class, $old['id'], $old, null);
 
         return redirect()->route('admin.account.income-category.index')
             ->with('success', __('Income category deleted successfully.'));

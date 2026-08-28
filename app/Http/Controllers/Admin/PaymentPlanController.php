@@ -3,16 +3,34 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\PaymentPlan;
 use App\Models\PaymentPlanInstallment;
 use App\Models\Student;
 use App\Models\StudentFee;
+use App\Services\PaymentRecorder;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class PaymentPlanController extends Controller
+class PaymentPlanController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'payment-plan';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('payment-plan.view', ['studentFees']),
+            static::can('payment-plan.cancel', ['cancel']),
+            static::can('fee-collection.collect', ['pay']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $query = PaymentPlan::with([
@@ -151,6 +169,67 @@ class PaymentPlanController extends Controller
         ]);
 
         return view('admin.fees.payment-plans.show', compact('paymentPlan'));
+    }
+
+    /**
+     * Pay a specific instalment.
+     *
+     * There was no way to do this: instalments only advanced as a side effect
+     * of a payment recorded elsewhere, so a parent settling instalment 2 had to
+     * be handled as a general fee payment and hope the allocation landed right.
+     *
+     * The payment is still recorded against the plan's FEE — that is where the
+     * money is owed — and PaymentRecorder advances the instalments from there,
+     * so there is one path and one set of rules.
+     */
+    public function pay(Request $request, PaymentPlan $paymentPlan, PaymentRecorder $recorder)
+    {
+        $validated = $request->validate([
+            'installment_id' => ['required', 'exists:payment_plan_installments,id'],
+            'amount' => ['required', 'numeric', 'min:1'],
+            'payment_method' => ['required', 'in:cash,bank_transfer,mtn_momo,orange_money,edutrustpay'],
+            'payment_date' => ['required', 'date'],
+            'payer_name' => ['nullable', 'string', 'max:150'],
+            'payer_phone' => ['nullable', 'string', 'max:20'],
+            'transaction_ref' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        if ($paymentPlan->status !== 'active') {
+            return back()->with('error', __('This payment plan is not active.'));
+        }
+
+        $installment = $paymentPlan->installments()->whereKey($validated['installment_id'])->first();
+
+        if (! $installment) {
+            return back()->with('error', __('That instalment does not belong to this plan.'));
+        }
+
+        if (in_array($installment->status, ['paid', 'cancelled'], true)) {
+            return back()->with('error', __('That instalment is already settled or cancelled.'));
+        }
+
+        $fee = $paymentPlan->studentFee;
+
+        if (! $fee) {
+            return back()->with('error', __('The fee behind this plan no longer exists.'));
+        }
+
+        $payment = $recorder->record([
+            'student_enrollment_id' => $fee->student_enrollment_id,
+            'target_fee_id'         => $fee->id,
+            'amount'                => $validated['amount'],
+            'payment_method'        => $validated['payment_method'],
+            'payment_date'          => $validated['payment_date'],
+            'payer_name'            => $validated['payer_name'] ?? null,
+            'payer_phone'           => $validated['payer_phone'] ?? null,
+            'transaction_ref'       => $validated['transaction_ref'] ?? null,
+            'notes'                 => __('Instalment :n of plan :code', [
+                'n' => $installment->installment_number,
+                'code' => $paymentPlan->id,
+            ]),
+        ]);
+
+        return back()->with('success', __('Instalment paid. Receipt: :r', ['r' => $payment->receipt_number]));
     }
 
     public function cancel(PaymentPlan $paymentPlan)

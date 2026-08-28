@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\AdmissionApplication;
 use App\Models\Batch;
@@ -15,10 +16,27 @@ use App\Models\StudentEnrollment;
 use App\Models\Stream;
 use App\Models\Term;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class AdmissionController extends Controller
+class AdmissionController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'admission';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('admission.view', ['index', 'show', 'sectionsByForm', 'streamsByForm']),
+            static::can('admission.accept', ['accept', 'updateStatus']),
+            static::can('admission.reject', ['reject']),
+            static::can('admission.enrol', ['enrol']),
+        ];
+    }
+
     /**
      * Applications list with filters.
      */

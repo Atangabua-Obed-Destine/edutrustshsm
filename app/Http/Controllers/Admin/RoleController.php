@@ -3,12 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class RoleController extends Controller
+class RoleController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'role-and-permission';
+
     public function index()
     {
         $roles = Role::withCount(['permissions', 'users'])->orderBy('is_system', 'desc')->orderBy('name')->get();

@@ -3,15 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\Attendance;
 use App\Models\ClassSection;
 use App\Models\StudentEnrollment;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class AttendanceController extends Controller
+class AttendanceController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'attendance';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('attendance.view', ['index']),
+            static::can('attendance.mark', ['store']),
+            static::can('attendance.report', ['report']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $currentSession = AcademicSession::current();

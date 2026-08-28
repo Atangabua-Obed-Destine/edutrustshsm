@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,7 +11,7 @@ use RuntimeException;
 
 class JournalEntry extends Model
 {
-    use SoftDeletes;
+    use Auditable, SoftDeletes;
 
     use BelongsToBranch;
 

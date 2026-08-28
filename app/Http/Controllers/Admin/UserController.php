@@ -3,14 +3,29 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
-class UserController extends Controller
+class UserController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'staff';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('staff.edit', ['toggleActive']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $query = User::query();
@@ -144,6 +159,7 @@ class UserController extends Controller
 
         if (in_array('super_admin', $names)) return 'super_admin';
         if (in_array('admin', $names)) return 'admin';
+        if (in_array('accountant', $names)) return 'accountant';
         if (in_array('teacher', $names)) return 'teacher';
         return 'staff';
     }

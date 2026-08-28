@@ -3,12 +3,31 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\ParentPaymentSubmission;
 use App\Services\PaymentRecorder;
+use App\Exceptions\AlreadyReviewed;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ParentPaymentVerificationController extends Controller
+class ParentPaymentVerificationController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'parent-payment';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('parent-payment.view', ['index', 'show']),
+            static::can('parent-payment.approve', ['approve']),
+            static::can('parent-payment.reject', ['reject']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $status = $request->query('status', 'pending');
@@ -47,37 +66,52 @@ class ParentPaymentVerificationController extends Controller
     /** Approve a submission → record the official Payment + allocate it. */
     public function approve(Request $request, ParentPaymentSubmission $submission, PaymentRecorder $recorder)
     {
-        if (! $submission->isPending()) {
-            return back()->with('error', __('This submission has already been reviewed.'));
-        }
-
-        $enrollment = $submission->enrollment;
-        if (! $enrollment) {
+        if (! $submission->enrollment) {
             return back()->with('error', __('The related enrollment no longer exists.'));
         }
 
-        $payment = $recorder->record([
-            'branch_id'             => $submission->branch_id,
-            'student_enrollment_id' => $submission->student_enrollment_id,
-            'target_fee_id'         => $submission->student_fee_id,
-            'amount'                => $submission->amount,
-            'payment_method'        => $submission->payment_method,
-            'payment_date'          => $submission->payment_date,
-            'payer_name'            => $submission->guardian->display_name,
-            'payer_phone'           => $submission->guardian->primary_phone,
-            'bank_name'             => $submission->bank_name,
-            'transaction_ref'       => $submission->transaction_ref,
-            'proof_document'        => $submission->receipt_path,
-            'received_by'           => auth()->id(),
-            'notes'                 => __('Approved from parent portal submission #:id', ['id' => $submission->id]),
-        ]);
+        // One transaction, with the pending check re-read under a row lock. The
+        // payment used to be created in its own transaction and the submission
+        // updated outside it, so a failure there left an orphaned receipt on a
+        // still-pending submission, and a double-click recorded it twice.
+        try {
+            $payment = DB::transaction(function () use ($submission, $recorder) {
+                $locked = ParentPaymentSubmission::whereKey($submission->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-        $submission->update([
-            'status'      => 'approved',
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
-            'payment_id'  => $payment->id,
-        ]);
+                if (! $locked->isPending()) {
+                    throw new AlreadyReviewed();
+                }
+
+                $payment = $recorder->record([
+                    'branch_id'             => $locked->branch_id,
+                    'student_enrollment_id' => $locked->student_enrollment_id,
+                    'target_fee_id'         => $locked->student_fee_id,
+                    'amount'                => $locked->amount,
+                    'payment_method'        => $locked->payment_method,
+                    'payment_date'          => $locked->payment_date,
+                    'payer_name'            => $locked->guardian->display_name,
+                    'payer_phone'           => $locked->guardian->primary_phone,
+                    'bank_name'             => $locked->bank_name,
+                    'transaction_ref'       => $locked->transaction_ref,
+                    'proof_document'        => $locked->receipt_path,
+                    'received_by'           => auth()->id(),
+                    'notes'                 => __('Approved from parent portal submission #:id', ['id' => $locked->id]),
+                ]);
+
+                $locked->update([
+                    'status'      => 'approved',
+                    'reviewed_by' => auth()->id(),
+                    'reviewed_at' => now(),
+                    'payment_id'  => $payment->id,
+                ]);
+
+                return $payment;
+            });
+        } catch (AlreadyReviewed) {
+            return back()->with('error', __('This submission has already been reviewed.'));
+        }
 
         return redirect()->route('admin.parent-payments.show', $submission)
             ->with('success', __('Payment approved and recorded. Receipt: :r', ['r' => $payment->receipt_number]));

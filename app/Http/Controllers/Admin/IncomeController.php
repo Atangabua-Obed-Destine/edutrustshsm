@@ -3,18 +3,24 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Income;
 use App\Models\IncomeCategory;
 use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-class IncomeController extends Controller
+class IncomeController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'income';
+
     /** Payment method options shared across finance forms. */
     public const METHODS = ['Cash', 'Bank', 'MTN Mobile Money', 'Orange Money', 'Cheque', 'Other'];
 
@@ -69,7 +75,6 @@ class IncomeController extends Controller
 
             $this->linkToAccount($income);
 
-            AuditLog::log('created', Income::class, $income->id, null, $income->toArray());
         });
 
         return redirect()->route('admin.account.income.index')
@@ -107,7 +112,6 @@ class IncomeController extends Controller
             $this->linkToAccount($income);
         });
 
-        AuditLog::log('updated', Income::class, $income->id, $old, $income->fresh()->toArray());
 
         return redirect()->route('admin.account.income.index')
             ->with('success', __('Income updated successfully.'));
@@ -125,7 +129,6 @@ class IncomeController extends Controller
             $income->delete();
         });
 
-        AuditLog::log('deleted', Income::class, $old['id'], $old, null);
 
         return redirect()->route('admin.account.income.index')
             ->with('success', __('Income deleted successfully.'));

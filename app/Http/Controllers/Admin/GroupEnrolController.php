@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Form;
@@ -10,10 +11,25 @@ use App\Models\Stream;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class GroupEnrolController extends Controller
+class GroupEnrolController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'group-enrol';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('group-enrol.view', ['index', 'streams', 'sections', 'previewSubjects']),
+            static::can('group-enrol.enrol', ['enrol']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $sessions = AcademicSession::orderByDesc('start_date')->get();

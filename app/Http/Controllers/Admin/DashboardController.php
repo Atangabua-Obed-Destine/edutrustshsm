@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use App\Models\AcademicSession;
 use App\Models\Attendance;
 use App\Models\ClassSection;
@@ -11,8 +14,20 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\User;
 
-class DashboardController extends Controller
+class DashboardController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'dashboard';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('dashboard.view', ['index']),
+        ];
+    }
+
     public function index()
     {
         $school = SchoolSetting::current();
@@ -22,7 +37,7 @@ class DashboardController extends Controller
             'total_students' => 0,
             'active_students' => 0,
             'total_teachers' => User::where('role', 'teacher')->where('is_active', true)->inBranchContext()->count(),
-            'total_staff' => User::whereIn('role', ['staff', 'admin'])->where('is_active', true)->inBranchContext()->count(),
+            'total_staff' => User::whereIn('role', ['staff', 'admin', 'accountant'])->where('is_active', true)->inBranchContext()->count(),
             'total_classes' => 0,
             'present_today' => 0,
             'absent_today' => 0,

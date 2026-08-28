@@ -3,11 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\WorkShiftType;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class WorkShiftTypeController extends Controller
+class WorkShiftTypeController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'work-shift-type';
+
     public function index()
     {
         $items = WorkShiftType::orderBy('title')->get();

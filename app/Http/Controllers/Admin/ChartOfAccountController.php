@@ -3,12 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\ChartOfAccount;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ChartOfAccountController extends Controller
+class ChartOfAccountController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'chart-of-accounts';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('chart-of-accounts.edit', ['toggleStatus']),
+            static::can('chart-of-accounts.view', ['getByClass']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $class = $request->input('class');
@@ -36,7 +51,6 @@ class ChartOfAccountController extends Controller
     {
         $data = $this->validateAccount($request);
         $account = ChartOfAccount::create($data + ['created_by' => auth()->id()]);
-        AuditLog::log('created', ChartOfAccount::class, $account->id, null, $account->toArray());
 
         return redirect()->route('admin.chart-of-accounts.index')->with('success', __('Account created.'));
     }
@@ -63,7 +77,6 @@ class ChartOfAccountController extends Controller
         $data = $this->validateAccount($request, $chart_of_account->id);
         $old = $chart_of_account->toArray();
         $chart_of_account->update($data + ['updated_by' => auth()->id()]);
-        AuditLog::log('updated', ChartOfAccount::class, $chart_of_account->id, $old, $chart_of_account->toArray());
 
         return redirect()->route('admin.chart-of-accounts.index')->with('success', __('Account updated.'));
     }
@@ -92,7 +105,6 @@ class ChartOfAccountController extends Controller
 
         $old = $chart_of_account->toArray();
         $chart_of_account->delete();
-        AuditLog::log('deleted', ChartOfAccount::class, $old['id'], $old, null);
 
         return back()->with('success', __('Account deleted.'));
     }

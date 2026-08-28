@@ -17,6 +17,18 @@ class BranchContext
     public const ALL = 'all';
 
     /**
+     * Per-request memo. BranchScope runs on every query of ~70 models and each
+     * pass called accessibleIds() two or three times, every one of them a live
+     * branch_user lookup — so a single page could issue hundreds of redundant
+     * queries just deciding which branch it was in.
+     *
+     * @var array<int, int>|null
+     */
+    private static ?array $accessibleIds = null;
+
+    private static ?int $currentId = null;
+
+    /**
      * Whether we have an authenticated user to scope by. Off during console,
      * migrations and seeders so the global scope is a no-op there.
      */
@@ -32,6 +44,12 @@ class BranchContext
      * @return array<int, int>
      */
     public static function accessibleIds(): array
+    {
+        return self::$accessibleIds ??= self::resolveAccessibleIds();
+    }
+
+    /** @return array<int, int> */
+    private static function resolveAccessibleIds(): array
     {
         // Parent/guardian portal: a guardian is pinned to their own branch only.
         if (auth('guardians')->check()) {
@@ -67,6 +85,11 @@ class BranchContext
      */
     public static function current(): int
     {
+        return self::$currentId ??= self::resolveCurrent();
+    }
+
+    private static function resolveCurrent(): int
+    {
         $accessible = self::accessibleIds();
 
         if (empty($accessible)) {
@@ -100,12 +123,24 @@ class BranchContext
     {
         if ($value === self::ALL) {
             session([self::SESSION_KEY => self::ALL]);
+            self::flush();
             return;
         }
 
         if (in_array((int) $value, self::accessibleIds(), true)) {
             session([self::SESSION_KEY => (int) $value]);
+            self::flush();
         }
+    }
+
+    /**
+     * Drop the memo. Required whenever the active branch or the authenticated
+     * user changes within one request (branch switch, login, tests).
+     */
+    public static function flush(): void
+    {
+        self::$accessibleIds = null;
+        self::$currentId = null;
     }
 
     /**

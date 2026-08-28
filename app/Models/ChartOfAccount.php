@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ChartOfAccount extends Model
 {
-    use SoftDeletes;
+    use Auditable, SoftDeletes;
 
     protected $table = 'chart_of_accounts';
 

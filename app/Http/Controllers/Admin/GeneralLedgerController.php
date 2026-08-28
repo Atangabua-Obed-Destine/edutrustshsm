@@ -3,17 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\ChartOfAccount;
 use App\Models\JournalEntryLine;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
 /**
  * All reports are recomputed by summing POSTED journal lines — never the cached
  * chart_of_accounts.current_balance (guide gotcha #3).
  */
-class GeneralLedgerController extends Controller
+class GeneralLedgerController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'general-ledger';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('general-ledger.view', ['index', 'account', 'trialBalance', 'balanceSheet', 'incomeStatement']),
+        ];
+    }
+
     public function index()
     {
         $accounts = ChartOfAccount::postable()->orderBy('account_code')->get();

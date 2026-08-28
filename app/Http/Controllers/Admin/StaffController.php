@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\SchoolSetting;
@@ -11,11 +11,17 @@ use App\Models\StaffBankAccount;
 use App\Models\User;
 use App\Models\WorkShiftType;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-class StaffController extends Controller
+class StaffController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'staff';
+
     public function index(Request $request)
     {
         $query = User::staff()->with(['department', 'designation', 'workShift'])
@@ -56,7 +62,6 @@ class StaffController extends Controller
             return $user;
         });
 
-        AuditLog::log('created', User::class, $user->id, null, $user->toArray());
 
         return redirect()->route('admin.staff.index')->with('success', __('Staff member created.'));
     }
@@ -89,7 +94,6 @@ class StaffController extends Controller
             $this->syncBankAccounts($staff, $request);
         });
 
-        AuditLog::log('updated', User::class, $staff->id, $old, $staff->toArray());
 
         return redirect()->route('admin.staff.index')->with('success', __('Staff member updated.'));
     }
@@ -98,7 +102,6 @@ class StaffController extends Controller
     {
         $old = $staff->toArray();
         $staff->delete();
-        AuditLog::log('deleted', User::class, $old['id'], $old, null);
         return back()->with('success', __('Staff member deleted.'));
     }
 

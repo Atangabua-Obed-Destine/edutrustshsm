@@ -3,12 +3,31 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\FiscalYear;
+use App\Services\YearEndClosingService;
 use Illuminate\Http\Request;
+use RuntimeException;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class FiscalYearController extends Controller
+class FiscalYearController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'fiscal-year';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('fiscal-year.create', ['setActive']),
+            static::can('fiscal-year.close', ['close', 'reopen', 'togglePeriod']),
+            static::can('fiscal-year.view', ['previewClosing']),
+        ];
+    }
+
     public function index()
     {
         $fiscalYears = FiscalYear::withCount('periods')->orderByDesc('start_date')->get();
@@ -25,7 +44,6 @@ class FiscalYearController extends Controller
 
         $fy = FiscalYear::create($validated + ['created_by' => auth()->id()]);
         $fy->generatePeriods();
-        AuditLog::log('created', FiscalYear::class, $fy->id, null, $fy->toArray());
 
         return back()->with('success', __('Fiscal year created with monthly periods.'));
     }
@@ -40,15 +58,48 @@ class FiscalYearController extends Controller
         return back()->with('success', __(':name is now the active fiscal year.', ['name' => $fiscalYear->name]));
     }
 
-    public function close(FiscalYear $fiscalYear)
+    /** What closing this year would post, before committing to it. */
+    public function previewClosing(FiscalYear $fiscalYear, YearEndClosingService $closing)
     {
-        if (! $fiscalYear->canClose()) {
-            return back()->with('error', __('All periods must be closed and all entries posted before closing the year.'));
-        }
-        $fiscalYear->update(['is_closed' => true, 'is_active' => false]);
-        AuditLog::log('closed', FiscalYear::class, $fiscalYear->id, null, null);
+        return view('admin.accounting.fiscal-years.closing-preview', [
+            'fiscalYear' => $fiscalYear,
+            'preview' => $closing->preview($fiscalYear),
+        ]);
+    }
 
-        return back()->with('success', __('Fiscal year closed.'));
+    /**
+     * Close the year: post the closing entry, then mark it closed.
+     *
+     * This used to only flip the is_closed flag, so profit-and-loss balances ran
+     * forever and the year's result was never carried into equity.
+     */
+    public function close(FiscalYear $fiscalYear, YearEndClosingService $closing)
+    {
+        try {
+            $entry = $closing->close($fiscalYear);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        AuditLog::log('closed', FiscalYear::class, $fiscalYear->id, null, [
+            'closing_entry' => $entry->entry_number,
+        ]);
+
+        return back()->with('success', __('Fiscal year closed. Closing entry :n posted.', ['n' => $entry->entry_number]));
+    }
+
+    /** Reverse a closing and reopen the year. */
+    public function reopen(FiscalYear $fiscalYear, YearEndClosingService $closing)
+    {
+        try {
+            $closing->reopen($fiscalYear);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        AuditLog::log('reopened', FiscalYear::class, $fiscalYear->id, null, null);
+
+        return back()->with('success', __('Fiscal year reopened and its closing entry reversed.'));
     }
 
     public function destroy(FiscalYear $fiscalYear)

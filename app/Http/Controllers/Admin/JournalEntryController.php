@@ -3,17 +3,33 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AccountingPeriod;
 use App\Models\AuditLog;
 use App\Models\ChartOfAccount;
 use App\Models\FiscalYear;
 use App\Models\JournalEntry;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-class JournalEntryController extends Controller
+class JournalEntryController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'journal-entry';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('journal-entry.post', ['post']),
+            static::can('journal-entry.unpost', ['unpost']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $entries = JournalEntry::with('fiscalYear')
@@ -95,7 +111,6 @@ class JournalEntryController extends Controller
             return $entry;
         });
 
-        AuditLog::log('created', JournalEntry::class, $entry->id, null, $entry->toArray());
 
         return redirect()->route('admin.journal-entries.show', $entry)->with('success', __('Journal entry created.'));
     }
@@ -139,7 +154,6 @@ class JournalEntryController extends Controller
 
         $old = $journal_entry->toArray();
         $journal_entry->delete();
-        AuditLog::log('deleted', JournalEntry::class, $old['id'], $old, null);
 
         return redirect()->route('admin.journal-entries.index')->with('success', __('Journal entry deleted.'));
     }

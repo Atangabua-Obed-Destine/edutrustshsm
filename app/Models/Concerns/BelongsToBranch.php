@@ -19,8 +19,15 @@ trait BelongsToBranch
         static::addGlobalScope(new BranchScope());
 
         static::creating(function ($model) {
-            if (empty($model->branch_id) && BranchContext::isActive() && ! BranchContext::isAllBranches()) {
-                $model->branch_id = BranchContext::current();
+            if (! empty($model->branch_id) || ! BranchContext::isActive() || BranchContext::isAllBranches()) {
+                return;
+            }
+
+            // current() returns 0 for "no branch context". Stamping that as the
+            // branch_id violates the foreign key, so leave the column null and
+            // let the caller pass one explicitly when it matters.
+            if ($branchId = BranchContext::current()) {
+                $model->branch_id = $branchId;
             }
         });
     }

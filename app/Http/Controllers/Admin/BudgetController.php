@@ -3,15 +3,31 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\Budget;
 use App\Models\BudgetRevision;
 use App\Models\Department;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class BudgetController extends Controller
+class BudgetController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'budget';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('budget.approve', ['submitForApproval', 'approve', 'activate', 'close', 'cancel']),
+            static::can('budget.revise', ['revise']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $query = Budget::with('department')
@@ -38,7 +54,6 @@ class BudgetController extends Controller
         $data = $this->validateBudget($request);
 
         $budget = Budget::create($data + ['status' => 'draft', 'created_by' => auth()->id()]);
-        AuditLog::log('created', Budget::class, $budget->id, null, $budget->toArray());
 
         return redirect()->route('admin.budget.show', $budget)
             ->with('success', __('Budget created successfully.'));
@@ -77,7 +92,6 @@ class BudgetController extends Controller
         $data['updated_by'] = auth()->id();
         $budget->update($data);
 
-        AuditLog::log('updated', Budget::class, $budget->id, $old, $budget->toArray());
 
         return redirect()->route('admin.budget.show', $budget)
             ->with('success', __('Budget updated successfully.'));
@@ -94,7 +108,6 @@ class BudgetController extends Controller
             $budget->allocations()->delete();
             $budget->delete();
         });
-        AuditLog::log('deleted', Budget::class, $old['id'], $old, null);
 
         return redirect()->route('admin.budget.index')->with('success', __('Budget deleted.'));
     }

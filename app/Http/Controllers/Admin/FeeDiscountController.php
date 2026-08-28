@@ -3,16 +3,23 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\FeeCategory;
 use App\Models\FeeDiscount;
 use App\Models\StudentEnrollment;
 use App\Models\StudentFee;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class FeeDiscountController extends Controller
+class FeeDiscountController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'fee-discount';
+
     public function index(Request $request)
     {
         $currentSession = AcademicSession::current();
@@ -88,10 +95,7 @@ class FeeDiscountController extends Controller
                     : min($validated['value'], $fee->original_amount);
 
                 $fee->discount_amount = $fee->discount_amount + $discountAmount;
-                $fee->net_amount = max(0, $fee->original_amount - $fee->discount_amount - $fee->waiver_amount);
-                $fee->balance = max(0, $fee->net_amount - $fee->paid_amount);
-                $fee->status = $fee->balance <= 0 ? ($fee->net_amount == 0 ? 'waived' : 'paid') : ($fee->paid_amount > 0 ? 'partial' : 'unpaid');
-                $fee->save();
+                $fee->recalculate()->save();
             }
         });
 
@@ -114,10 +118,7 @@ class FeeDiscountController extends Controller
                     : min($feeDiscount->value, $fee->original_amount);
 
                 $fee->discount_amount = max(0, $fee->discount_amount - $discountAmount);
-                $fee->net_amount = max(0, $fee->original_amount - $fee->discount_amount - $fee->waiver_amount);
-                $fee->balance = max(0, $fee->net_amount - $fee->paid_amount);
-                $fee->status = $fee->balance <= 0 ? 'paid' : ($fee->paid_amount > 0 ? 'partial' : 'unpaid');
-                $fee->save();
+                $fee->recalculate()->save();
             }
 
             $feeDiscount->delete();

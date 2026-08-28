@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Permission extends Model
 {
+    // Not Auditable: the permission catalogue is seeded reference data, not
+    // something operators edit — auditing it just floods the trail on install.
     protected $fillable = [
         'name',
         'display_name',

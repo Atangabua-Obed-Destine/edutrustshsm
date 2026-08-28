@@ -3,13 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\ExpenseCategory;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Str;
 
-class ExpenseCategoryController extends Controller
+class ExpenseCategoryController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'expense-category';
+
     public function index()
     {
         $categories = ExpenseCategory::orderBy('title')->get();
@@ -28,7 +34,6 @@ class ExpenseCategoryController extends Controller
             'status' => true,
         ]);
 
-        AuditLog::log('created', ExpenseCategory::class, $category->id, null, $category->toArray());
 
         return redirect()->route('admin.account.expense-category.index')
             ->with('success', __('Expense category created successfully.'));
@@ -48,7 +53,6 @@ class ExpenseCategoryController extends Controller
             'status' => $validated['status'],
         ]);
 
-        AuditLog::log('updated', ExpenseCategory::class, $expense_category->id, $old, $expense_category->toArray());
 
         return redirect()->route('admin.account.expense-category.index')
             ->with('success', __('Expense category updated successfully.'));
@@ -59,7 +63,6 @@ class ExpenseCategoryController extends Controller
         $old = $expense_category->toArray();
         $expense_category->delete();
 
-        AuditLog::log('deleted', ExpenseCategory::class, $old['id'], $old, null);
 
         return redirect()->route('admin.account.expense-category.index')
             ->with('success', __('Expense category deleted successfully.'));

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Budget;
 use App\Models\BudgetAllocation;
 use App\Models\Expense;
@@ -12,12 +12,18 @@ use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
-class ExpenseController extends Controller
+class ExpenseController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'expense';
+
     public function __construct(private PaymentAccountService $accounts)
     {
     }
@@ -76,7 +82,6 @@ class ExpenseController extends Controller
                 $this->linkToAccount($expense);
                 $this->recompute($expense->budget_id, $expense->budget_allocation_id);
 
-                AuditLog::log('created', Expense::class, $expense->id, null, $expense->toArray());
             });
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
@@ -132,7 +137,6 @@ class ExpenseController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        AuditLog::log('updated', Expense::class, $expense->id, $old, $expense->fresh()->toArray());
 
         return redirect()->route('admin.account.expense.index')
             ->with('success', __('Expense updated successfully.'));
@@ -155,7 +159,6 @@ class ExpenseController extends Controller
             $this->recompute($budgetId, $allocationId);
         });
 
-        AuditLog::log('deleted', Expense::class, $old['id'], $old, null);
 
         return redirect()->route('admin.account.expense.index')
             ->with('success', __('Expense deleted successfully.'));

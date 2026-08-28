@@ -24,4 +24,10 @@ class ExamSchedule extends Model
     public function classSection() { return $this->belongsTo(ClassSection::class); }
     public function subject() { return $this->belongsTo(Subject::class); }
     public function room() { return $this->belongsTo(Room::class); }
+
+    /** Invigilators assigned to this exam (pivot: exam_schedule_invigilator). */
+    public function invigilators()
+    {
+        return $this->belongsToMany(User::class, 'exam_schedule_invigilator');
+    }
 }

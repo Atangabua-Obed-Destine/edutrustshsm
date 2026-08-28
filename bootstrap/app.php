@@ -13,9 +13,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
+        ]);
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ResolveBranchContext::class,
         ]);
         $middleware->web(append: [
             \App\Http\Middleware\SetLocale::class,
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
         $middleware->redirectGuestsTo(function ($request) {
             // If the request is for the applicant portal, redirect to applicant login

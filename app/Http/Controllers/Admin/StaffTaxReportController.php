@@ -3,16 +3,31 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\User;
 use App\Services\TaxCalculationService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
 /**
  * Recomputes taxes under the CURRENT config (a "what-if"), using the same
  * TaxCalculationService as the payslip so the two never disagree (guide #1).
  */
-class StaffTaxReportController extends Controller
+class StaffTaxReportController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'staff-tax-report';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('staff-tax-report.view', ['index']),
+        ];
+    }
+
     public function __construct(private TaxCalculationService $tax)
     {
     }

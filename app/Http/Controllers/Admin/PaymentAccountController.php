@@ -3,18 +3,36 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Models\PaymentAccountType;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
-class PaymentAccountController extends Controller
+class PaymentAccountController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'payment-account';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('payment-account.view', ['accountBook']),
+            static::can('payment-account.deposit', ['depositForm', 'deposit']),
+            static::can('payment-account.withdraw', ['withdrawForm', 'withdraw']),
+            static::can('payment-account.recompute', ['recompute']),
+            static::can('payment-account.delete', ['destroyTransaction']),
+        ];
+    }
+
     public function __construct(private PaymentAccountService $accounts)
     {
     }
@@ -66,7 +84,6 @@ class PaymentAccountController extends Controller
                 ]);
             }
 
-            AuditLog::log('created', PaymentAccount::class, $account->id, null, $account->toArray());
         });
 
         return redirect()->route('admin.payment-account.index')
@@ -93,7 +110,6 @@ class PaymentAccountController extends Controller
         $old = $payment_account->toArray();
         $payment_account->update($validated + ['updated_by' => auth()->id()]);
 
-        AuditLog::log('updated', PaymentAccount::class, $payment_account->id, $old, $payment_account->toArray());
 
         return redirect()->route('admin.payment-account.index')
             ->with('success', __('Payment account updated successfully.'));
@@ -107,7 +123,6 @@ class PaymentAccountController extends Controller
 
         $old = $payment_account->toArray();
         $payment_account->delete();
-        AuditLog::log('deleted', PaymentAccount::class, $old['id'], $old, null);
 
         return redirect()->route('admin.payment-account.index')
             ->with('success', __('Payment account deleted successfully.'));
@@ -217,6 +232,8 @@ class PaymentAccountController extends Controller
     {
         return \App\Models\Income::whereNull('payment_account_id')->count()
             + \App\Models\Expense::whereNull('payment_account_id')->count()
-            + \App\Models\Payment::whereNull('payment_account_id')->count();
+            + \App\Models\Payment::whereNull('payment_account_id')->count()
+            + \App\Models\Payroll::where('status', \App\Models\Payroll::STATUS_PAID)
+                ->whereNull('payment_account_id')->count();
     }
 }

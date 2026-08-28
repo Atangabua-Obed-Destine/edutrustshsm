@@ -3,26 +3,45 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Form;
 use App\Models\SchoolSetting;
 use App\Models\StudentEnrollment;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class PromotionController extends Controller
+class PromotionController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'promotion';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('promotion.view', ['index']),
+            static::can('promotion.process', ['process']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $currentSession = AcademicSession::current();
         $sessions = AcademicSession::orderByDesc('start_date')->get();
         $fromSessionId = $request->input('from_session_id', $currentSession?->id);
 
+        // Class sections are NOT session-scoped (they belong to a Form and are
+        // reused every year). "Classes in session X" therefore means the sections
+        // that actually have enrollments in X.
         $classSections = $fromSessionId
             ? ClassSection::with('form')
-                ->where('academic_session_id', $fromSessionId)
                 ->where('is_active', true)
+                ->whereHas('studentEnrollments', fn ($q) => $q->where('academic_session_id', $fromSessionId))
                 ->orderBy('name')
                 ->get()
             : collect();
@@ -37,10 +56,12 @@ class PromotionController extends Controller
             $selectedClass = ClassSection::with('form')->find($classSectionId);
             $students = StudentEnrollment::with(['student', 'classSection.form', 'termResults'])
                 ->where('class_section_id', $classSectionId)
+                ->when($fromSessionId, fn ($q) => $q->where('academic_session_id', $fromSessionId))
                 ->where('status', 'active')
                 ->get()
                 ->map(function ($enrollment) use ($threshold) {
-                    $termAvg = $enrollment->termResults->avg('overall_average');
+                    // term_results.term_average — there is no `overall_average` column.
+                    $termAvg = $enrollment->termResults->avg('term_average');
                     $enrollment->computed_average = $termAvg ? round($termAvg, 2) : null;
                     $enrollment->recommended_decision = null;
 
@@ -60,8 +81,9 @@ class PromotionController extends Controller
 
         $targetClasses = collect();
         if ($nextSession) {
+            // Sections are session-agnostic, so every active section is a valid
+            // promotion target for the next session.
             $targetClasses = ClassSection::with('form')
-                ->where('academic_session_id', $nextSession->id)
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get();

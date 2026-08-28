@@ -3,12 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Budget;
 use App\Models\Department;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class BudgetReportController extends Controller
+class BudgetReportController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'budget-report';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('budget-report.view', ['performance', 'variance', 'department', 'cashflow']),
+        ];
+    }
+
     /** Performance: per-budget total/allocated/spent/remaining/utilization. */
     public function performance(Request $request)
     {

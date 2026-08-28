@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class Guardian extends Authenticatable
 {
-    use Notifiable, BelongsToBranch;
+    use Auditable, Notifiable, BelongsToBranch;
 
     protected $fillable = [
         'branch_id', 'user_id',

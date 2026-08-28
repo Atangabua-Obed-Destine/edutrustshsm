@@ -3,15 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentSubject;
 use App\Models\AcademicSession;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class SubjectAddDropController extends Controller
+class SubjectAddDropController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'subject-add-drop';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('subject-add-drop.view', ['index', 'loadStudent']),
+            static::can('subject-add-drop.add', ['addSubject']),
+            static::can('subject-add-drop.drop', ['dropSubject']),
+        ];
+    }
+
     /**
      * Show the Subject Add/Drop page with student search.
      */

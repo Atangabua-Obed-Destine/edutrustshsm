@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Database\Eloquent\Model;
 
 class Sequence extends Model
 {
-    use BelongsToBranch;
+    use Auditable, BelongsToBranch;
 
     protected $fillable = [
         'branch_id',
@@ -28,6 +29,12 @@ class Sequence extends Model
     public function term()
     {
         return $this->belongsTo(Term::class);
+    }
+
+    /** Marks recorded against this sequence (guards deletion). */
+    public function marks()
+    {
+        return $this->hasMany(Mark::class);
     }
 
     public function forms()

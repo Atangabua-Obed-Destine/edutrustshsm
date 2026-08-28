@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\ExamSchedule;
@@ -11,10 +12,25 @@ use App\Models\Room;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class ExamScheduleController extends Controller
+class ExamScheduleController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'exam-schedule';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('exam-schedule.view', ['index', 'sectionsByForm', 'subjectsByForm']),
+            static::can('exam-schedule.create', ['save']),
+        ];
+    }
+
     /**
      * Show exam schedule page with filter bar + entry rows.
      */

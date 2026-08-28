@@ -3,15 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Branch;
 use App\Models\User;
 use App\Services\BranchProvisioningService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Str;
 
-class BranchController extends Controller
+class BranchController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'branch';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('branch.view', ['index']),
+            static::can('branch.create', ['store']),
+            static::can('branch.edit', ['update']),
+            static::can('branch.assign', ['assignUsers']),
+        ];
+    }
+
     public function __construct(private BranchProvisioningService $provisioning)
     {
     }
@@ -44,7 +61,6 @@ class BranchController extends Controller
         // The creator (and every super_admin) can already reach it; attach creator explicitly.
         $branch->users()->syncWithoutDetaching([auth()->id()]);
 
-        AuditLog::log('created', Branch::class, $branch->id, null, $branch->toArray());
 
         return redirect()->route('admin.branches.index')
             ->with('success', __('Branch ":name" created and provisioned.', ['name' => $branch->name]));
@@ -65,7 +81,6 @@ class BranchController extends Controller
             'is_active' => $validated['is_active'],
         ]);
 
-        AuditLog::log('updated', Branch::class, $branch->id, $old, $branch->toArray());
 
         return redirect()->route('admin.branches.index')->with('success', __('Branch updated.'));
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\FeeBreakdown;
 use App\Models\FeeCategory;
@@ -10,10 +11,24 @@ use App\Models\FeeStructure;
 use App\Models\Form;
 use App\Models\Stream;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class FeeStructureController extends Controller
+class FeeStructureController extends Controller implements HasMiddleware
 {
+    use AuthorizesModule;
+
+    protected static string $access = 'fee-structure';
+
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('fee-structure.view', ['getStreamsByForm', 'loadCategories', 'loadExisting']),
+        ];
+    }
+
     public function index(Request $request)
     {
         $currentSession = AcademicSession::current();
