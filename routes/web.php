@@ -515,6 +515,8 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     // Fiscal Years & Periods
     Route::post('fiscal-years/{fiscalYear}/set-active', [FiscalYearController::class, 'setActive'])->name('fiscal-years.set-active');
     Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'close'])->name('fiscal-years.close');
+    Route::get('fiscal-years/{fiscalYear}/closing', [FiscalYearController::class, 'previewClosing'])->name('fiscal-years.closing');
+    Route::post('fiscal-years/{fiscalYear}/reopen', [FiscalYearController::class, 'reopen'])->name('fiscal-years.reopen');
     Route::post('accounting-periods/{period}/toggle', [FiscalYearController::class, 'togglePeriod'])->name('accounting-periods.toggle');
     Route::resource('fiscal-years', FiscalYearController::class)->only(['index', 'store', 'destroy']);
 
