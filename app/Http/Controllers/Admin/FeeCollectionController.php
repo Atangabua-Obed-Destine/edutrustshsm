@@ -9,17 +9,15 @@ use App\Models\ClassSection;
 use App\Models\FeeCategory;
 use App\Models\Form;
 use App\Models\Payment;
-use App\Models\PaymentAllocation;
 use App\Models\SchoolSetting;
 use App\Models\Stream;
 use App\Models\PaymentPlan;
-use App\Models\PaymentPlanInstallment;
 use App\Models\StudentEnrollment;
 use App\Models\StudentFee;
+use App\Services\PaymentRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\DB;
 
 class FeeCollectionController extends Controller implements HasMiddleware
 {
@@ -131,7 +129,7 @@ class FeeCollectionController extends Controller implements HasMiddleware
         );
     }
 
-    public function storePayment(Request $request)
+    public function storePayment(Request $request, PaymentRecorder $recorder)
     {
         $validated = $request->validate([
             'student_fee_id' => ['required', 'exists:student_fees,id'],
@@ -145,161 +143,53 @@ class FeeCollectionController extends Controller implements HasMiddleware
 
         $studentFee = StudentFee::findOrFail($validated['student_fee_id']);
 
-        $result = DB::transaction(function () use ($validated, $studentFee) {
-            // Generate receipt number
-            $settings = SchoolSetting::current();
-            $prefix = $settings ? $settings->receipt_prefix : 'RCP';
-            $lastPayment = Payment::where('receipt_number', 'like', "{$prefix}-%")
-                ->orderByDesc('id')
+        // Recording, allocation, balances and payment-plan advancement all live
+        // in PaymentRecorder so this screen, the payments screen and parent
+        // portal approval cannot drift apart.
+        $payment = $recorder->record([
+            'student_enrollment_id' => $studentFee->student_enrollment_id,
+            'target_fee_id'         => $studentFee->id,
+            'amount'                => $validated['amount'],
+            'payment_method'        => $validated['payment_method'],
+            'payment_date'          => $validated['payment_date'],
+            'payer_name'            => $validated['payer_name'] ?? null,
+            'payer_phone'           => $validated['payer_phone'] ?? null,
+            'notes'                 => $validated['notes'] ?? null,
+        ]);
+
+        $studentFee->refresh();
+
+        $plan = PaymentPlan::where('student_fee_id', $studentFee->id)->first();
+
+        // Plan snapshot for the JSON response.
+        $planInfo = null;
+        if ($plan) {
+            $plan->refresh();
+            $plan->load('installments');
+            $nextInst = $plan->installments
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->sortBy('installment_number')
                 ->first();
-            $nextNum = 1;
-            if ($lastPayment) {
-                $parts = explode('-', $lastPayment->receipt_number);
-                $nextNum = (int) end($parts) + 1;
-            }
-            $receiptNumber = sprintf('%s-%06d', $prefix, $nextNum);
-
-            $payment = Payment::create([
-                'receipt_number' => $receiptNumber,
-                'student_enrollment_id' => $studentFee->student_enrollment_id,
-                'amount' => $validated['amount'],
-                'payment_method' => $validated['payment_method'],
-                'payment_date' => $validated['payment_date'],
-                'payer_name' => $validated['payer_name'] ?? null,
-                'payer_phone' => $validated['payer_phone'] ?? null,
-                'verification_status' => 'verified',
-                'received_by' => auth()->id(),
-                'notes' => $validated['notes'] ?? null,
-            ]);
-
-            // Allocate directly to this specific fee first
-            $remaining = (float) $validated['amount'];
-            $allocAmount = min($studentFee->balance, $remaining);
-
-            if ($allocAmount > 0) {
-                PaymentAllocation::create([
-                    'payment_id' => $payment->id,
-                    'student_fee_id' => $studentFee->id,
-                    'amount' => $allocAmount,
-                ]);
-
-                $studentFee->paid_amount += $allocAmount;
-                $studentFee->balance = $studentFee->net_amount - $studentFee->paid_amount;
-                $studentFee->status = $studentFee->balance <= 0 ? 'paid' : ($studentFee->paid_amount > 0 ? 'partial' : 'unpaid');
-                $studentFee->save();
-
-                $remaining -= $allocAmount;
-            }
-
-            // If overpayment, allocate remainder to other outstanding fees (FIFO)
-            if ($remaining > 0) {
-                $otherFees = StudentFee::where('student_enrollment_id', $studentFee->student_enrollment_id)
-                    ->where('id', '!=', $studentFee->id)
-                    ->where('balance', '>', 0)
-                    ->orderBy('id')
-                    ->get();
-
-                foreach ($otherFees as $otherFee) {
-                    if ($remaining <= 0) break;
-                    $otherAlloc = min($otherFee->balance, $remaining);
-
-                    PaymentAllocation::create([
-                        'payment_id' => $payment->id,
-                        'student_fee_id' => $otherFee->id,
-                        'amount' => $otherAlloc,
-                    ]);
-
-                    $otherFee->paid_amount += $otherAlloc;
-                    $otherFee->balance = $otherFee->net_amount - $otherFee->paid_amount;
-                    $otherFee->status = $otherFee->balance <= 0 ? 'paid' : 'partial';
-                    $otherFee->save();
-
-                    $remaining -= $otherAlloc;
-                }
-            }
-
-            // Reload to get updated values
-            $studentFee->refresh();
-
-            // ── Sync Payment Plan Installments ──
-            // If this fee has an active payment plan, allocate the payment amount
-            // to installments in order (FIFO by installment_number).
-            $plan = PaymentPlan::where('student_fee_id', $studentFee->id)
-                ->where('status', 'active')
-                ->first();
-
-            if ($plan) {
-                $planRemaining = (float) $validated['amount'];
-                $installments = $plan->installments()
-                    ->whereIn('status', ['pending', 'partial', 'overdue'])
-                    ->orderBy('installment_number')
-                    ->get();
-
-                foreach ($installments as $inst) {
-                    if ($planRemaining <= 0) break;
-
-                    $instBalance = (float) $inst->amount - (float) $inst->paid_amount;
-                    $allocToInst = min($instBalance, $planRemaining);
-
-                    $inst->paid_amount = (float) $inst->paid_amount + $allocToInst;
-                    $inst->payment_id = $payment->id;
-
-                    if ($inst->paid_amount >= (float) $inst->amount - 0.01) {
-                        $inst->status = 'paid';
-                        $inst->paid_date = $validated['payment_date'];
-                        $inst->paid_amount = $inst->amount; // snap to exact
-                    } else {
-                        $inst->status = 'partial';
-                    }
-
-                    $inst->save();
-                    $planRemaining -= $allocToInst;
-                }
-
-                // Check if all installments are now paid → complete the plan
-                $allPaid = $plan->installments()->whereIn('status', ['pending', 'partial', 'overdue'])->count() === 0;
-                if ($allPaid) {
-                    $plan->update(['status' => 'completed']);
-                }
-            }
-
-            // Build plan snapshot for the JSON response
-            $planInfo = null;
-            if ($plan) {
-                $plan->refresh();
-                $plan->load('installments');
-                $nextInst = $plan->installments
-                    ->whereIn('status', ['pending', 'partial', 'overdue'])
-                    ->sortBy('installment_number')
-                    ->first();
-                $planInfo = [
-                    'id' => $plan->id,
-                    'status' => $plan->status,
-                    'paidCount' => $plan->installments->where('status', 'paid')->count(),
-                    'totalInstallments' => $plan->number_of_installments,
-                    'progress' => $plan->progress,
-                    'nextNum' => $nextInst?->installment_number,
-                    'nextAmount' => $nextInst ? (float) $nextInst->amount - (float) $nextInst->paid_amount : 0,
-                    'nextDue' => $nextInst?->due_date?->format('d M Y'),
-                ];
-            }
-
-            return [
-                'payment' => $payment,
-                'receipt_number' => $receiptNumber,
-                'fee' => $studentFee,
-                'plan' => $planInfo,
+            $planInfo = [
+                'id' => $plan->id,
+                'status' => $plan->status,
+                'paidCount' => $plan->installments->where('status', 'paid')->count(),
+                'totalInstallments' => $plan->number_of_installments,
+                'progress' => $plan->progress,
+                'nextNum' => $nextInst?->installment_number,
+                'nextAmount' => $nextInst ? (float) $nextInst->amount - (float) $nextInst->paid_amount : 0,
+                'nextDue' => $nextInst?->due_date?->format('d M Y'),
             ];
-        });
+        }
 
         return response()->json([
             'success' => true,
-            'receipt_number' => $result['receipt_number'],
-            'paid_amount' => $result['fee']->paid_amount,
-            'balance' => $result['fee']->balance,
-            'status' => $result['fee']->status,
-            'payment_id' => $result['payment']->id,
-            'plan' => $result['plan'],
+            'receipt_number' => $payment->receipt_number,
+            'paid_amount' => $studentFee->paid_amount,
+            'balance' => $studentFee->balance,
+            'status' => $studentFee->status,
+            'payment_id' => $payment->id,
+            'plan' => $planInfo,
         ]);
     }
 
