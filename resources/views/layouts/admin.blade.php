@@ -291,6 +291,9 @@
                         <a href="{{ route('admin.journal-entries.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.journal-entries.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Journal Entries') }}</a>
                         <a href="{{ route('admin.accounting-reports.general-ledger') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.accounting-reports.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Reports') }}</a>
                         <a href="{{ route('admin.account-mappings.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.account-mappings.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Transaction Mappings') }}</a>
+                        @can('accounting-report.view')
+                        <a href="{{ route('admin.accounting-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.accounting-reports.index') || request()->routeIs('admin.accounting-reports.*-aging') || request()->routeIs('admin.accounting-reports.budget-vs-actual') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Accounting Reports') }}</a>
+                        @endcan
                     </div>
                 </div>
 

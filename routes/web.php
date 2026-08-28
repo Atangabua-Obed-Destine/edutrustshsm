@@ -56,6 +56,7 @@ use App\Http\Controllers\Admin\ChartOfAccountController;
 use App\Http\Controllers\Admin\FiscalYearController;
 use App\Http\Controllers\Admin\JournalEntryController;
 use App\Http\Controllers\Admin\AccountMappingController;
+use App\Http\Controllers\Admin\AccountingReportsController;
 use App\Http\Controllers\Admin\GeneralLedgerController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\DesignationController;
@@ -519,6 +520,15 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::resource('journal-entries', JournalEntryController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
 
     // Transaction Mappings (auto-posting config)
+    // Accounting reports (read-only analysis)
+    Route::prefix('accounting-reports')->name('accounting-reports.')->group(function () {
+        Route::get('/', [AccountingReportsController::class, 'index'])->name('index');
+        Route::get('receivables-aging', [AccountingReportsController::class, 'receivablesAging'])->name('receivables-aging');
+        Route::get('payables-aging', [AccountingReportsController::class, 'payablesAging'])->name('payables-aging');
+        Route::get('student-fee-aging', [AccountingReportsController::class, 'studentFeeAging'])->name('student-fee-aging');
+        Route::get('budget-vs-actual', [AccountingReportsController::class, 'budgetVsActual'])->name('budget-vs-actual');
+    });
+
     Route::get('account-mappings', [AccountMappingController::class, 'index'])->name('account-mappings.index');
     Route::post('account-mappings/save', [AccountMappingController::class, 'save'])->name('account-mappings.save');
     Route::get('account-mappings/unmapped', [AccountMappingController::class, 'unmapped'])->name('account-mappings.unmapped');
