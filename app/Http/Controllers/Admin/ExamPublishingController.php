@@ -15,8 +15,10 @@ use App\Models\StudentEnrollment;
 use App\Models\StudentSubject;
 use App\Models\Subject;
 use App\Models\Term;
+use App\Services\MarksWorkflowService;
 use App\Services\TermResultCalculator;
 use Illuminate\Http\Request;
+use RuntimeException;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
@@ -263,129 +265,84 @@ class ExamPublishingController extends Controller implements HasMiddleware
     /**
      * Publish a single subject's marks (approved → published).
      */
-    public function publishSubject(Request $request)
+    public function publishSubject(Request $request, MarksWorkflowService $workflow)
     {
-        $request->validate([
+        $validated = $request->validate([
             'submission_id' => ['required', 'exists:marks_submissions,id'],
         ]);
 
-        $submission = MarksSubmission::findOrFail($request->submission_id);
+        $submission = MarksSubmission::findOrFail($validated['submission_id']);
 
-        if ($submission->status !== 'approved') {
-            return redirect()->back()->with('error', __('Only approved marks can be published. Current status: :status', ['status' => $submission->status]));
+        try {
+            $workflow->apply($submission, 'published');
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $submission->update(['status' => 'published']);
-
-        // Also update individual marks to published
-        Mark::where('subject_id', $submission->subject_id)
-            ->where('sequence_id', $submission->sequence_id)
-            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $submission->class_section_id))
-            ->update(['status' => 'published']);
-
-        return redirect()->back()->with('success', __(':subject marks published successfully.', ['subject' => $submission->subject->name]));
+        return back()->with('success', __(':subject marks published successfully.', [
+            'subject' => $submission->subject->name,
+        ]));
     }
 
     /**
      * Unpublish a subject's marks back to approved (published → approved).
      */
-    public function unpublishSubject(Request $request)
+    public function unpublishSubject(Request $request, MarksWorkflowService $workflow)
     {
-        $request->validate([
+        $validated = $request->validate([
             'submission_id' => ['required', 'exists:marks_submissions,id'],
         ]);
 
-        $submission = MarksSubmission::findOrFail($request->submission_id);
+        $submission = MarksSubmission::findOrFail($validated['submission_id']);
 
-        if ($submission->status !== 'published') {
-            return redirect()->back()->with('error', __('Only published marks can be unpublished.'));
+        try {
+            $workflow->apply($submission, 'unpublished');
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $submission->update(['status' => 'approved']);
-
-        Mark::where('subject_id', $submission->subject_id)
-            ->where('sequence_id', $submission->sequence_id)
-            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $submission->class_section_id))
-            ->update(['status' => 'approved']);
-
-        return redirect()->back()->with('success', __(':subject marks unpublished (reverted to approved).', ['subject' => $submission->subject->name]));
+        return back()->with('success', __(':subject marks unpublished (reverted to approved).', [
+            'subject' => $submission->subject->name,
+        ]));
     }
 
     /**
      * Bulk transition: move selected subjects to a new workflow state.
      */
-    public function bulkTransition(Request $request)
+    public function bulkTransition(Request $request, MarksWorkflowService $workflow)
     {
-        $request->validate([
+        $validated = $request->validate([
             'submission_ids' => ['required', 'array', 'min:1'],
             'submission_ids.*' => ['required', 'exists:marks_submissions,id'],
-            'transition_to' => ['required', 'in:submitted,approved,published'],
+            'transition_to' => ['required', 'in:submitted,approved,published,returned'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $targetStatus = $request->transition_to;
-        $notes = $request->notes;
-        $successCount = 0;
-        $skipped = [];
+        $submissions = MarksSubmission::with('subject:id,name')
+            ->whereIn('id', $validated['submission_ids'])
+            ->get();
 
-        // Define allowed transitions
-        $allowedFrom = [
-            'submitted' => ['draft'],
-            'approved' => ['submitted'],
-            'published' => ['approved'],
-        ];
-
-        foreach ($request->submission_ids as $submissionId) {
-            $submission = MarksSubmission::find($submissionId);
-            if (!$submission) continue;
-
-            // Only transition if current status allows it
-            if (!in_array($submission->status, $allowedFrom[$targetStatus] ?? [])) {
-                $skipped[] = $submission->subject?->name ?? "ID:{$submissionId}";
-                continue;
-            }
-
-            $updateData = ['status' => $targetStatus];
-
-            if ($targetStatus === 'submitted') {
-                $updateData['submitted_at'] = now();
-            } elseif ($targetStatus === 'approved') {
-                $updateData['approved_by'] = auth()->id();
-                $updateData['approved_at'] = now();
-            }
-
-            if ($notes) {
-                $updateData['admin_comment'] = $notes;
-            }
-
-            $submission->update($updateData);
-
-            // Update individual marks
-            $markUpdate = ['status' => $targetStatus];
-            if ($targetStatus === 'submitted') {
-                $markUpdate['submitted_at'] = now();
-            } elseif ($targetStatus === 'approved') {
-                $markUpdate['approved_by'] = auth()->id();
-                $markUpdate['approved_at'] = now();
-            }
-
-            Mark::where('subject_id', $submission->subject_id)
-                ->where('sequence_id', $submission->sequence_id)
-                ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $submission->class_section_id))
-                ->update($markUpdate);
-
-            $successCount++;
+        try {
+            $result = $workflow->applyMany($submissions, $validated['transition_to'], $validated['notes'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $msg = __(':count subject(s) transitioned to :status.', ['count' => $successCount, 'status' => $targetStatus]);
-        if (!empty($skipped)) {
-            $msg .= ' ' . __(':count skipped (invalid state): :names', [
-                'count' => count($skipped),
-                'names' => implode(', ', array_slice($skipped, 0, 5)),
+        $message = trans_choice(
+            ':count subject transitioned to :status.|:count subjects transitioned to :status.',
+            $result['applied'],
+            ['count' => $result['applied'], 'status' => __(ucfirst($workflow->targetStatus($validated['transition_to'])))]
+        );
+
+        // Skipped subjects are named rather than silently dropped.
+        if ($result['skipped']) {
+            $message .= ' '.__(':count skipped (invalid state): :names', [
+                'count' => count($result['skipped']),
+                'names' => implode(', ', $result['skipped']),
             ]);
         }
 
-        return redirect()->back()->with($successCount > 0 ? 'success' : 'error', $msg);
+        return back()->with($result['skipped'] ? 'error' : 'success', $message);
     }
 
     /**
