@@ -8,9 +8,10 @@ use App\Models\ChartOfAccount;
 use App\Models\DefaultAccountMapping;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\FeeCategory;
 use App\Models\Income;
 use App\Models\IncomeCategory;
-use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use App\Models\TransactionMapping;
 use App\Services\TransactionAutoMapService;
 use Illuminate\Http\Request;
@@ -46,6 +47,11 @@ class AccountMappingController extends Controller implements HasMiddleware
         $groups = [
             'income' => IncomeCategory::where('status', true)->orderBy('title')->get(['id', 'title']),
             'expense' => ExpenseCategory::where('status', true)->orderBy('title')->get(['id', 'title']),
+            // Fee revenue posts per allocation, so each fee category can carry
+            // its own rule (tuition vs boarding vs PTA levy).
+            'fee_payment' => FeeCategory::where('is_active', true)->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($c) => (object) ['id' => $c->id, 'title' => $c->name]),
         ];
 
         return view('admin.accounting.mappings.index', compact('accounts', 'mappings', 'groups'));
@@ -76,28 +82,9 @@ class AccountMappingController extends Controller implements HasMiddleware
     /** Operational facts that have no posted journal entry yet (no/inactive mapping). */
     public function unmapped()
     {
-        $mappedIds = fn (string $type) => TransactionMapping::where('transaction_type', $type)
-            ->where('status', 'active')->pluck('transaction_id');
-
-        $rows = collect();
-        foreach ([
-            ['income', Income::class, 'title'],
-            ['expense', Expense::class, 'title'],
-            ['fee_payment', Payment::class, 'receipt_number'],
-        ] as [$type, $model, $label]) {
-            $model::whereNotIn('id', $mappedIds($type))->latest('id')->limit(100)->get()
-                ->each(function ($r) use (&$rows, $type, $label) {
-                    $rows->push((object) [
-                        'type' => $type,
-                        'id' => $r->id,
-                        'label' => $r->{$label},
-                        'amount' => $r->amount,
-                        'date' => $r->date ?? $r->payment_date,
-                    ]);
-                });
-        }
-
-        $transactions = $rows->sortByDesc('date')->values();
+        // Shares unmappedFacts() with the backfill action, so the list you see
+        // is exactly the list "Post to Ledger" will act on.
+        $transactions = $this->unmappedFacts()->sortByDesc('date')->values();
 
         return view('admin.accounting.mappings.unmapped', compact('transactions'));
     }
@@ -151,22 +138,38 @@ class AccountMappingController extends Controller implements HasMiddleware
         $rows = collect();
 
         foreach ([
-            ['income', Income::class, 'title', 'category_id', 'date'],
-            ['expense', Expense::class, 'title', 'category_id', 'date'],
-            ['fee_payment', Payment::class, 'receipt_number', null, 'payment_date'],
-        ] as [$type, $model, $label, $categoryKey, $dateKey]) {
+            ['income', Income::class, 'title'],
+            ['expense', Expense::class, 'title'],
+        ] as [$type, $model, $label]) {
             $model::whereNotIn('id', $mappedIds($type))->orderBy('id')->get()
-                ->each(function ($r) use (&$rows, $type, $label, $categoryKey, $dateKey) {
+                ->each(function ($r) use (&$rows, $type, $label) {
                     $rows->push((object) [
                         'type' => $type,
                         'id' => $r->id,
                         'label' => $r->{$label},
                         'amount' => $r->amount,
-                        'date' => $r->{$dateKey},
-                        'category_id' => $categoryKey ? $r->{$categoryKey} : null,
+                        'date' => $r->date,
+                        'category_id' => $r->category_id,
                     ]);
                 });
         }
+
+        // Fee revenue is posted per allocation, so that is the unit here too.
+        PaymentAllocation::with(['payment', 'studentFee.feeCategory'])
+            ->whereNotIn('id', $mappedIds('fee_payment'))
+            ->orderBy('id')
+            ->get()
+            ->each(function (PaymentAllocation $a) use (&$rows) {
+                $rows->push((object) [
+                    'type' => 'fee_payment',
+                    'id' => $a->id,
+                    'label' => trim(($a->studentFee?->feeCategory?->name ?? __('Fee'))
+                        .' - '.($a->payment?->receipt_number ?? ''), ' -'),
+                    'amount' => $a->amount,
+                    'date' => $a->payment?->payment_date,
+                    'category_id' => $a->studentFee?->fee_category_id,
+                ]);
+            });
 
         return $rows;
     }

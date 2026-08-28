@@ -4,12 +4,12 @@ namespace App\Providers;
 
 use App\Models\Expense;
 use App\Models\Income;
-use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use App\Models\StudentEnrollment;
 use App\Models\User;
 use App\Observers\ExpenseObserver;
 use App\Observers\IncomeObserver;
-use App\Observers\PaymentObserver;
+use App\Observers\PaymentAllocationObserver;
 use App\Observers\StudentEnrollmentObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -40,7 +40,10 @@ class AppServiceProvider extends ServiceProvider
         // OHADA auto-posting: turn operational facts into journal entries.
         Income::observe(IncomeObserver::class);
         Expense::observe(ExpenseObserver::class);
-        Payment::observe(PaymentObserver::class);
+
+        // Fee revenue posts per ALLOCATION, not per payment: a payment can span
+        // several fee categories, and the ledger needs to tell them apart.
+        PaymentAllocation::observe(PaymentAllocationObserver::class);
     }
 
     /**
