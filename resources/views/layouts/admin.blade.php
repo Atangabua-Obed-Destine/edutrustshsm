@@ -136,6 +136,9 @@
                         <a href="{{ route('admin.fee-categories.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-categories.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Categories') }}</a>
                         <a href="{{ route('admin.payments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payments') }}</a>
                         <a href="{{ route('admin.fee-discounts.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-discounts.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Discounts & Waivers') }}</a>
+                        @can('fee-fine.view')
+                        <a href="{{ route('admin.fee-fines.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-fines.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Late Fees') }}</a>
+                        @endcan
                         <a href="{{ route('admin.fee-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Reports') }}</a>
                     </div>
                 </div>

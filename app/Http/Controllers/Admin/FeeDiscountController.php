@@ -95,10 +95,7 @@ class FeeDiscountController extends Controller implements HasMiddleware
                     : min($validated['value'], $fee->original_amount);
 
                 $fee->discount_amount = $fee->discount_amount + $discountAmount;
-                $fee->net_amount = max(0, $fee->original_amount - $fee->discount_amount - $fee->waiver_amount);
-                $fee->balance = max(0, $fee->net_amount - $fee->paid_amount);
-                $fee->status = $fee->balance <= 0 ? ($fee->net_amount == 0 ? 'waived' : 'paid') : ($fee->paid_amount > 0 ? 'partial' : 'unpaid');
-                $fee->save();
+                $fee->recalculate()->save();
             }
         });
 
@@ -121,10 +118,7 @@ class FeeDiscountController extends Controller implements HasMiddleware
                     : min($feeDiscount->value, $fee->original_amount);
 
                 $fee->discount_amount = max(0, $fee->discount_amount - $discountAmount);
-                $fee->net_amount = max(0, $fee->original_amount - $fee->discount_amount - $fee->waiver_amount);
-                $fee->balance = max(0, $fee->net_amount - $fee->paid_amount);
-                $fee->status = $fee->balance <= 0 ? 'paid' : ($fee->paid_amount > 0 ? 'partial' : 'unpaid');
-                $fee->save();
+                $fee->recalculate()->save();
             }
 
             $feeDiscount->delete();

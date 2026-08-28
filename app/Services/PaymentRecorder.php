@@ -211,11 +211,7 @@ class PaymentRecorder
         ]);
 
         $fee->paid_amount = (float) $fee->paid_amount + $allocAmount;
-        $fee->balance = (float) $fee->net_amount - (float) $fee->paid_amount;
-        $fee->status = $fee->balance <= 0
-            ? 'paid'
-            : ($fee->paid_amount > 0 ? 'partial' : 'unpaid');
-        $fee->save();
+        $fee->recalculate()->save();
 
         return [$remaining - $allocAmount, $allocAmount];
     }

@@ -57,6 +57,7 @@ use App\Http\Controllers\Admin\FiscalYearController;
 use App\Http\Controllers\Admin\JournalEntryController;
 use App\Http\Controllers\Admin\AccountMappingController;
 use App\Http\Controllers\Admin\AccountingReportsController;
+use App\Http\Controllers\Admin\FeeFineController;
 use App\Http\Controllers\Admin\GeneralLedgerController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\DesignationController;
@@ -520,6 +521,13 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::resource('journal-entries', JournalEntryController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
 
     // Transaction Mappings (auto-posting config)
+    // Late-payment penalties
+    Route::get('fee-fines', [FeeFineController::class, 'index'])->name('fee-fines.index');
+    Route::post('fee-fines', [FeeFineController::class, 'store'])->name('fee-fines.store');
+    Route::put('fee-fines/{feeFine}', [FeeFineController::class, 'update'])->name('fee-fines.update');
+    Route::delete('fee-fines/{feeFine}', [FeeFineController::class, 'destroy'])->name('fee-fines.destroy');
+    Route::post('fee-fines/accrue', [FeeFineController::class, 'accrue'])->name('fee-fines.accrue');
+
     // Accounting reports (read-only analysis)
     Route::prefix('accounting-reports')->name('accounting-reports.')->group(function () {
         Route::get('/', [AccountingReportsController::class, 'index'])->name('index');
