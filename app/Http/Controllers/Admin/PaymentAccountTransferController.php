@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Models\PaymentAccountTransfer;
@@ -83,7 +82,6 @@ class PaymentAccountTransferController extends Controller implements HasMiddlewa
                     'title' => 'Transfer from ' . $from->title,
                 ]);
 
-                AuditLog::log('created', PaymentAccountTransfer::class, $transfer->id, null, $transfer->toArray());
             });
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
@@ -106,7 +104,6 @@ class PaymentAccountTransferController extends Controller implements HasMiddlewa
             $payment_account_transfer->delete();
         });
 
-        AuditLog::log('deleted', PaymentAccountTransfer::class, $old['id'], $old, null);
 
         return redirect()->route('admin.payment-account-transfer.index')
             ->with('success', __('Transfer reversed and deleted.'));

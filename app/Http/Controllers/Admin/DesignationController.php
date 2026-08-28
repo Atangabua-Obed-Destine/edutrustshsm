@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\Designation;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -26,7 +25,6 @@ class DesignationController extends Controller implements HasMiddleware
     {
         $data = $request->validate(['title' => ['required', 'string', 'max:191']]);
         $item = Designation::create($data + ['status' => true]);
-        AuditLog::log('created', Designation::class, $item->id, null, $item->toArray());
         return back()->with('success', __('Designation created.'));
     }
 

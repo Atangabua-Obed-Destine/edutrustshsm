@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\Income;
 use App\Models\IncomeCategory;
 use App\Models\PaymentAccount;
@@ -76,7 +75,6 @@ class IncomeController extends Controller implements HasMiddleware
 
             $this->linkToAccount($income);
 
-            AuditLog::log('created', Income::class, $income->id, null, $income->toArray());
         });
 
         return redirect()->route('admin.account.income.index')
@@ -114,7 +112,6 @@ class IncomeController extends Controller implements HasMiddleware
             $this->linkToAccount($income);
         });
 
-        AuditLog::log('updated', Income::class, $income->id, $old, $income->fresh()->toArray());
 
         return redirect()->route('admin.account.income.index')
             ->with('success', __('Income updated successfully.'));
@@ -132,7 +129,6 @@ class IncomeController extends Controller implements HasMiddleware
             $income->delete();
         });
 
-        AuditLog::log('deleted', Income::class, $old['id'], $old, null);
 
         return redirect()->route('admin.account.income.index')
             ->with('success', __('Income deleted successfully.'));

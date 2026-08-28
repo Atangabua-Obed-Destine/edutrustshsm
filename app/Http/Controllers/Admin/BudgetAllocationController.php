@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\Budget;
 use App\Models\BudgetAllocation;
 use Illuminate\Http\Request;
@@ -45,7 +44,6 @@ class BudgetAllocationController extends Controller implements HasMiddleware
         ]);
         $budget->calculateAllocatedAmount();
 
-        AuditLog::log('created', BudgetAllocation::class, $allocation->id, null, $allocation->toArray());
 
         return back()->with('success', __('Allocation added successfully.'));
     }
@@ -71,7 +69,6 @@ class BudgetAllocationController extends Controller implements HasMiddleware
         ]);
         $budget->calculateAllocatedAmount();
 
-        AuditLog::log('updated', BudgetAllocation::class, $allocation->id, $old, $allocation->toArray());
 
         return back()->with('success', __('Allocation updated successfully.'));
     }
@@ -87,7 +84,6 @@ class BudgetAllocationController extends Controller implements HasMiddleware
         $allocation->delete();
         $budget->calculateAllocatedAmount();
 
-        AuditLog::log('deleted', BudgetAllocation::class, $old['id'], $old, null);
 
         return back()->with('success', __('Allocation removed.'));
     }

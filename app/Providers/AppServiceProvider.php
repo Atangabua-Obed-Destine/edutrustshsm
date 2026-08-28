@@ -11,7 +11,10 @@ use App\Observers\ExpenseObserver;
 use App\Observers\IncomeObserver;
 use App\Observers\PaymentObserver;
 use App\Observers\StudentEnrollmentObserver;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerAuthorization();
+        $this->registerRateLimiters();
 
         StudentEnrollment::observe(StudentEnrollmentObserver::class);
 
@@ -37,6 +41,26 @@ class AppServiceProvider extends ServiceProvider
         Income::observe(IncomeObserver::class);
         Expense::observe(ExpenseObserver::class);
         Payment::observe(PaymentObserver::class);
+    }
+
+    /**
+     * Throttle credential submission on every portal.
+     *
+     * None of the three login endpoints (staff, parent, applicant) was rate
+     * limited, so all three were open to unbounded credential stuffing.
+     * Keyed on email + IP so one attacker cannot lock out a whole school behind
+     * a shared NAT, nor hammer many accounts from one address.
+     */
+    private function registerRateLimiters(): void
+    {
+        RateLimiter::for('login', function (Request $request) {
+            $identifier = (string) $request->input('email', $request->input('login_email', ''));
+
+            return [
+                Limit::perMinute(5)->by(mb_strtolower($identifier).'|'.$request->ip()),
+                Limit::perMinute(20)->by($request->ip()),
+            ];
+        });
     }
 
     /**

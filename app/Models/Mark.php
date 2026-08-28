@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Database\Eloquent\Model;
 
 class Mark extends Model
 {
-    use BelongsToBranch;
+    use Auditable, BelongsToBranch;
 
     /**
      * Statuses a mark must have reached before it may appear on a report card.

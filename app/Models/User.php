@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -9,6 +10,8 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
+    use Auditable;
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -38,6 +41,20 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    /**
+     * Signing in updates last_login_at, which would otherwise write an audit
+     * row on every login. Authentication events belong in their own log.
+     *
+     * @return array<int, string>
+     */
+    protected function auditExcluded(): array
+    {
+        return array_merge(
+            ['password', 'remember_token', 'invite_token', 'updated_at', 'created_at', 'last_login_at'],
+            $this->hidden ?? []
+        );
+    }
 
     /** @var array<int, string>|null Memoized permission names for this request. */
     protected ?array $permissionNames = null;

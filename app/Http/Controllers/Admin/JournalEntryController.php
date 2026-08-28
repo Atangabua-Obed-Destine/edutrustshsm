@@ -111,7 +111,6 @@ class JournalEntryController extends Controller implements HasMiddleware
             return $entry;
         });
 
-        AuditLog::log('created', JournalEntry::class, $entry->id, null, $entry->toArray());
 
         return redirect()->route('admin.journal-entries.show', $entry)->with('success', __('Journal entry created.'));
     }
@@ -155,7 +154,6 @@ class JournalEntryController extends Controller implements HasMiddleware
 
         $old = $journal_entry->toArray();
         $journal_entry->delete();
-        AuditLog::log('deleted', JournalEntry::class, $old['id'], $old, null);
 
         return redirect()->route('admin.journal-entries.index')->with('success', __('Journal entry deleted.'));
     }

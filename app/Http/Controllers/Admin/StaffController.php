@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\SchoolSetting;
@@ -63,7 +62,6 @@ class StaffController extends Controller implements HasMiddleware
             return $user;
         });
 
-        AuditLog::log('created', User::class, $user->id, null, $user->toArray());
 
         return redirect()->route('admin.staff.index')->with('success', __('Staff member created.'));
     }
@@ -96,7 +94,6 @@ class StaffController extends Controller implements HasMiddleware
             $this->syncBankAccounts($staff, $request);
         });
 
-        AuditLog::log('updated', User::class, $staff->id, $old, $staff->toArray());
 
         return redirect()->route('admin.staff.index')->with('success', __('Staff member updated.'));
     }
@@ -105,7 +102,6 @@ class StaffController extends Controller implements HasMiddleware
     {
         $old = $staff->toArray();
         $staff->delete();
-        AuditLog::log('deleted', User::class, $old['id'], $old, null);
         return back()->with('success', __('Staff member deleted.'));
     }
 

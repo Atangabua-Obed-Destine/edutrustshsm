@@ -329,12 +329,19 @@
                         </span>
                         <svg id="system-settings-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="system-settings-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.roles.*') || request()->routeIs('admin.settings.*') ? 'open' : '' }}">
+                    <div id="system-settings-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.roles.*') || request()->routeIs('admin.settings.*') || request()->routeIs('admin.audit-log.*') ? 'open' : '' }}">
+                        @can('role-and-permission.view')
                         <a href="{{ route('admin.roles.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.roles.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Roles & Permissions') }}</a>
+                        @endcan
+                        @can('audit-log.view')
+                        <a href="{{ route('admin.audit-log.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.audit-log.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Audit Log') }}</a>
+                        @endcan
                         @if(auth()->user()->role === 'super_admin')
                         <a href="{{ route('admin.branches.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.branches.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Branches') }}</a>
                         @endif
+                        @can('school-settings.view')
                         <a href="{{ route('admin.settings.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.settings.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('School Settings') }}</a>
+                        @endcan
                     </div>
                 </div>
             </div>

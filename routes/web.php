@@ -81,6 +81,7 @@ use App\Http\Controllers\ParentPortal\ParentPtaController;
 use App\Http\Controllers\Admin\ParentPortalController;
 use App\Http\Controllers\Admin\ParentPaymentVerificationController;
 use App\Http\Controllers\Admin\PtaController;
+use App\Http\Controllers\Admin\AuditLogController;
 use Illuminate\Support\Facades\Route;
 
 // Redirect root to login or dashboard
@@ -103,9 +104,9 @@ Route::prefix('apply')->name('apply.')->group(function () {
     // Auth (guest only)
     Route::middleware('guest:applicant')->group(function () {
         Route::get('/register', [ApplicantAuthController::class, 'showRegister'])->name('register');
-        Route::post('/register', [ApplicantAuthController::class, 'register'])->name('register.submit');
+        Route::post('/register', [ApplicantAuthController::class, 'register'])->middleware('throttle:login')->name('register.submit');
         Route::get('/login', [ApplicantAuthController::class, 'showLogin'])->name('login');
-        Route::post('/login', [ApplicantAuthController::class, 'login'])->name('login.submit');
+        Route::post('/login', [ApplicantAuthController::class, 'login'])->middleware('throttle:login')->name('login.submit');
     });
     Route::post('/logout', [ApplicantAuthController::class, 'logout'])->name('logout');
 
@@ -126,9 +127,9 @@ Route::prefix('parent')->name('parent.')->group(function () {
     // Auth (guest only)
     Route::middleware('guest:guardians')->group(function () {
         Route::get('/login', [ParentAuthController::class, 'showLogin'])->name('login');
-        Route::post('/login', [ParentAuthController::class, 'login'])->name('login.submit');
+        Route::post('/login', [ParentAuthController::class, 'login'])->middleware('throttle:login')->name('login.submit');
         Route::get('/claim', [ParentAuthController::class, 'showClaim'])->name('claim');
-        Route::post('/claim', [ParentAuthController::class, 'claim'])->name('claim.submit');
+        Route::post('/claim', [ParentAuthController::class, 'claim'])->middleware('throttle:login')->name('claim.submit');
     });
     Route::post('/logout', [ParentAuthController::class, 'logout'])->name('logout');
 
@@ -161,7 +162,7 @@ Route::prefix('parent')->name('parent.')->group(function () {
 
 // Auth Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'login']);
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // Protected Routes
@@ -178,6 +179,11 @@ Route::middleware('auth')->group(function () {
 
         // Branch (campus) working context switcher
         Route::post('/branch-context', [\App\Http\Controllers\Admin\BranchContextController::class, 'switch'])->name('branch-context.switch');
+
+        // Audit trail (read-only)
+        Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
+        Route::get('audit-log/export', [AuditLogController::class, 'export'])->name('audit-log.export');
+        Route::get('audit-log/{auditLog}', [AuditLogController::class, 'show'])->name('audit-log.show');
 
         // Branch management (owner / super_admin only)
         Route::middleware('role:super_admin')->group(function () {

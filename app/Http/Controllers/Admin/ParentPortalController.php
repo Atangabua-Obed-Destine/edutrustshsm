@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
+use App\Mail\ParentInvitation;
 use App\Models\Guardian;
 use App\Models\ParentPaymentSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rule;
@@ -57,8 +60,9 @@ class ParentPortalController extends Controller implements HasMiddleware
     }
 
     /**
-     * Generate (or regenerate) a one-time invitation link for a guardian.
-     * The link is shown to the admin to copy/share (email/SMS integration later).
+     * Generate (or regenerate) a one-time invitation link for a guardian and
+     * email it to them. The link is still surfaced to the admin so it can be
+     * relayed by hand if the parent has no working mailbox.
      */
     public function invite(Request $request, Guardian $guardian)
     {
@@ -76,8 +80,20 @@ class ParentPortalController extends Controller implements HasMiddleware
 
         $link = route('parent.claim', ['token' => $token]);
 
-        // TODO (later): dispatch email/SMS notification with $link.
-        return back()->with('success', __('Invitation link generated. Share it with the parent:') . ' ' . $link);
+        try {
+            Mail::to($guardian->primary_email)->send(ParentInvitation::for($guardian, $link));
+        } catch (\Throwable $e) {
+            // Never lose the invitation because mail is misconfigured — the link
+            // is valid either way, so hand it back for manual delivery.
+            Log::warning('Parent invitation email failed', [
+                'guardian_id' => $guardian->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', __('The invitation was created but the email could not be sent. Share this link with the parent:') . ' ' . $link);
+        }
+
+        return back()->with('success', __('Invitation sent to :email.', ['email' => $guardian->primary_email]) . ' ' . __('Link:') . ' ' . $link);
     }
 
     /** Revoke portal access (parent can no longer log in). */

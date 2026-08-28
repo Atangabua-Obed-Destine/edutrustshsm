@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Database\Eloquent\Model;
 
 class TaxSetting extends Model
 {
+    use Auditable;
+
     public const TYPE_PERCENTAGE = 1;
     public const TYPE_FIXED = 2;
 

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\ExpenseCategory;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -35,7 +34,6 @@ class ExpenseCategoryController extends Controller implements HasMiddleware
             'status' => true,
         ]);
 
-        AuditLog::log('created', ExpenseCategory::class, $category->id, null, $category->toArray());
 
         return redirect()->route('admin.account.expense-category.index')
             ->with('success', __('Expense category created successfully.'));
@@ -55,7 +53,6 @@ class ExpenseCategoryController extends Controller implements HasMiddleware
             'status' => $validated['status'],
         ]);
 
-        AuditLog::log('updated', ExpenseCategory::class, $expense_category->id, $old, $expense_category->toArray());
 
         return redirect()->route('admin.account.expense-category.index')
             ->with('success', __('Expense category updated successfully.'));
@@ -66,7 +63,6 @@ class ExpenseCategoryController extends Controller implements HasMiddleware
         $old = $expense_category->toArray();
         $expense_category->delete();
 
-        AuditLog::log('deleted', ExpenseCategory::class, $old['id'], $old, null);
 
         return redirect()->route('admin.account.expense-category.index')
             ->with('success', __('Expense category deleted successfully.'));

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\TaxGroup;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -31,7 +30,6 @@ class TaxGroupController extends Controller implements HasMiddleware
     {
         $data = $this->validateGroup($request);
         $group = TaxGroup::create($data);
-        AuditLog::log('created', TaxGroup::class, $group->id, null, $group->toArray());
         return redirect()->route('admin.tax-groups.index')->with('success', __('Tax group created.'));
     }
 

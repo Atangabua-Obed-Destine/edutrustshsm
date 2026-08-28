@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->web(append: [
             \App\Http\Middleware\SetLocale::class,
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
         $middleware->redirectGuestsTo(function ($request) {
             // If the request is for the applicant portal, redirect to applicant login

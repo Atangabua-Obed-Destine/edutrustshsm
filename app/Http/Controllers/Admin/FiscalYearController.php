@@ -41,7 +41,6 @@ class FiscalYearController extends Controller implements HasMiddleware
 
         $fy = FiscalYear::create($validated + ['created_by' => auth()->id()]);
         $fy->generatePeriods();
-        AuditLog::log('created', FiscalYear::class, $fy->id, null, $fy->toArray());
 
         return back()->with('success', __('Fiscal year created with monthly periods.'));
     }

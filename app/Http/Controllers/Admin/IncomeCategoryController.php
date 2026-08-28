@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\IncomeCategory;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -35,7 +34,6 @@ class IncomeCategoryController extends Controller implements HasMiddleware
             'status' => true,
         ]);
 
-        AuditLog::log('created', IncomeCategory::class, $category->id, null, $category->toArray());
 
         return redirect()->route('admin.account.income-category.index')
             ->with('success', __('Income category created successfully.'));
@@ -55,7 +53,6 @@ class IncomeCategoryController extends Controller implements HasMiddleware
             'status' => $validated['status'],
         ]);
 
-        AuditLog::log('updated', IncomeCategory::class, $income_category->id, $old, $income_category->toArray());
 
         return redirect()->route('admin.account.income-category.index')
             ->with('success', __('Income category updated successfully.'));
@@ -66,7 +63,6 @@ class IncomeCategoryController extends Controller implements HasMiddleware
         $old = $income_category->toArray();
         $income_category->delete();
 
-        AuditLog::log('deleted', IncomeCategory::class, $old['id'], $old, null);
 
         return redirect()->route('admin.account.income-category.index')
             ->with('success', __('Income category deleted successfully.'));

@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToBranch;
 use App\Support\LevelContext;
 use Illuminate\Database\Eloquent\Model;
 
 class Form extends Model
 {
-    use BelongsToBranch;
+    use Auditable, BelongsToBranch;
 
     protected $fillable = [
         'branch_id',

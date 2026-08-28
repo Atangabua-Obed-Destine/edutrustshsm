@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Database\Eloquent\Model;
 
 class PayrollDetail extends Model
 {
+    use Auditable;
+
     public const TYPE_DEDUCTION = 0;
     public const TYPE_ALLOWANCE = 1;
 

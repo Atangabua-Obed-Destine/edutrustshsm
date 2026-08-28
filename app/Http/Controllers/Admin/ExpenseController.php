@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\Budget;
 use App\Models\BudgetAllocation;
 use App\Models\Expense;
@@ -83,7 +82,6 @@ class ExpenseController extends Controller implements HasMiddleware
                 $this->linkToAccount($expense);
                 $this->recompute($expense->budget_id, $expense->budget_allocation_id);
 
-                AuditLog::log('created', Expense::class, $expense->id, null, $expense->toArray());
             });
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
@@ -139,7 +137,6 @@ class ExpenseController extends Controller implements HasMiddleware
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        AuditLog::log('updated', Expense::class, $expense->id, $old, $expense->fresh()->toArray());
 
         return redirect()->route('admin.account.expense.index')
             ->with('success', __('Expense updated successfully.'));
@@ -162,7 +159,6 @@ class ExpenseController extends Controller implements HasMiddleware
             $this->recompute($budgetId, $allocationId);
         });
 
-        AuditLog::log('deleted', Expense::class, $old['id'], $old, null);
 
         return redirect()->route('admin.account.expense.index')
             ->with('success', __('Expense deleted successfully.'));

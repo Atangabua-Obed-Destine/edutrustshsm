@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\ChartOfAccount;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -52,7 +51,6 @@ class ChartOfAccountController extends Controller implements HasMiddleware
     {
         $data = $this->validateAccount($request);
         $account = ChartOfAccount::create($data + ['created_by' => auth()->id()]);
-        AuditLog::log('created', ChartOfAccount::class, $account->id, null, $account->toArray());
 
         return redirect()->route('admin.chart-of-accounts.index')->with('success', __('Account created.'));
     }
@@ -79,7 +77,6 @@ class ChartOfAccountController extends Controller implements HasMiddleware
         $data = $this->validateAccount($request, $chart_of_account->id);
         $old = $chart_of_account->toArray();
         $chart_of_account->update($data + ['updated_by' => auth()->id()]);
-        AuditLog::log('updated', ChartOfAccount::class, $chart_of_account->id, $old, $chart_of_account->toArray());
 
         return redirect()->route('admin.chart-of-accounts.index')->with('success', __('Account updated.'));
     }
@@ -108,7 +105,6 @@ class ChartOfAccountController extends Controller implements HasMiddleware
 
         $old = $chart_of_account->toArray();
         $chart_of_account->delete();
-        AuditLog::log('deleted', ChartOfAccount::class, $old['id'], $old, null);
 
         return back()->with('success', __('Account deleted.'));
     }

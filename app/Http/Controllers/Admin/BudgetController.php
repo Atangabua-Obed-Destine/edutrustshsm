@@ -54,7 +54,6 @@ class BudgetController extends Controller implements HasMiddleware
         $data = $this->validateBudget($request);
 
         $budget = Budget::create($data + ['status' => 'draft', 'created_by' => auth()->id()]);
-        AuditLog::log('created', Budget::class, $budget->id, null, $budget->toArray());
 
         return redirect()->route('admin.budget.show', $budget)
             ->with('success', __('Budget created successfully.'));
@@ -93,7 +92,6 @@ class BudgetController extends Controller implements HasMiddleware
         $data['updated_by'] = auth()->id();
         $budget->update($data);
 
-        AuditLog::log('updated', Budget::class, $budget->id, $old, $budget->toArray());
 
         return redirect()->route('admin.budget.show', $budget)
             ->with('success', __('Budget updated successfully.'));
@@ -110,7 +108,6 @@ class BudgetController extends Controller implements HasMiddleware
             $budget->allocations()->delete();
             $budget->delete();
         });
-        AuditLog::log('deleted', Budget::class, $old['id'], $old, null);
 
         return redirect()->route('admin.budget.index')->with('success', __('Budget deleted.'));
     }

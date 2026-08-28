@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
-use App\Models\AuditLog;
 use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
 use App\Models\PaymentAccountType;
@@ -85,7 +84,6 @@ class PaymentAccountController extends Controller implements HasMiddleware
                 ]);
             }
 
-            AuditLog::log('created', PaymentAccount::class, $account->id, null, $account->toArray());
         });
 
         return redirect()->route('admin.payment-account.index')
@@ -112,7 +110,6 @@ class PaymentAccountController extends Controller implements HasMiddleware
         $old = $payment_account->toArray();
         $payment_account->update($validated + ['updated_by' => auth()->id()]);
 
-        AuditLog::log('updated', PaymentAccount::class, $payment_account->id, $old, $payment_account->toArray());
 
         return redirect()->route('admin.payment-account.index')
             ->with('success', __('Payment account updated successfully.'));
@@ -126,7 +123,6 @@ class PaymentAccountController extends Controller implements HasMiddleware
 
         $old = $payment_account->toArray();
         $payment_account->delete();
-        AuditLog::log('deleted', PaymentAccount::class, $old['id'], $old, null);
 
         return redirect()->route('admin.payment-account.index')
             ->with('success', __('Payment account deleted successfully.'));
