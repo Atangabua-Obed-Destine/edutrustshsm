@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
         ]);
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ResolveBranchContext::class,
+        ]);
         $middleware->web(append: [
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\SecurityHeaders::class,

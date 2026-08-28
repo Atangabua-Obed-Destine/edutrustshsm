@@ -354,6 +354,7 @@ Route::middleware('auth')->group(function () {
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::put('settings/grade-scale', [SettingsController::class, 'updateGradeScale'])->name('settings.grade-scale');
         Route::post('settings/level-mode', [SettingsController::class, 'setLevelMode'])->name('settings.level-mode');
+        Route::put('settings/group/{group}', [SettingsController::class, 'updateGroup'])->name('settings.group.update');
 
         // Roles & Permissions
         Route::resource('roles', RoleController::class);

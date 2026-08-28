@@ -70,8 +70,13 @@ class SidebarVisibilityTest extends TestCase
         $count = count(DB::getQueryLog());
         DB::disableQueryLog();
 
-        // The sidebar makes ~8 canAny() calls over ~40 permission names. Without
-        // per-request memoization that alone would be dozens of queries.
-        $this->assertLessThan(40, $count, "sidebar render issued {$count} queries");
+        fwrite(STDERR, "
+[sidebar render queries: {$count}]
+");
+
+        // The sidebar makes ~8 canAny() calls over ~40 permission names, and
+        // BranchScope resolves the branch on every scoped query. Both are
+        // memoized per request, so a full render stays in single figures.
+        $this->assertLessThan(15, $count, "sidebar render issued {$count} queries");
     }
 }
