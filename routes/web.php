@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\TimetableController;
 use App\Http\Controllers\Admin\ReportCardController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ConfigurationHealthController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\FeeCategoryController;
 use App\Http\Controllers\Admin\FeeDiscountController;
@@ -357,6 +358,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('pta/meetings/{meeting}', [PtaController::class, 'destroyMeeting'])->name('pta.meetings.destroy');
 
         // Settings
+        Route::get('configuration-health', [ConfigurationHealthController::class, 'index'])->name('configuration-health.index');
         Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::put('settings/grade-scale', [SettingsController::class, 'updateGradeScale'])->name('settings.grade-scale');

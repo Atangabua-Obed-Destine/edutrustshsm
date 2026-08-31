@@ -359,6 +359,7 @@
                         @endif
                         @can('school-settings.view')
                         <a href="{{ route('admin.settings.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.settings.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('School Settings') }}</a>
+                        <a href="{{ route('admin.configuration-health.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.configuration-health.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Configuration Health') }}</a>
                         @endcan
                     </div>
                 </div>
