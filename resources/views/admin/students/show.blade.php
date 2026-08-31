@@ -281,12 +281,20 @@
         </h4>
         @php
             $documents = [
-                ['label' => __('Passport Photo'), 'field' => $student->photo, 'isImage' => true],
-                ['label' => __('Birth Certificate'), 'field' => $student->birth_certificate, 'isImage' => false],
-                ['label' => __('Primary School Certificate'), 'field' => $student->primary_certificate, 'isImage' => false],
-                ['label' => __('GCE O Level Certificate'), 'field' => $student->gce_ol_certificate, 'isImage' => false],
-                ['label' => __('Transfer Certificate'), 'field' => $student->transfer_certificate, 'isImage' => false],
-                ['label' => __('Medical Certificate'), 'field' => $student->medical_certificate, 'isImage' => false],
+                // Certificates go through the authorised file route; only the
+                // passport photo is still served off the public disk.
+                ['label' => __('Passport Photo'), 'field' => $student->photo, 'isImage' => true,
+                 'url' => $student->photo ? asset('storage/'.$student->photo) : null],
+                ['label' => __('Birth Certificate'), 'field' => $student->birth_certificate, 'isImage' => false,
+                 'url' => private_file_url('student', $student, 'birth_certificate')],
+                ['label' => __('Primary School Certificate'), 'field' => $student->primary_certificate, 'isImage' => false,
+                 'url' => private_file_url('student', $student, 'primary_certificate')],
+                ['label' => __('GCE O Level Certificate'), 'field' => $student->gce_ol_certificate, 'isImage' => false,
+                 'url' => private_file_url('student', $student, 'gce_ol_certificate')],
+                ['label' => __('Transfer Certificate'), 'field' => $student->transfer_certificate, 'isImage' => false,
+                 'url' => private_file_url('student', $student, 'transfer_certificate')],
+                ['label' => __('Medical Certificate'), 'field' => $student->medical_certificate, 'isImage' => false,
+                 'url' => private_file_url('student', $student, 'medical_certificate')],
             ];
         @endphp
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
@@ -294,13 +302,13 @@
             <div class="text-center">
                 @if($doc['field'])
                     @if($doc['isImage'])
-                    <a href="{{ asset('storage/' . $doc['field']) }}" target="_blank" class="block group">
+                    <a href="{{ $doc['url'] }}" target="_blank" class="block group">
                         <div class="w-full aspect-square rounded-lg border-2 border-gray-200 group-hover:border-blue-400 overflow-hidden transition">
-                            <img src="{{ asset('storage/' . $doc['field']) }}" alt="{{ $doc['label'] }}" class="w-full h-full object-cover">
+                            <img src="{{ $doc['url'] }}" alt="{{ $doc['label'] }}" class="w-full h-full object-cover">
                         </div>
                     </a>
                     @else
-                    <a href="{{ asset('storage/' . $doc['field']) }}" target="_blank" class="block group">
+                    <a href="{{ $doc['url'] }}" target="_blank" class="block group">
                         <div class="w-full aspect-square rounded-lg border-2 border-gray-200 group-hover:border-blue-400 bg-gray-50 flex flex-col items-center justify-center transition">
                             <svg class="w-8 h-8 text-green-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             <span class="text-xs text-blue-600 group-hover:underline">{{ __('View') }}</span>

@@ -182,7 +182,7 @@
         <div style="display: flex; flex-wrap: wrap; gap: 12px;">
             @foreach($docs as $field => $label)
                 @if($application->$field)
-                <a href="{{ asset('storage/' . $application->$field) }}" target="_blank"
+                <a href="{{ private_file_url('application', $application, $field) }}" target="_blank"
                    style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"
                    onmouseover="this.style.borderColor='#0ea5e9'; this.style.background='#eff6ff'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'">
                     <svg width="16" height="16" style="color: #22c55e; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

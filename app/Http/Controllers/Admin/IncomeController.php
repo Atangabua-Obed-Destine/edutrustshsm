@@ -69,7 +69,7 @@ class IncomeController extends Controller implements HasMiddleware
             $income->status = true;
             $income->created_by = auth()->id();
             if ($request->hasFile('attach')) {
-                $income->attach = $request->file('attach')->store('accounts/income', 'public');
+                $income->attach = $request->file('attach')->store('accounts/income', 'local');
             }
             $income->save();
 
@@ -103,7 +103,7 @@ class IncomeController extends Controller implements HasMiddleware
                 if ($income->attach) {
                     Storage::disk('public')->delete($income->attach);
                 }
-                $data['attach'] = $request->file('attach')->store('accounts/income', 'public');
+                $data['attach'] = $request->file('attach')->store('accounts/income', 'local');
             }
 
             $data['updated_by'] = auth()->id();

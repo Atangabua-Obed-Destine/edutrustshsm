@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\ConfigurationHealthController;
 use App\Http\Controllers\Admin\GceCandidateController;
 use App\Http\Controllers\Admin\GceSessionController;
 use App\Http\Controllers\Admin\GceSubjectController;
+use App\Http\Controllers\Admin\PrivateFileController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StudentDocumentController;
 use App\Http\Controllers\Admin\FeeCategoryController;
@@ -362,6 +363,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('pta/meetings/{meeting}', [PtaController::class, 'destroyMeeting'])->name('pta.meetings.destroy');
 
         // Settings
+        // Private uploads. Permission is checked per source inside the
+        // controller, since each file hangs off a different record.
+        Route::get('files/{source}/{id}/{field}', [PrivateFileController::class, 'show'])->name('files.show');
+
         // GCE Ordinary / Advanced Level registration.
         Route::get('gce/subjects', [GceSubjectController::class, 'index'])->name('gce.subjects.index');
         Route::post('gce/subjects', [GceSubjectController::class, 'store'])->name('gce.subjects.store');

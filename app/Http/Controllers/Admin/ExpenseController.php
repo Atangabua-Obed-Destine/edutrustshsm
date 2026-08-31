@@ -75,7 +75,7 @@ class ExpenseController extends Controller implements HasMiddleware
                 $expense->status = true;
                 $expense->created_by = auth()->id();
                 if ($request->hasFile('attach')) {
-                    $expense->attach = $request->file('attach')->store('accounts/expense', 'public');
+                    $expense->attach = $request->file('attach')->store('accounts/expense', 'local');
                 }
                 $expense->save();
 
@@ -121,7 +121,7 @@ class ExpenseController extends Controller implements HasMiddleware
                     if ($expense->attach) {
                         Storage::disk('public')->delete($expense->attach);
                     }
-                    $data['attach'] = $request->file('attach')->store('accounts/expense', 'public');
+                    $data['attach'] = $request->file('attach')->store('accounts/expense', 'local');
                 }
 
                 $data['updated_by'] = auth()->id();

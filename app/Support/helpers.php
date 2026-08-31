@@ -21,3 +21,24 @@ if (! function_exists('setting')) {
         return Setting::get($key, $default);
     }
 }
+
+if (! function_exists('private_file_url')) {
+    /**
+     * Link to a private upload through the authorised route.
+     *
+     * Never build these with asset('storage/...') — that is the public web root
+     * these files were deliberately moved off.
+     */
+    function private_file_url(string $source, ?object $model, string $field): ?string
+    {
+        if (! $model || blank($model->{$field} ?? null)) {
+            return null;
+        }
+
+        return route('admin.files.show', [
+            'source' => $source,
+            'id' => $model->getKey(),
+            'field' => $field,
+        ]);
+    }
+}

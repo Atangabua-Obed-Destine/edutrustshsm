@@ -60,7 +60,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Attachment') }}</label>
             <input type="file" name="attach" class="w-full text-sm text-gray-600">
             @if($income?->attach)
-                <a href="{{ Storage::url($income->attach) }}" target="_blank" class="text-xs text-blue-600 hover:underline">{{ __('View current file') }}</a>
+                <a href="{{ private_file_url('income', $income, 'attach') }}" target="_blank" class="text-xs text-blue-600 hover:underline">{{ __('View current file') }}</a>
             @endif
             @error('attach') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>

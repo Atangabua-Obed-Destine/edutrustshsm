@@ -190,15 +190,15 @@ class StudentController extends Controller implements HasMiddleware
             $photoPath = $request->hasFile('photo_file')
                 ? $request->file('photo_file')->store('students/photos', 'public') : null;
             $birthCertPath = $request->hasFile('birth_certificate_file')
-                ? $request->file('birth_certificate_file')->store('students/documents', 'public') : null;
+                ? $request->file('birth_certificate_file')->store('students/documents', 'local') : null;
             $primaryCertPath = $request->hasFile('primary_certificate_file')
-                ? $request->file('primary_certificate_file')->store('students/documents', 'public') : null;
+                ? $request->file('primary_certificate_file')->store('students/documents', 'local') : null;
             $gceOlCertPath = $request->hasFile('gce_ol_certificate_file')
-                ? $request->file('gce_ol_certificate_file')->store('students/documents', 'public') : null;
+                ? $request->file('gce_ol_certificate_file')->store('students/documents', 'local') : null;
             $transferCertPath = $request->hasFile('transfer_certificate_file')
-                ? $request->file('transfer_certificate_file')->store('students/documents', 'public') : null;
+                ? $request->file('transfer_certificate_file')->store('students/documents', 'local') : null;
             $medicalCertPath = $request->hasFile('medical_certificate_file')
-                ? $request->file('medical_certificate_file')->store('students/documents', 'public') : null;
+                ? $request->file('medical_certificate_file')->store('students/documents', 'local') : null;
 
             // 4. Create student record
             $student = Student::create([
