@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ReportCardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ConfigurationHealthController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\StudentDocumentController;
 use App\Http\Controllers\Admin\FeeCategoryController;
 use App\Http\Controllers\Admin\FeeDiscountController;
 use App\Http\Controllers\Admin\FeeReportController;
@@ -358,6 +359,14 @@ Route::middleware('auth')->group(function () {
         Route::delete('pta/meetings/{meeting}', [PtaController::class, 'destroyMeeting'])->name('pta.meetings.destroy');
 
         // Settings
+        // Printed paperwork: acceptance letters, leaving certificates,
+        // cumulative records and the class marksheet.
+        Route::get('documents/acceptance-letter/{application}', [StudentDocumentController::class, 'acceptanceLetter'])->name('documents.acceptance-letter');
+        Route::get('documents/leaving-certificate/{student}', [StudentDocumentController::class, 'leavingCertificate'])->name('documents.leaving-certificate');
+        Route::get('documents/cumulative-record/{student}', [StudentDocumentController::class, 'cumulativeRecord'])->name('documents.cumulative-record');
+        Route::get('documents/marksheet', [StudentDocumentController::class, 'marksheet'])->name('documents.marksheet');
+        Route::get('documents/marksheet/pdf', [StudentDocumentController::class, 'marksheetPdf'])->name('documents.marksheet.pdf');
+        Route::get('documents/marksheet/csv', [StudentDocumentController::class, 'marksheetCsv'])->name('documents.marksheet.csv');
         Route::get('configuration-health', [ConfigurationHealthController::class, 'index'])->name('configuration-health.index');
         Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');

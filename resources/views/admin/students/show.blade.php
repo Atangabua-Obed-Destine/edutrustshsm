@@ -30,6 +30,14 @@
             </div>
         </div>
         <div class="flex gap-2">
+            @can('student.view')
+            <a href="{{ route('admin.documents.cumulative-record', $student) }}" target="_blank" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Cumulative Record') }}</a>
+            {{-- Only offered once the student has actually left; the controller
+                 refuses it for an active student either way. --}}
+            @unless(in_array($student->status, ['active', 'suspended']))
+            <a href="{{ route('admin.documents.leaving-certificate', $student) }}" target="_blank" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Leaving Certificate') }}</a>
+            @endunless
+            @endcan
             <a href="{{ route('admin.students.edit', $student) }}" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Edit') }}</a>
             <a href="{{ route('admin.students.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">← {{ __('Back') }}</a>
         </div>
