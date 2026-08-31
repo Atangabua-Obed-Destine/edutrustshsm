@@ -15,7 +15,7 @@ class StudentFee extends Model
         'student_enrollment_id', 'fee_category_id',
         'original_amount', 'discount_amount', 'waiver_amount', 'fine_amount',
         'net_amount', 'paid_amount', 'balance', 'status',
-        'due_date', 'notes',
+        'due_date', 'last_reminded_at', 'notes',
     ];
 
     protected function casts(): array
@@ -29,6 +29,7 @@ class StudentFee extends Model
             'paid_amount' => 'decimal:2',
             'balance' => 'decimal:2',
             'due_date' => 'date',
+            'last_reminded_at' => 'datetime',
         ];
     }
 

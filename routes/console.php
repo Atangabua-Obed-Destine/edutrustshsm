@@ -31,3 +31,11 @@ Schedule::command('accounting:recurring-entries')
     ->dailyAt('01:30')
     ->withoutOverlapping()
     ->onOneServer();
+
+// Outstanding-fee reminders. One message per guardian covering every child,
+// and a fee already chased inside the interval is left alone — a daily run
+// must not mail the same parent every morning.
+Schedule::command('fees:remind')
+    ->weeklyOn(1, '07:00')
+    ->withoutOverlapping()
+    ->onOneServer();
