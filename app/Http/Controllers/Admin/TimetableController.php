@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
+use App\Exceptions\TimetableConflict;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Form;
@@ -16,6 +17,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use App\Services\TimetableConflictDetector;
 use Illuminate\Support\Facades\DB;
 
 class TimetableController extends Controller implements HasMiddleware
@@ -23,6 +25,8 @@ class TimetableController extends Controller implements HasMiddleware
     use AuthorizesModule;
 
     protected static string $access = 'class-schedule';
+
+    public function __construct(private TimetableConflictDetector $conflicts) {}
 
     /** @return array<int, Middleware> */
     protected static function extraMiddleware(): array
@@ -163,43 +167,32 @@ class TimetableController extends Controller implements HasMiddleware
             'entries.*.end_time' => 'required|date_format:H:i|after:entries.*.start_time',
         ]);
 
-        $sessionId = $request->academic_session_id;
-        $sectionId = $request->class_section_id;
+        $sessionId = (int) $request->academic_session_id;
+        $sectionId = (int) $request->class_section_id;
         $day = $request->day_of_week;
 
-        // Validate for teacher time-overlap conflicts before making changes
-        if ($request->entries) {
-            foreach ($request->entries as $entry) {
-                $conflict = TimetableEntry::where('academic_session_id', $sessionId)
-                    ->where('teacher_id', $entry['teacher_id'])
-                    ->where('day_of_week', $day)
-                    ->where('class_section_id', '!=', $sectionId)
-                    ->where('start_time', '<', $entry['end_time'])
-                    ->where('end_time', '>', $entry['start_time'])
-                    ->first();
+        $entries = $request->input('entries') ?: [];
 
-                if ($conflict) {
-                    $teacher = User::find($entry['teacher_id']);
-                    return redirect()->route('admin.timetable.class-schedule', [
-                        'academic_session_id' => $sessionId,
-                        'form_id' => $request->form_id,
-                        'class_section_id' => $sectionId,
-                        'day' => $day,
-                    ])->with('error', "Teacher {$teacher->full_name} is already assigned to another class on " . ucfirst($day) . " from " . \Carbon\Carbon::parse($conflict->start_time)->format('g:i A') . " to " . \Carbon\Carbon::parse($conflict->end_time)->format('g:i A') . " (overlaps with your {$entry['start_time']}–{$entry['end_time']}).");
+        try {
+            DB::transaction(function () use ($sessionId, $sectionId, $day, $entries) {
+                // Checked INSIDE the transaction: the check used to run before it,
+                // so a clash found nothing to undo if the write then failed. (This
+                // still does not lock the rows it reads, so two admins saving the
+                // same minute can both pass — the unique-index fix belongs with the
+                // slot rework.)
+                $conflicts = $this->conflicts->forDay($sessionId, $sectionId, $day, $entries);
+
+                if ($conflicts !== []) {
+                    throw new TimetableConflict($conflicts);
                 }
-            }
-        }
 
-        DB::transaction(function () use ($sessionId, $sectionId, $day, $request) {
-            // Delete existing entries for this day+section+session
-            TimetableEntry::where('academic_session_id', $sessionId)
-                ->where('class_section_id', $sectionId)
-                ->where('day_of_week', $day)
-                ->delete();
+                // Delete existing entries for this day+section+session
+                TimetableEntry::where('academic_session_id', $sessionId)
+                    ->where('class_section_id', $sectionId)
+                    ->where('day_of_week', $day)
+                    ->delete();
 
-            // Create new entries
-            if ($request->entries) {
-                foreach ($request->entries as $entry) {
+                foreach ($entries as $entry) {
                     TimetableEntry::create([
                         'academic_session_id' => $sessionId,
                         'class_section_id' => $sectionId,
@@ -211,8 +204,16 @@ class TimetableController extends Controller implements HasMiddleware
                         'end_time' => $entry['end_time'],
                     ]);
                 }
-            }
-        });
+            });
+        } catch (TimetableConflict $e) {
+            // Report every clash at once, rather than one save per clash.
+            return redirect()->route('admin.timetable.class-schedule', [
+                'academic_session_id' => $sessionId,
+                'form_id' => $request->form_id,
+                'class_section_id' => $sectionId,
+                'day' => $day,
+            ])->with('error', implode(' ', $e->conflicts))->withInput();
+        }
 
         $section = ClassSection::find($sectionId);
 
