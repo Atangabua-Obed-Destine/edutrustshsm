@@ -1301,6 +1301,7 @@
     "Home": "Accueil",
     "Home Address": "Adresse Domicile",
     "Hourly": "Horaire",
+    "How much this sequence counts toward the term average, relative to the others. Equal weights give a plain average.": "Le poids de cette séquence dans la moyenne trimestrielle, par rapport aux autres. Des poids égaux donnent une moyenne simple.",
     "Human Resources": "Ressources Humaines",
     "Human Resources > Leave Types": "Ressources humaines > Types de congé",
     "Human Resources > Payroll > Generate": "Ressources humaines > Paie > Générer",
