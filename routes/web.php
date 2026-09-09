@@ -20,7 +20,13 @@ use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\TimetableController;
 use App\Http\Controllers\Admin\ReportCardController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ConfigurationHealthController;
+use App\Http\Controllers\Admin\GceCandidateController;
+use App\Http\Controllers\Admin\GceSessionController;
+use App\Http\Controllers\Admin\GceSubjectController;
+use App\Http\Controllers\Admin\PrivateFileController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\StudentDocumentController;
 use App\Http\Controllers\Admin\FeeCategoryController;
 use App\Http\Controllers\Admin\FeeDiscountController;
 use App\Http\Controllers\Admin\FeeReportController;
@@ -357,6 +363,45 @@ Route::middleware('auth')->group(function () {
         Route::delete('pta/meetings/{meeting}', [PtaController::class, 'destroyMeeting'])->name('pta.meetings.destroy');
 
         // Settings
+        // Private uploads. Permission is checked per source inside the
+        // controller, since each file hangs off a different record.
+        Route::get('files/{source}/{id}/{field}', [PrivateFileController::class, 'show'])->name('files.show');
+
+        // GCE Ordinary / Advanced Level registration.
+        Route::get('gce/subjects', [GceSubjectController::class, 'index'])->name('gce.subjects.index');
+        Route::post('gce/subjects', [GceSubjectController::class, 'store'])->name('gce.subjects.store');
+        Route::put('gce/subjects/{gceSubject}', [GceSubjectController::class, 'update'])->name('gce.subjects.update');
+        Route::delete('gce/subjects/{gceSubject}', [GceSubjectController::class, 'destroy'])->name('gce.subjects.destroy');
+
+        Route::get('gce/sessions', [GceSessionController::class, 'index'])->name('gce.sessions.index');
+        Route::get('gce/sessions/create', [GceSessionController::class, 'create'])->name('gce.sessions.create');
+        Route::post('gce/sessions', [GceSessionController::class, 'store'])->name('gce.sessions.store');
+        Route::get('gce/sessions/{session}/edit', [GceSessionController::class, 'edit'])->name('gce.sessions.edit');
+        Route::put('gce/sessions/{session}', [GceSessionController::class, 'update'])->name('gce.sessions.update');
+        Route::delete('gce/sessions/{session}', [GceSessionController::class, 'destroy'])->name('gce.sessions.destroy');
+        Route::post('gce/sessions/{session}/status', [GceSessionController::class, 'setStatus'])->name('gce.sessions.status');
+
+        Route::get('gce/sessions/{session}/candidates', [GceCandidateController::class, 'index'])->name('gce.candidates.index');
+        Route::get('gce/sessions/{session}/candidates/create', [GceCandidateController::class, 'create'])->name('gce.candidates.create');
+        Route::post('gce/sessions/{session}/candidates', [GceCandidateController::class, 'store'])->name('gce.candidates.store');
+        Route::get('gce/sessions/{session}/export', [GceCandidateController::class, 'exportCsv'])->name('gce.candidates.export');
+        Route::get('gce/sessions/{session}/entry-list', [GceCandidateController::class, 'entryList'])->name('gce.candidates.entry-list');
+        Route::get('gce/candidates/{candidate}/edit', [GceCandidateController::class, 'edit'])->name('gce.candidates.edit');
+        Route::put('gce/candidates/{candidate}', [GceCandidateController::class, 'update'])->name('gce.candidates.update');
+        Route::post('gce/candidates/{candidate}/status', [GceCandidateController::class, 'setStatus'])->name('gce.candidates.status');
+        Route::post('gce/candidates/{candidate}/payment', [GceCandidateController::class, 'recordPayment'])->name('gce.candidates.payment');
+        Route::delete('gce/candidates/{candidate}', [GceCandidateController::class, 'destroy'])->name('gce.candidates.destroy');
+        Route::get('gce/candidates/{candidate}/slip', [GceCandidateController::class, 'entrySlip'])->name('gce.candidates.slip');
+
+        // Printed paperwork: acceptance letters, leaving certificates,
+        // cumulative records and the class marksheet.
+        Route::get('documents/acceptance-letter/{application}', [StudentDocumentController::class, 'acceptanceLetter'])->name('documents.acceptance-letter');
+        Route::get('documents/leaving-certificate/{student}', [StudentDocumentController::class, 'leavingCertificate'])->name('documents.leaving-certificate');
+        Route::get('documents/cumulative-record/{student}', [StudentDocumentController::class, 'cumulativeRecord'])->name('documents.cumulative-record');
+        Route::get('documents/marksheet', [StudentDocumentController::class, 'marksheet'])->name('documents.marksheet');
+        Route::get('documents/marksheet/pdf', [StudentDocumentController::class, 'marksheetPdf'])->name('documents.marksheet.pdf');
+        Route::get('documents/marksheet/csv', [StudentDocumentController::class, 'marksheetCsv'])->name('documents.marksheet.csv');
+        Route::get('configuration-health', [ConfigurationHealthController::class, 'index'])->name('configuration-health.index');
         Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::put('settings/grade-scale', [SettingsController::class, 'updateGradeScale'])->name('settings.grade-scale');

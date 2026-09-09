@@ -118,7 +118,7 @@ class ParentPaymentController extends Controller
             $feeId = $fee?->id;
         }
 
-        $path = $request->file('receipt')->store('parent-receipts', 'public');
+        $path = $request->file('receipt')->store('parent-receipts', 'local');
 
         ParentPaymentSubmission::create([
             'branch_id'             => $student->branch_id,

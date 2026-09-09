@@ -87,7 +87,7 @@ class LeaveController extends Controller implements HasMiddleware
         $this->assertWithinAllowance($type, (int) $validated['user_id'], $year, $days);
 
         if ($request->hasFile('attachment')) {
-            $validated['attachment'] = $request->file('attachment')->store('leave', 'public');
+            $validated['attachment'] = $request->file('attachment')->store('leave', 'local');
         }
 
         Leave::create($validated + [

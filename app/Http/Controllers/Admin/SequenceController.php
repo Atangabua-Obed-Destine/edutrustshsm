@@ -31,6 +31,10 @@ class SequenceController extends Controller implements HasMiddleware
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', 'unique:sequences,name'],
+            // The term average is weighted by this. No field wrote it before, so
+            // every sequence sat at the same default and the "weighted" average
+            // was silently an unweighted mean.
+            'weight' => ['required', 'numeric', 'min:0.01', 'max:100'],
         ]);
 
         $validated['sequence_number'] = Sequence::max('sequence_number') + 1;
@@ -50,6 +54,7 @@ class SequenceController extends Controller implements HasMiddleware
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', 'unique:sequences,name,' . $sequence->id],
+            'weight' => ['required', 'numeric', 'min:0.01', 'max:100'],
         ]);
 
         $sequence->update($validated);

@@ -131,7 +131,7 @@ class ApplicationController extends Controller
         ];
         foreach ($fileFields as $field => $path) {
             if ($request->hasFile($field)) {
-                $files[str_replace('_file', '', $field)] = $request->file($field)->store($path, 'public');
+                $files[str_replace('_file', '', $field)] = $request->file($field)->store($path, $path === 'applications/photos' ? 'public' : 'local');
             }
         }
 

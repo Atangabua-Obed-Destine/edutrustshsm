@@ -154,7 +154,7 @@ class PtaController extends Controller implements HasMiddleware
             'minutes' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
         ]);
 
-        $path = $request->file('minutes')->store('pta-minutes', 'public');
+        $path = $request->file('minutes')->store('pta-minutes', 'local');
 
         $meeting->update([
             'minutes_path' => $path,

@@ -134,12 +134,12 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:sticky lg:top-24">
                 <h3 class="text-sm font-semibold text-gray-800 mb-3">{{ __('Uploaded Receipt') }}</h3>
                 @if($isImage)
-                    <a href="{{ asset('storage/' . $submission->receipt_path) }}" target="_blank">
-                        <img src="{{ asset('storage/' . $submission->receipt_path) }}" alt="receipt" class="w-full rounded-lg border border-gray-200">
+                    <a href="{{ private_file_url('parent-receipt', $submission, 'receipt_path') }}" target="_blank">
+                        <img src="{{ private_file_url('parent-receipt', $submission, 'receipt_path') }}" alt="receipt" class="w-full rounded-lg border border-gray-200">
                     </a>
                     <p class="text-xs text-gray-400 mt-2 text-center">{{ __('Click to open full size') }}</p>
                 @else
-                    <a href="{{ asset('storage/' . $submission->receipt_path) }}" target="_blank"
+                    <a href="{{ private_file_url('parent-receipt', $submission, 'receipt_path') }}" target="_blank"
                        class="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100">
                         <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                         <span class="text-sm font-medium text-gray-700">{{ __('Open PDF Receipt') }}</span>

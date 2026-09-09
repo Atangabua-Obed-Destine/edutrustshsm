@@ -34,6 +34,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Marks Entry' => ['view', 'enter', 'edit'],
             'Exam Publishing' => ['view', 'publish', 'unpublish'],
             'Report Card' => ['view', 'print'],
+            'GCE Registration' => ['view', 'create', 'edit', 'delete', 'export'],
             'Fee Category' => ['view', 'create', 'edit', 'delete'],
             'Fee Structure' => ['view', 'create', 'edit', 'delete'],
             'Fee Collection' => ['view', 'collect', 'receipt'],

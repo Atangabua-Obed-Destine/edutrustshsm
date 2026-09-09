@@ -185,7 +185,7 @@
                             </div>
                             <p class="text-sm text-gray-500 mt-1">📅 {{ $m->meeting_date->format('D, d M Y · H:i') }} @if($m->venue) · 📍 {{ $m->venue }} @endif</p>
                             @if($m->agenda)<p class="text-sm text-gray-600 mt-2">{{ \Illuminate\Support\Str::limit($m->agenda, 140) }}</p>@endif
-                            @if($m->minutes_path)<a href="{{ asset('storage/'.$m->minutes_path) }}" target="_blank" class="text-xs text-teal-600 hover:text-teal-700 mt-2 inline-block">📄 {{ __('View Minutes') }}</a>@endif
+                            @if($m->minutes_path)<a href="{{ private_file_url('pta-minutes', $m, 'minutes_path') }}" target="_blank" class="text-xs text-teal-600 hover:text-teal-700 mt-2 inline-block">📄 {{ __('View Minutes') }}</a>@endif
                         </div>
                         <div class="flex flex-col gap-2 shrink-0 items-end">
                             <form method="POST" action="{{ route('admin.pta.meetings.minutes', $m) }}" enctype="multipart/form-data" class="flex flex-col gap-1">

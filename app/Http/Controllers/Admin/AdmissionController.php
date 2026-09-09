@@ -299,7 +299,7 @@ class AdmissionController extends Controller implements HasMiddleware
             $enrollStreamId = $validated['stream_id'] ?? null;
             $currentSession = AcademicSession::current();
             if ($currentSession) {
-                StudentEnrollment::create([
+                $enrollment = StudentEnrollment::create([
                     'student_id'          => $student->id,
                     'academic_session_id' => $currentSession->id,
                     'term_id'             => $validated['term_id'],
@@ -309,6 +309,10 @@ class AdmissionController extends Controller implements HasMiddleware
                     'enrollment_date'     => $validated['admission_date'],
                     'status'              => 'active',
                 ]);
+
+                // Register the form's core subjects, or the student arrives
+                // enrolled in a class but studying nothing.
+                $enrollment->syncCoreSubjects();
             }
 
             // 5. Update application with final placement & mark enrolled

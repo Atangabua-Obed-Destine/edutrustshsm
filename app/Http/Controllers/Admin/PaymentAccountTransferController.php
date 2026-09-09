@@ -56,7 +56,7 @@ class PaymentAccountTransferController extends Controller implements HasMiddlewa
                 $to = PaymentAccount::findOrFail($validated['to_account_id']);
 
                 $attach = $request->hasFile('attach')
-                    ? $request->file('attach')->store('accounts/transfers', 'public') : null;
+                    ? $request->file('attach')->store('accounts/transfers', 'local') : null;
 
                 $transfer = PaymentAccountTransfer::create([
                     'from_account_id' => $from->id,

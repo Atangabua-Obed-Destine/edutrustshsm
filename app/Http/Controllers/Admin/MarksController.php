@@ -15,7 +15,9 @@ use App\Models\StudentEnrollment;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Models\SchoolSetting;
+use App\Services\MarksWorkflowService;
 use Illuminate\Http\Request;
+use RuntimeException;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
@@ -234,7 +236,7 @@ class MarksController extends Controller implements HasMiddleware
     /**
      * Save marks (batch update).
      */
-    public function save(Request $request)
+    public function save(Request $request, MarksWorkflowService $workflow)
     {
         $settings = SchoolSetting::current();
         $maxMark = (float) ($settings?->max_mark ?? 20);
@@ -249,6 +251,23 @@ class MarksController extends Controller implements HasMiddleware
             'marks.*.score' => ['nullable', 'numeric', 'min:0', 'max:'.$maxMark],
             'marks.*.is_absent' => ['nullable'],
         ]);
+
+        // Marks that have cleared review are not editable here. Saving used to
+        // overwrite approved and published marks and reset them to draft, while
+        // the submission still read "published" — the two then disagreed about
+        // what state the class's results were in, and report cards silently
+        // changed underneath parents who had already seen them.
+        $existing = MarksSubmission::where('class_section_id', $validated['class_section_id'])
+            ->where('subject_id', $validated['subject_id'])
+            ->where('sequence_id', $validated['sequence_id'])
+            ->first();
+
+        if ($existing && ! $workflow->isEditable($existing)) {
+            return back()->with('error', __(
+                'These marks are :status and can no longer be edited. Return them to the teacher first.',
+                ['status' => __(ucfirst($existing->status))]
+            ));
+        }
 
         $gradeScales = GradeScale::orderByDesc('min_mark')->get();
 
@@ -316,57 +335,44 @@ class MarksController extends Controller implements HasMiddleware
     /**
      * Submit marks for approval.
      */
-    public function submit(MarksSubmission $submission)
+    public function submit(MarksSubmission $submission, MarksWorkflowService $workflow)
     {
-        $submission->update([
-            'status' => 'submitted',
-            'submitted_at' => now(),
-        ]);
+        try {
+            $workflow->apply($submission, 'submitted');
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        Mark::where('sequence_id', $submission->sequence_id)
-            ->where('subject_id', $submission->subject_id)
-            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $submission->class_section_id))
-            ->update(['status' => 'submitted', 'submitted_at' => now()]);
-
-        return redirect()->back()->with('success', __('Marks submitted for approval.'));
+        return back()->with('success', __('Marks submitted for approval.'));
     }
 
     /**
      * Approve marks (admin).
      */
-    public function approve(MarksSubmission $submission)
+    public function approve(MarksSubmission $submission, MarksWorkflowService $workflow)
     {
-        $submission->update([
-            'status' => 'approved',
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
-        ]);
+        try {
+            $workflow->apply($submission, 'approved');
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        Mark::where('sequence_id', $submission->sequence_id)
-            ->where('subject_id', $submission->subject_id)
-            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $submission->class_section_id))
-            ->update(['status' => 'approved', 'approved_by' => auth()->id(), 'approved_at' => now()]);
-
-        return redirect()->back()->with('success', __('Marks approved successfully.'));
+        return back()->with('success', __('Marks approved successfully.'));
     }
 
     /**
      * Return marks for correction.
      */
-    public function returnMarks(Request $request, MarksSubmission $submission)
+    public function returnMarks(Request $request, MarksSubmission $submission, MarksWorkflowService $workflow)
     {
-        $request->validate(['admin_comment' => ['required', 'string', 'max:500']]);
+        $validated = $request->validate(['admin_comment' => ['required', 'string', 'max:500']]);
 
-        $submission->update([
-            'status' => 'returned',
-            'admin_comment' => $request->input('admin_comment'),
-        ]);
+        try {
+            $workflow->apply($submission, 'returned', $validated['admin_comment']);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        Mark::where('sequence_id', $submission->sequence_id)
-            ->where('subject_id', $submission->subject_id)
-            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $submission->class_section_id))
-            ->update(['status' => 'returned', 'admin_comment' => $request->input('admin_comment')]);
-
-        return redirect()->back()->with('success', __('Marks returned to teacher.'));
+        return back()->with('success', __('Marks returned to teacher.'));
     }
 }

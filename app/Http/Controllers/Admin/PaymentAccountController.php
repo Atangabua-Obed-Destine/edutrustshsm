@@ -153,7 +153,7 @@ class PaymentAccountController extends Controller implements HasMiddleware
                 'payment_method'   => $validated['payment_method'] ?? null,
                 'payment_reference' => $validated['payment_reference'] ?? null,
                 'attach'           => $request->hasFile('attach')
-                    ? $request->file('attach')->store('accounts/transactions', 'public') : null,
+                    ? $request->file('attach')->store('accounts/transactions', 'local') : null,
             ]);
         });
 
@@ -180,7 +180,7 @@ class PaymentAccountController extends Controller implements HasMiddleware
                     'payment_method'   => $validated['payment_method'] ?? null,
                     'payment_reference' => $validated['payment_reference'] ?? null,
                     'attach'           => $request->hasFile('attach')
-                        ? $request->file('attach')->store('accounts/transactions', 'public') : null,
+                        ? $request->file('attach')->store('accounts/transactions', 'local') : null,
                 ]);
             });
         } catch (RuntimeException $e) {
