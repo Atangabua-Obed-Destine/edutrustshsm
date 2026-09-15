@@ -275,6 +275,7 @@ Route::middleware('auth')->group(function () {
         Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
         Route::get('students/{student}/fees', [PaymentController::class, 'studentFees'])->name('student-fees');
+        Route::post('payments/{payment}/reverse', [PaymentController::class, 'reverse'])->name('payments.reverse');
 
         // Exam Schedule
         Route::get('exam-schedules', [ExamScheduleController::class, 'index'])->name('exam-schedules.index');

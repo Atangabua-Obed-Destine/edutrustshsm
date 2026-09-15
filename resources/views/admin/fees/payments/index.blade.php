@@ -41,13 +41,18 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse($payments as $payment)
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 font-mono text-xs text-blue-600 font-medium">{{ $payment->receipt_number }}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-blue-600 font-medium">
+                            {{ $payment->receipt_number }}
+                            @if($payment->isReversed())
+                            <span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-sans text-[10px] font-semibold uppercase">{{ __('Reversed') }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3">
                             <div class="font-medium text-gray-800">{{ $payment->enrollment->student->full_name }}</div>
                             <div class="text-xs text-gray-400">{{ $payment->enrollment->student->student_id }}</div>
                         </td>
                         <td class="px-4 py-3 text-gray-600">{{ $payment->enrollment->classSection?->name ?? '—' }}</td>
-                        <td class="px-4 py-3 text-right font-mono font-semibold text-green-700">{{ number_format($payment->amount) }}</td>
+                        <td class="px-4 py-3 text-right font-mono font-semibold {{ $payment->isReversed() ? 'text-gray-400 line-through' : 'text-green-700' }}">{{ number_format($payment->amount) }}</td>
                         <td class="px-4 py-3 text-gray-600 capitalize text-xs">{{ str_replace('_', ' ', $payment->payment_method) }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $payment->payment_date->format('d M Y') }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $payment->receivedBy?->full_name ?? '—' }}</td>

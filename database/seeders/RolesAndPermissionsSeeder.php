@@ -45,7 +45,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Fee Fine' => ['view', 'create', 'edit', 'delete'],
             'Student Credit' => ['view', 'apply'],
             'Fee Report' => ['view', 'export'],
-            'Payment' => ['view', 'refund'],
+            'Payment' => ['view', 'refund', 'reverse'],
             'Attendance' => ['view', 'mark', 'edit', 'report'],
             'Class Schedule' => ['view', 'create', 'edit', 'delete'],
             'Teacher Routine' => ['view'],
