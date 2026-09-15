@@ -456,6 +456,8 @@ Route::middleware('auth')->group(function () {
         // Bulk Student Upload
         Route::get('bulk-upload', [BulkUploadController::class, 'index'])->name('bulk-upload.index');
         Route::get('bulk-upload/template', [BulkUploadController::class, 'template'])->name('bulk-upload.template');
+        Route::get('fee-reports/partial-payments', [FeeReportController::class, 'partial'])->name('fee-reports.partial');
+        Route::get('fee-reports/partial-payments/export', [FeeReportController::class, 'partialCsv'])->name('fee-reports.partial.csv');
         Route::post('bulk-upload', [BulkUploadController::class, 'upload'])->name('bulk-upload.upload');
 
         // Promotion
