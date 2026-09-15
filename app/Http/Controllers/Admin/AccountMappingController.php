@@ -56,6 +56,8 @@ class AccountMappingController extends Controller implements HasMiddleware
             // Both are catch-all rules — they do not vary by fee category.
             'student_credit' => collect(),
             'credit_applied' => collect(),
+            // Paying credit back to a family: DR Student Advances → CR Cash/Bank.
+            'credit_refund' => collect(),
         ];
 
         return view('admin.accounting.mappings.index', compact('accounts', 'mappings', 'groups'));
@@ -65,7 +67,7 @@ class AccountMappingController extends Controller implements HasMiddleware
     public function save(Request $request)
     {
         $validated = $request->validate([
-            'mapping_type' => ['required', 'in:income,expense,fee_payment,student_credit,credit_applied'],
+            'mapping_type' => ['required', 'in:income,expense,fee_payment,student_credit,credit_applied,credit_refund'],
             'category_id' => ['nullable', 'integer'],
             'debit_account_id' => ['required', 'exists:chart_of_accounts,id'],
             'credit_account_id' => ['required', 'exists:chart_of_accounts,id', 'different:debit_account_id'],

@@ -69,10 +69,18 @@ class PaymentReversalService
         // be cancelled: the fees it settled would be left paid with money that
         // no longer exists. That application has to be reversed first.
         $spent = (float) StudentCredit::where('payment_id', $payment->id)->sum('used_amount');
+        $refunded = (float) StudentCredit::where('payment_id', $payment->id)->sum('refunded_amount');
 
         if ($spent > 0.005) {
             $blockers[] = __('The over-payment credit from this receipt has already paid :amount of other fees. Reverse those receipts first.', [
                 'amount' => number_format($spent, 0, '.', ' '),
+            ]);
+        }
+
+        // Money already handed back to the family cannot be un-received.
+        if ($refunded > 0.005) {
+            $blockers[] = __(':amount of the over-payment credit from this receipt has already been refunded to the family, so the receipt can no longer be reversed.', [
+                'amount' => number_format($refunded, 0, '.', ' '),
             ]);
         }
 
@@ -255,8 +263,7 @@ class PaymentReversalService
             $back = min((float) $credit->used_amount, $remaining);
 
             $credit->used_amount = round((float) $credit->used_amount - $back, 2);
-            $credit->balance = round((float) $credit->amount - (float) $credit->used_amount, 2);
-            $credit->save();
+            $credit->recomputeBalance()->save();
 
             $remaining = round($remaining - $back, 2);
         }

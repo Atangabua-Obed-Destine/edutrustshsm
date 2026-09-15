@@ -625,6 +625,11 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::post('fixed-assets', [FixedAssetController::class, 'store'])->name('fixed-assets.store');
     Route::get('fixed-assets/categories', [FixedAssetController::class, 'categories'])->name('fixed-assets.categories');
     Route::post('fixed-assets/categories', [FixedAssetController::class, 'storeCategory'])->name('fixed-assets.categories.store');
+    Route::get('student-credits/{credit}', [StudentCreditController::class, 'show'])->name('student-credits.show');
+    Route::post('student-credits/{credit}/refunds', [StudentCreditController::class, 'requestRefund'])->name('student-credits.refunds.request');
+    Route::post('student-credit-refunds/{refund}/approve', [StudentCreditController::class, 'approveRefund'])->name('student-credits.refunds.approve');
+    Route::post('student-credit-refunds/{refund}/reject', [StudentCreditController::class, 'rejectRefund'])->name('student-credits.refunds.reject');
+    Route::post('student-credit-refunds/{refund}/process', [StudentCreditController::class, 'processRefund'])->name('student-credits.refunds.process');
     Route::post('fixed-assets/post-due', [FixedAssetController::class, 'postDue'])->name('fixed-assets.post-due');
     Route::get('fixed-assets/{fixedAsset}/schedule', [FixedAssetController::class, 'schedule'])->name('fixed-assets.schedule');
     Route::post('fixed-assets/{fixedAsset}/generate', [FixedAssetController::class, 'generate'])->name('fixed-assets.generate');

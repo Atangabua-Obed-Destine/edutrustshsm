@@ -43,7 +43,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Assignment History' => ['view', 'delete'],
             'Fee Discount' => ['view', 'create', 'edit', 'delete'],
             'Fee Fine' => ['view', 'create', 'edit', 'delete'],
-            'Student Credit' => ['view', 'apply'],
+            'Student Credit' => ['view', 'apply', 'request-refund', 'approve-refund', 'process-refund'],
             'Fee Report' => ['view', 'export'],
             'Payment' => ['view', 'refund', 'reverse'],
             'Attendance' => ['view', 'mark', 'edit', 'report'],

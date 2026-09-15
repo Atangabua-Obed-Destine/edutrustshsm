@@ -33,6 +33,11 @@
             ['fee_payment', __('Fee Payments'), collect([(object)['id' => null, 'title' => __('All Fee Payments (DR Cash → CR Fees/Revenue)')]]), 'bg-blue-600'],
             ['income', __('Income Categories'), $groups['income'], 'bg-green-600'],
             ['expense', __('Expense Categories'), $groups['expense'], 'bg-amber-500'],
+            // Student credit rules were accepted by the controller but had no row
+            // here, so they could not be configured without editing the database.
+            ['student_credit', __('Over-payments Held as Credit'), collect([(object)['id' => null, 'title' => __('DR Cash/Bank → CR Student Advances (419)')]]), 'bg-indigo-600'],
+            ['credit_applied', __('Credit Applied to Fees'), collect([(object)['id' => null, 'title' => __('DR Student Advances (419) → CR Fee Revenue')]]), 'bg-indigo-500'],
+            ['credit_refund', __('Credit Refunded to Families'), collect([(object)['id' => null, 'title' => __('DR Student Advances (419) → CR Cash/Bank')]]), 'bg-indigo-400'],
         ];
     @endphp
 
@@ -48,11 +53,11 @@
                     <input type="hidden" name="category_id" value="{{ $cat->id }}">
                     <div class="md:col-span-3"><span class="text-sm font-medium text-gray-700">{{ $cat->title }}</span></div>
                     <div class="md:col-span-4">
-                        <label class="block text-xs text-gray-500 mb-1">{{ $type === 'expense' ? __('Debit (Expense Account)') : __('Debit (Payment / Asset)') }}</label>
+                        <label class="block text-xs text-gray-500 mb-1">{{ ['expense' => __('Debit (Expense Account)'), 'credit_applied' => __('Debit (Student Advances)'), 'credit_refund' => __('Debit (Student Advances)')][$type] ?? __('Debit (Payment / Asset)') }}</label>
                         <select name="debit_account_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{!! $acctOptions($m?->debit_account_id) !!}</select>
                     </div>
                     <div class="md:col-span-4">
-                        <label class="block text-xs text-gray-500 mb-1">{{ $type === 'expense' ? __('Credit (Payment / Asset)') : __('Credit (Revenue Account)') }}</label>
+                        <label class="block text-xs text-gray-500 mb-1">{{ ['expense' => __('Credit (Payment / Asset)'), 'student_credit' => __('Credit (Student Advances)'), 'credit_refund' => __('Credit (Payment / Asset)')][$type] ?? __('Credit (Revenue Account)') }}</label>
                         <select name="credit_account_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">{!! $acctOptions($m?->credit_account_id) !!}</select>
                     </div>
                     <div class="md:col-span-1">
