@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ClassSectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\FeeStructureController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\RecurringEntryController;
 use App\Http\Controllers\Admin\MarksController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\AttendanceController;
@@ -583,6 +584,21 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     // Staff leave
     Route::get('leaves', [LeaveController::class, 'index'])->name('leaves.index');
     Route::post('leaves', [LeaveController::class, 'store'])->name('leaves.store');
+        // Recurring journal entry templates.
+        Route::get('recurring-entries', [RecurringEntryController::class, 'index'])->name('recurring-entries.index');
+        Route::get('recurring-entries/create', [RecurringEntryController::class, 'create'])->name('recurring-entries.create');
+        Route::post('recurring-entries', [RecurringEntryController::class, 'store'])->name('recurring-entries.store');
+        Route::post('recurring-entries/process-all', [RecurringEntryController::class, 'processAll'])->name('recurring-entries.process-all');
+        Route::get('recurring-entries/{recurringEntry}', [RecurringEntryController::class, 'show'])->name('recurring-entries.show');
+        Route::get('recurring-entries/{recurringEntry}/edit', [RecurringEntryController::class, 'edit'])->name('recurring-entries.edit');
+        Route::put('recurring-entries/{recurringEntry}', [RecurringEntryController::class, 'update'])->name('recurring-entries.update');
+        Route::delete('recurring-entries/{recurringEntry}', [RecurringEntryController::class, 'destroy'])->name('recurring-entries.destroy');
+        Route::post('recurring-entries/{recurringEntry}/pause', [RecurringEntryController::class, 'pause'])->name('recurring-entries.pause');
+        Route::post('recurring-entries/{recurringEntry}/resume', [RecurringEntryController::class, 'resume'])->name('recurring-entries.resume');
+        Route::post('recurring-entries/{recurringEntry}/skip-next', [RecurringEntryController::class, 'skipNext'])->name('recurring-entries.skip-next');
+        Route::post('recurring-entries/{recurringEntry}/process', [RecurringEntryController::class, 'process'])->name('recurring-entries.process');
+        Route::post('recurring-entries/{recurringEntry}/duplicate', [RecurringEntryController::class, 'duplicate'])->name('recurring-entries.duplicate');
+
     Route::get('leaves/remaining', [LeaveController::class, 'remaining'])->name('leaves.remaining');
     Route::post('leaves/{leave}/approve', [LeaveController::class, 'approve'])->name('leaves.approve');
     Route::post('leaves/{leave}/reject', [LeaveController::class, 'reject'])->name('leaves.reject');

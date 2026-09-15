@@ -115,6 +115,119 @@ class RecurringEntryService
         });
     }
 
+    /** Stop a template generating anything until it is resumed. */
+    public function pause(RecurringJournalEntry $template): RecurringJournalEntry
+    {
+        $template->update(['is_active' => false]);
+
+        return $template->refresh();
+    }
+
+    /**
+     * Start a paused template again.
+     *
+     * A template paused for three months would otherwise wake up owing three
+     * runs and generate them all at once. Its next run is moved to the date
+     * given, or to today, whichever the operator intends — never left in the
+     * past.
+     */
+    public function resume(RecurringJournalEntry $template, ?string $nextRunDate = null): RecurringJournalEntry
+    {
+        $next = $nextRunDate ? Carbon::parse($nextRunDate)->startOfDay() : $template->next_run_date->copy();
+
+        if ($next->lt(now()->startOfDay())) {
+            $next = now()->startOfDay();
+        }
+
+        if ($template->end_date && $next->gt($template->end_date)) {
+            throw new RuntimeException(__('That date is after this template ends, so there is nothing left to resume.'));
+        }
+
+        $template->update(['is_active' => true, 'next_run_date' => $next->toDateString()]);
+
+        return $template->refresh();
+    }
+
+    /** Move past the next run without generating it. */
+    public function skipNext(RecurringJournalEntry $template): RecurringJournalEntry
+    {
+        $template->update([
+            'next_run_date' => $template->advanceFrom($template->next_run_date)->toDateString(),
+        ]);
+
+        if ($template->fresh()->hasFinished()) {
+            $template->update(['is_active' => false]);
+        }
+
+        return $template->refresh();
+    }
+
+    /**
+     * Copy a template, lines and all. The copy starts paused with no history,
+     * so it cannot run until someone has checked its dates.
+     */
+    public function duplicate(RecurringJournalEntry $template): RecurringJournalEntry
+    {
+        return DB::transaction(function () use ($template) {
+            $copy = $template->replicate(['last_run_date', 'runs_generated']);
+            $copy->title = __(':title (copy)', ['title' => $template->title]);
+            $copy->next_run_date = $template->start_date;
+            $copy->runs_generated = 0;
+            $copy->is_active = false;
+            $copy->created_by = auth()->id();
+            $copy->save();
+
+            foreach ($template->lines as $line) {
+                $copy->lines()->create($line->only(['account_id', 'line_number', 'debit', 'credit', 'description']));
+            }
+
+            return $copy;
+        });
+    }
+
+    /**
+     * Every run due in the next few days, across active templates.
+     *
+     * @return \Illuminate\Support\Collection<int, object{template: RecurringJournalEntry, date: Carbon}>
+     */
+    public function upcoming(int $days = 30): \Illuminate\Support\Collection
+    {
+        $until = now()->addDays($days)->endOfDay();
+
+        return RecurringJournalEntry::active()
+            ->whereDate('next_run_date', '<=', $until)
+            ->get()
+            ->flatMap(fn ($template) => $this->upcomingFor($template, 60, $until)
+                ->map(fn ($date) => (object) ['template' => $template, 'date' => $date]))
+            ->sortBy('date')
+            ->values();
+    }
+
+    /**
+     * The next run dates for one template.
+     *
+     * @return \Illuminate\Support\Collection<int, Carbon>
+     */
+    public function upcomingFor(RecurringJournalEntry $template, int $limit = 6, ?Carbon $until = null): \Illuminate\Support\Collection
+    {
+        $dates = collect();
+
+        if (! $template->is_active) {
+            return $dates;
+        }
+
+        $date = $template->next_run_date->copy();
+
+        while ($dates->count() < $limit
+            && (! $template->end_date || $date->lte($template->end_date))
+            && (! $until || $date->lte($until))) {
+            $dates->push($date->copy());
+            $date = $template->advanceFrom($date);
+        }
+
+        return $dates;
+    }
+
     /** Move the template on to its next occurrence. */
     private function advance(RecurringJournalEntry $template, Carbon $runDate): void
     {

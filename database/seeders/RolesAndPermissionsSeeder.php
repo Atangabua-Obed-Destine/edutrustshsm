@@ -74,6 +74,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Chart of Accounts' => ['view', 'create', 'edit', 'delete'],
             'Fiscal Year' => ['view', 'create', 'close', 'delete'],
             'Journal Entry' => ['view', 'create', 'post', 'unpost', 'delete'],
+            'Recurring Entry' => ['view', 'create', 'edit', 'delete', 'process'],
             'General Ledger' => ['view', 'export'],
             'Account Mapping' => ['view', 'edit', 'post'],
             'Accounting Report' => ['view', 'export'],
@@ -171,7 +172,7 @@ class RolesAndPermissionsSeeder extends Seeder
             // Budget
             'Budget', 'Budget Allocation', 'Budget Report',
             // OHADA
-            'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'General Ledger', 'Account Mapping',
+            'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'Recurring Entry', 'General Ledger', 'Account Mapping',
             'Accounting Report', 'Fixed Asset',
             // Payroll
             'Payroll', 'Staff Tax Report', 'Tax Group', 'Tax Setting',

@@ -295,10 +295,13 @@
                         </span>
                         <svg id="accounting-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="accounting-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.chart-of-accounts.*', 'admin.fiscal-years.*', 'admin.journal-entries.*', 'admin.account-mappings.*', 'admin.accounting-reports.*') ? 'open' : '' }}">
+                    <div id="accounting-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.chart-of-accounts.*', 'admin.fiscal-years.*', 'admin.journal-entries.*', 'admin.recurring-entries.*', 'admin.account-mappings.*', 'admin.accounting-reports.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.chart-of-accounts.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.chart-of-accounts.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Chart of Accounts') }}</a>
                         <a href="{{ route('admin.fiscal-years.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fiscal-years.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fiscal Years') }}</a>
                         <a href="{{ route('admin.journal-entries.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.journal-entries.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Journal Entries') }}</a>
+                        @can('recurring-entry.view')
+                        <a href="{{ route('admin.recurring-entries.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.recurring-entries.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Recurring Entries') }}</a>
+                        @endcan
                         <a href="{{ route('admin.accounting-reports.general-ledger') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.accounting-reports.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Reports') }}</a>
                         <a href="{{ route('admin.account-mappings.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.account-mappings.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Transaction Mappings') }}</a>
                         @can('accounting-report.view')
