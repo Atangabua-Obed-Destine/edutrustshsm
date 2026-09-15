@@ -43,6 +43,16 @@
             'title' => __('Income Statement'),
             'blurb' => __('Revenue against expenses for the period.'),
         ],
+        [
+            'route' => 'admin.accounting-reports.cash-flow-statement',
+            'title' => __('Cash Flow Statement'),
+            'blurb' => __('Where the cash came from and where it went.'),
+        ],
+        [
+            'route' => 'admin.accounting-reports.comparative-cash-flow',
+            'title' => __('Comparative Cash Flow'),
+            'blurb' => __('This period beside the one before, line by line.'),
+        ],
     ];
 @endphp
 

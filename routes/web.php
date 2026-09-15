@@ -656,6 +656,9 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::get('accounting-reports/trial-balance', [GeneralLedgerController::class, 'trialBalance'])->name('accounting-reports.trial-balance');
     Route::get('accounting-reports/balance-sheet', [GeneralLedgerController::class, 'balanceSheet'])->name('accounting-reports.balance-sheet');
     Route::get('accounting-reports/income-statement', [GeneralLedgerController::class, 'incomeStatement'])->name('accounting-reports.income-statement');
+        Route::get('cash-flow-statement', [AccountingReportsController::class, 'cashFlowStatement'])->name('cash-flow-statement');
+        Route::get('comparative-cash-flow', [AccountingReportsController::class, 'comparativeCashFlow'])->name('comparative-cash-flow');
+        Route::get('cash-flow-statement/export', [AccountingReportsController::class, 'exportCashFlow'])->name('cash-flow-export');
 
     // ═══════════════════════════════════════════════════════════════
     // Human Resources (Staff + Payroll + Tax)

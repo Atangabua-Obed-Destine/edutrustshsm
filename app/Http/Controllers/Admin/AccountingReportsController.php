@@ -5,18 +5,23 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Http\Controllers\Controller;
 use App\Models\Budget;
-use App\Models\ChartOfAccount;
+use App\Models\FiscalYear;
 use App\Models\Form;
+use App\Models\SchoolSetting;
 use App\Models\StudentFee;
 use App\Services\AgingReportService;
+use App\Services\CashFlowStatementService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Reports that answer the questions a bursar is actually asked: who owes us,
- * how long have they owed it, what did we plan to spend against what we spent.
+ * how long have they owed it, what did we plan to spend against what we spent,
+ * and where did the cash go.
  *
  * All read-side, all derived from data the system already holds — nothing here
  * stores or mutates anything.
@@ -27,8 +32,10 @@ class AccountingReportsController extends Controller implements HasMiddleware
 
     protected static string $access = 'accounting-report';
 
-    public function __construct(private AgingReportService $aging)
-    {
+    public function __construct(
+        private AgingReportService $aging,
+        private CashFlowStatementService $cashFlow,
+    ) {
     }
 
     /** @return array<int, Middleware> */
@@ -37,6 +44,7 @@ class AccountingReportsController extends Controller implements HasMiddleware
         return [
             static::can('accounting-report.view', [
                 'index', 'receivablesAging', 'payablesAging', 'studentFeeAging', 'budgetVsActual',
+                'cashFlowStatement', 'comparativeCashFlow', 'exportCashFlow',
             ]),
         ];
     }
@@ -136,5 +144,155 @@ class AccountingReportsController extends Controller implements HasMiddleware
             'budgets' => $budgets,
             'status' => $request->input('status'),
         ]);
+    }
+
+    /** Where the cash came from and went, for one period. */
+    public function cashFlowStatement(Request $request)
+    {
+        [$from, $to] = $this->period($request);
+
+        return view('admin.accounting.reports.cash-flow', [
+            'report' => $this->cashFlow->statement($from, $to),
+            'comparative' => false,
+            'fiscalYears' => FiscalYear::orderByDesc('start_date')->get(['id', 'name']),
+        ]);
+    }
+
+    /** The same statement beside the preceding period, with variances. */
+    public function comparativeCashFlow(Request $request)
+    {
+        [$from, $to, $fiscalYear] = $this->period($request);
+        [$previousFrom, $previousTo] = $this->previousPeriod($from, $to, $fiscalYear);
+
+        return view('admin.accounting.reports.cash-flow', [
+            'report' => $this->cashFlow->comparative($from, $to, $previousFrom, $previousTo),
+            'comparative' => true,
+            'fiscalYears' => FiscalYear::orderByDesc('start_date')->get(['id', 'name']),
+        ]);
+    }
+
+    /** PDF or CSV of either statement, with the same filters as the screen. */
+    public function exportCashFlow(Request $request)
+    {
+        $validated = $request->validate([
+            'format' => ['required', 'in:pdf,csv'],
+        ]);
+
+        $comparative = $request->boolean('comparative');
+        [$from, $to, $fiscalYear] = $this->period($request);
+
+        $report = $comparative
+            ? $this->cashFlow->comparative($from, $to, ...$this->previousPeriod($from, $to, $fiscalYear))
+            : $this->cashFlow->statement($from, $to);
+
+        $filename = ($comparative ? 'comparative-cash-flow' : 'cash-flow').'-'.$from.'-'.$to;
+
+        if ($validated['format'] === 'pdf') {
+            return Pdf::loadView('admin.accounting.reports.pdf.cash-flow', [
+                'report' => $report,
+                'comparative' => $comparative,
+                'school' => SchoolSetting::current(),
+                'currency' => SchoolSetting::current()?->currency ?? 'FCFA',
+            ])->setPaper('a4', 'portrait')->download($filename.'.pdf');
+        }
+
+        return $this->csv($report, $comparative, $filename.'.csv');
+    }
+
+    /**
+     * The period a report covers: explicit dates win, then a chosen fiscal
+     * year, then the active fiscal year, then the calendar year to date.
+     *
+     * @return array{0: string, 1: string, 2: ?FiscalYear}
+     */
+    private function period(Request $request): array
+    {
+        $request->validate([
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'fiscal_year_id' => ['nullable', 'exists:fiscal_years,id'],
+        ]);
+
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            return [$request->input('start_date'), $request->input('end_date'), null];
+        }
+
+        $fiscalYear = $request->filled('fiscal_year_id')
+            ? FiscalYear::find($request->input('fiscal_year_id'))
+            : FiscalYear::active();
+
+        if ($fiscalYear) {
+            return [$fiscalYear->start_date->toDateString(), $fiscalYear->end_date->toDateString(), $fiscalYear];
+        }
+
+        return [now()->startOfYear()->toDateString(), now()->toDateString(), null];
+    }
+
+    /**
+     * The period to compare against: the fiscal year before, when there is
+     * one, otherwise the same dates a year earlier.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function previousPeriod(string $from, string $to, ?FiscalYear $fiscalYear): array
+    {
+        if ($fiscalYear) {
+            $prior = FiscalYear::whereDate('start_date', '<', $fiscalYear->start_date)
+                ->orderByDesc('start_date')
+                ->first();
+
+            if ($prior) {
+                return [$prior->start_date->toDateString(), $prior->end_date->toDateString()];
+            }
+        }
+
+        return [
+            Carbon::parse($from)->subYearNoOverflow()->toDateString(),
+            Carbon::parse($to)->subYearNoOverflow()->toDateString(),
+        ];
+    }
+
+    /** @param array<string, mixed> $report */
+    private function csv(array $report, bool $comparative, string $filename): StreamedResponse
+    {
+        return response()->streamDownload(function () use ($report, $comparative) {
+            $out = fopen('php://output', 'w');
+
+            // Excel reads UTF-8 as Latin-1 without this.
+            fwrite($out, "\xEF\xBB\xBF");
+
+            $current = $comparative ? $report['current'] : $report;
+            $previous = $comparative ? $report['previous'] : null;
+
+            fputcsv($out, $comparative
+                ? [__('Section'), __('Line'), __('Current'), __('Previous'), __('Variance')]
+                : [__('Section'), __('Line'), __('Amount')]);
+
+            foreach ($current['sections'] as $key => $section) {
+                $prior = $comparative ? collect($previous['sections'][$key]['items'])->keyBy('key') : null;
+
+                foreach ($section['items'] as $item) {
+                    fputcsv($out, $comparative
+                        ? [$section['title'], $item['label'], $item['amount'], $prior[$item['key']]['amount'] ?? 0, $report['variance'][$key][$item['key']] ?? 0]
+                        : [$section['title'], $item['label'], $item['amount']]);
+                }
+
+                fputcsv($out, $comparative
+                    ? [$section['title'], __('Net cash from this activity'), $section['total'], $previous['sections'][$key]['total'], $report['variance'][$key]['_total']]
+                    : [$section['title'], __('Net cash from this activity'), $section['total']]);
+            }
+
+            foreach ([
+                [__('Net change in cash'), 'net_change'],
+                [__('Cash at the start of the period'), 'opening_cash'],
+                [__('Cash at the end of the period'), 'closing_cash'],
+            ] as [$label, $field]) {
+                fputcsv($out, $comparative
+                    ? ['', $label, $current[$field], $previous[$field], round($current[$field] - $previous[$field], 2)]
+                    : ['', $label, $current[$field]]);
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }
