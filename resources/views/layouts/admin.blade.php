@@ -322,7 +322,7 @@
                         </span>
                         <svg id="hr-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="hr-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.staff.*', 'admin.payroll.*', 'admin.designations.*', 'admin.work-shifts.*', 'admin.allowance-types.*', 'admin.deduction-types.*', 'admin.tax-groups.*', 'admin.tax-settings.*', 'admin.tax-report.*') ? 'open' : '' }}">
+                    <div id="hr-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.staff.*', 'admin.payroll.*', 'admin.designations.*', 'admin.work-shifts.*', 'admin.allowance-types.*', 'admin.deduction-types.*', 'admin.tax-groups.*', 'admin.tax-settings.*', 'admin.tax-report.*', 'admin.tax-remittances.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.staff.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.staff.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff List') }}</a>
                         <a href="{{ route('admin.payroll.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payroll.index', 'admin.payroll.generate', 'admin.payroll.store') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payrolls') }}</a>
                         @can('staff-leave.view')
@@ -338,6 +338,9 @@
                         <a href="{{ route('admin.deduction-types.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.deduction-types.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Deduction Type') }}</a>
                         <a href="{{ route('admin.tax-groups.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.tax-groups.*', 'admin.tax-settings.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Tax Groups') }}</a>
                         <a href="{{ route('admin.tax-report.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.tax-report.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Tax Distribution Report') }}</a>
+                        @can('tax-remittance.view')
+                        <a href="{{ route('admin.tax-remittances.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.tax-remittances.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Tax Remittances') }}</a>
+                        @endcan
                     </div>
                 </div>
                 @endif

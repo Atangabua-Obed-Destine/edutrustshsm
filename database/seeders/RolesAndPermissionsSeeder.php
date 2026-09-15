@@ -93,6 +93,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Leave Type' => ['view', 'create', 'edit', 'delete'],
             'Payroll' => ['view', 'generate', 'pay', 'unpay', 'report'],
             'Staff Tax Report' => ['view', 'export'],
+            'Tax Remittance' => ['view', 'create', 'void'],
 
             // ── Platform ──
             'Branch' => ['view', 'create', 'edit', 'assign'],
@@ -175,7 +176,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'Recurring Entry', 'General Ledger', 'Account Mapping',
             'Accounting Report', 'Fixed Asset',
             // Payroll
-            'Payroll', 'Staff Tax Report', 'Tax Group', 'Tax Setting',
+            'Payroll', 'Staff Tax Report', 'Tax Remittance', 'Tax Group', 'Tax Setting',
             'Allowance Type', 'Deduction Type',
             // Parent-submitted payments land in the accountant's queue
             'Parent Payment',

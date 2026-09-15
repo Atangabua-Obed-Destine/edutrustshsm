@@ -70,6 +70,7 @@ use App\Http\Controllers\Admin\LeaveController;
 use App\Http\Controllers\Admin\LeaveTypeController;
 use App\Http\Controllers\Admin\StaffAttendanceController;
 use App\Http\Controllers\Admin\StudentCreditController;
+use App\Http\Controllers\Admin\TaxRemittanceController;
 use App\Http\Controllers\Admin\GeneralLedgerController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\DesignationController;
@@ -692,3 +693,6 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::post('payroll/{payroll}/pay', [PayrollController::class, 'pay'])->name('payroll.pay');
     Route::post('payroll/{payroll}/unpay', [PayrollController::class, 'unpay'])->name('payroll.unpay');
 });
+    Route::get('tax-remittances', [TaxRemittanceController::class, 'index'])->name('tax-remittances.index');
+    Route::post('tax-remittances', [TaxRemittanceController::class, 'store'])->name('tax-remittances.store');
+    Route::post('tax-remittances/{remittance}/void', [TaxRemittanceController::class, 'void'])->name('tax-remittances.void');
