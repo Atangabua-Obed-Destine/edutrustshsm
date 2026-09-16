@@ -252,6 +252,10 @@ class YearEndClosingTest extends TestCase
         $this->postEntry($this->cash, $this->tuition, 100000);
         $this->closeEverything();
 
+        foreach (array_keys(\App\Services\YearEndChecklistService::MANUAL) as $item) {
+            $this->post(route('admin.fiscal-years.closing.confirm', $this->year), ['item' => $item, 'confirmed' => 1]);
+        }
+
         $this->post(route('admin.fiscal-years.close', $this->year))
             ->assertRedirect()
             ->assertSessionHas('success');

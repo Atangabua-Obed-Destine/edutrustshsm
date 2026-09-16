@@ -58,7 +58,7 @@
                         <form method="POST" action="{{ route('admin.fiscal-years.set-active', $fy) }}" class="inline">@csrf<button class="text-green-600 hover:text-green-800 text-xs font-medium">{{ __('Set Active') }}</button></form>
                         @endunless
                         @unless($fy->is_closed)
-                        <form method="POST" action="{{ route('admin.fiscal-years.close', $fy) }}" class="inline" onsubmit="return confirm('{{ __('Close this fiscal year?') }}')">@csrf<button class="text-amber-600 hover:text-amber-800 text-xs font-medium">{{ __('Close') }}</button></form>
+                        <a href="{{ route('admin.fiscal-years.closing', $fy) }}" class="text-amber-600 hover:text-amber-800 text-xs font-medium">{{ __('Close') }}</a>
                         @endunless
                     </td>
                 </tr>

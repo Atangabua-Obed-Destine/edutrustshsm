@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\FiscalYear;
+use App\Models\User;
+use App\Models\YearEndClosing;
+use App\Services\YearEndChecklistService;
 use App\Services\YearEndClosingService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use RuntimeException;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -23,7 +27,7 @@ class FiscalYearController extends Controller implements HasMiddleware
     {
         return [
             static::can('fiscal-year.create', ['setActive']),
-            static::can('fiscal-year.close', ['close', 'reopen', 'togglePeriod']),
+            static::can('fiscal-year.close', ['close', 'reopen', 'togglePeriod', 'confirmChecklist']),
             static::can('fiscal-year.view', ['previewClosing']),
         ];
     }
@@ -58,13 +62,55 @@ class FiscalYearController extends Controller implements HasMiddleware
         return back()->with('success', __(':name is now the active fiscal year.', ['name' => $fiscalYear->name]));
     }
 
-    /** What closing this year would post, before committing to it. */
-    public function previewClosing(FiscalYear $fiscalYear, YearEndClosingService $closing)
+    /** What closing this year would post, and what still stands in the way. */
+    public function previewClosing(FiscalYear $fiscalYear, YearEndClosingService $closing, YearEndChecklistService $checklist)
     {
+        $current = YearEndClosing::currentFor($fiscalYear);
+        $manual = $checklist->manual($current);
+
         return view('admin.accounting.fiscal-years.closing-preview', [
             'fiscalYear' => $fiscalYear,
             'preview' => $closing->preview($fiscalYear),
+            'automatic' => $checklist->automatic($fiscalYear),
+            'manual' => $manual,
+            'outstanding' => $checklist->outstanding($fiscalYear, $current),
+            'history' => YearEndClosing::with(['closedBy', 'reversedBy', 'closingEntry'])
+                ->where('fiscal_year_id', $fiscalYear->id)->latest('id')->get(),
+            'users' => User::whereIn('id', collect($manual)->pluck('by')->filter())->get()
+                ->mapWithKeys(fn ($u) => [$u->id => $u->full_name])->all(),
         ]);
+    }
+
+    /** Tick or untick one of the confirmations a person has to make. */
+    public function confirmChecklist(Request $request, FiscalYear $fiscalYear)
+    {
+        $validated = $request->validate([
+            'item' => ['required', 'in:'.implode(',', array_keys(YearEndChecklistService::MANUAL))],
+            'confirmed' => ['required', 'boolean'],
+        ]);
+
+        if ($fiscalYear->is_closed) {
+            return back()->with('error', __('This fiscal year is already closed.'));
+        }
+
+        $closing = YearEndClosing::currentFor($fiscalYear) ?? YearEndClosing::create([
+            'branch_id' => $fiscalYear->branch_id,
+            'fiscal_year_id' => $fiscalYear->id,
+            'status' => YearEndClosing::STATUS_IN_PROGRESS,
+            'started_by' => auth()->id(),
+        ]);
+
+        $confirmations = $closing->confirmations ?? [];
+
+        if ($request->boolean('confirmed')) {
+            $confirmations[$validated['item']] = ['by' => auth()->id(), 'at' => now()->toDateTimeString()];
+        } else {
+            unset($confirmations[$validated['item']]);
+        }
+
+        $closing->update(['confirmations' => $confirmations]);
+
+        return back();
     }
 
     /**
@@ -73,10 +119,34 @@ class FiscalYearController extends Controller implements HasMiddleware
      * This used to only flip the is_closed flag, so profit-and-loss balances ran
      * forever and the year's result was never carried into equity.
      */
-    public function close(FiscalYear $fiscalYear, YearEndClosingService $closing)
+    public function close(FiscalYear $fiscalYear, YearEndClosingService $closing, YearEndChecklistService $checklist)
     {
+        $record = YearEndClosing::currentFor($fiscalYear);
+
+        // Closing locks the year's result, so it waits until every check has
+        // passed and every confirmation has been made.
+        if ($outstanding = $checklist->outstanding($fiscalYear, $record)) {
+            return back()->with('error', __('The year cannot be closed yet.').' '.implode(' ', $outstanding));
+        }
+
+        $preview = $closing->preview($fiscalYear);
+
         try {
-            $entry = $closing->close($fiscalYear);
+            $entry = DB::transaction(function () use ($closing, $fiscalYear, $record, $preview) {
+                $entry = $closing->close($fiscalYear);
+
+                $record->update([
+                    'status' => YearEndClosing::STATUS_CLOSED,
+                    'total_revenue' => $preview['revenue'],
+                    'total_expenses' => $preview['expenses'],
+                    'net_result' => $preview['net'],
+                    'closing_entry_id' => $entry->id,
+                    'closed_by' => auth()->id(),
+                    'closed_at' => now(),
+                ]);
+
+                return $entry;
+            });
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -89,10 +159,27 @@ class FiscalYearController extends Controller implements HasMiddleware
     }
 
     /** Reverse a closing and reopen the year. */
-    public function reopen(FiscalYear $fiscalYear, YearEndClosingService $closing)
+    public function reopen(Request $request, FiscalYear $fiscalYear, YearEndClosingService $closing)
     {
+        $validated = $request->validate([
+            // Required: the next person to close the year needs to know what
+            // was wrong with the last close.
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
         try {
-            $closing->reopen($fiscalYear);
+            DB::transaction(function () use ($closing, $fiscalYear, $validated) {
+                $closing->reopen($fiscalYear);
+
+                YearEndClosing::where('fiscal_year_id', $fiscalYear->id)
+                    ->where('status', YearEndClosing::STATUS_CLOSED)
+                    ->update([
+                        'status' => YearEndClosing::STATUS_REVERSED,
+                        'reversed_by' => auth()->id(),
+                        'reversed_at' => now(),
+                        'reversal_reason' => $validated['reason'],
+                    ]);
+            });
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }

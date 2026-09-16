@@ -582,6 +582,7 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     // Staff attendance (daily register + monthly summary)
     Route::get('staff-attendance', [StaffAttendanceController::class, 'index'])->name('staff-attendance.index');
     Route::post('staff-attendance', [StaffAttendanceController::class, 'store'])->name('staff-attendance.store');
+    Route::post('fiscal-years/{fiscalYear}/closing/confirm', [FiscalYearController::class, 'confirmChecklist'])->name('fiscal-years.closing.confirm');
     Route::get('staff-attendance/report', [StaffAttendanceController::class, 'report'])->name('staff-attendance.report');
 
     // Staff leave
