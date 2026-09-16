@@ -662,6 +662,10 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
         Route::get('cash-flow-statement', [AccountingReportsController::class, 'cashFlowStatement'])->name('cash-flow-statement');
         Route::get('comparative-cash-flow', [AccountingReportsController::class, 'comparativeCashFlow'])->name('comparative-cash-flow');
         Route::get('cash-flow-statement/export', [AccountingReportsController::class, 'exportCashFlow'])->name('cash-flow-export');
+        Route::get('aging/{report}/export', [AccountingReportsController::class, 'exportAging'])->name('aging-export');
+        Route::get('cash-flow-statement', [AccountingReportsController::class, 'cashFlowStatement'])->name('cash-flow-statement');
+        Route::get('comparative-cash-flow', [AccountingReportsController::class, 'comparativeCashFlow'])->name('comparative-cash-flow');
+        Route::get('cash-flow-statement/export', [AccountingReportsController::class, 'exportCashFlow'])->name('cash-flow-export');
 
     // ═══════════════════════════════════════════════════════════════
     // Human Resources (Staff + Payroll + Tax)
@@ -696,5 +700,8 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::post('payroll/{payroll}/unpay', [PayrollController::class, 'unpay'])->name('payroll.unpay');
 });
     Route::get('tax-remittances', [TaxRemittanceController::class, 'index'])->name('tax-remittances.index');
+    Route::get('tax-report/export', [StaffTaxReportController::class, 'export'])->name('tax-report.export');
     Route::post('tax-remittances', [TaxRemittanceController::class, 'store'])->name('tax-remittances.store');
     Route::post('tax-remittances/{remittance}/void', [TaxRemittanceController::class, 'void'])->name('tax-remittances.void');
+    Route::get('payroll/payslips', [PayrollController::class, 'payslips'])->name('payroll.payslips');
+    Route::get('payroll/{payroll}/payslip', [PayrollController::class, 'payslip'])->name('payroll.payslip');

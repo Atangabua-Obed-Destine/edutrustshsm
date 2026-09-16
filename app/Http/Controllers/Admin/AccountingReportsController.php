@@ -46,6 +46,7 @@ class AccountingReportsController extends Controller implements HasMiddleware
                 'index', 'receivablesAging', 'payablesAging', 'studentFeeAging', 'budgetVsActual',
                 'cashFlowStatement', 'comparativeCashFlow', 'exportCashFlow',
             ]),
+            static::can('accounting-report.export', ['exportAging']),
         ];
     }
 
@@ -74,6 +75,7 @@ class AccountingReportsController extends Controller implements HasMiddleware
             'subject' => __('Account'),
             'asOf' => $request->input('as_of') ?? Carbon::today()->toDateString(),
             'kind' => 'ledger',
+            'exportKey' => 'receivables',
         ]);
     }
 
@@ -87,6 +89,7 @@ class AccountingReportsController extends Controller implements HasMiddleware
             'subject' => __('Account'),
             'asOf' => $request->input('as_of') ?? Carbon::today()->toDateString(),
             'kind' => 'ledger',
+            'exportKey' => 'payables',
         ]);
     }
 
@@ -109,6 +112,7 @@ class AccountingReportsController extends Controller implements HasMiddleware
             'asOf' => $request->input('as_of') ?? Carbon::today()->toDateString(),
             'kind' => 'student',
             'forms' => Form::active()->ordered()->get(['id', 'name']),
+            'exportKey' => 'student-fees',
         ]);
     }
 
@@ -144,6 +148,79 @@ class AccountingReportsController extends Controller implements HasMiddleware
             'budgets' => $budgets,
             'status' => $request->input('status'),
         ]);
+    }
+
+    /**
+     * Any of the three aging reports as PDF or CSV, with the screen's filters.
+     *
+     * The reference system exports all of its accounting reports; the aging
+     * reports here could only be read on screen.
+     */
+    public function exportAging(Request $request, string $report)
+    {
+        abort_unless(in_array($report, ['receivables', 'payables', 'student-fees'], true), 404);
+
+        $validated = $request->validate([
+            'format' => ['required', 'in:pdf,csv'],
+            'as_of' => ['nullable', 'date'],
+            'form_id' => ['nullable', 'exists:forms,id'],
+        ]);
+
+        $asOf = $validated['as_of'] ?? Carbon::today()->toDateString();
+        $student = $report === 'student-fees';
+
+        $data = match ($report) {
+            'receivables' => $this->aging->ledgerAging('debit', $asOf),
+            'payables' => $this->aging->ledgerAging('credit', $asOf),
+            'student-fees' => $this->aging->studentFees($asOf, isset($validated['form_id']) ? (int) $validated['form_id'] : null),
+        };
+
+        $title = match ($report) {
+            'receivables' => __('Receivables Aging'),
+            'payables' => __('Payables Aging'),
+            'student-fees' => __('Student Fee Aging'),
+        };
+
+        $filename = $report.'-aging-'.$asOf;
+
+        if ($validated['format'] === 'pdf') {
+            return Pdf::loadView('admin.accounting.reports.pdf.aging', $data + [
+                'title' => $title,
+                'asOf' => $asOf,
+                'student' => $student,
+                'school' => SchoolSetting::current(),
+                'currency' => SchoolSetting::current()?->currency ?? 'FCFA',
+            ])->setPaper('a4', $student ? 'landscape' : 'portrait')->download($filename.'.pdf');
+        }
+
+        return response()->streamDownload(function () use ($data, $student) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, $student
+                ? [__('Student ID'), __('Student'), __('Class'), __('Fee'), __('Due'), __('Days'), __('Bucket'), __('Balance')]
+                : [__('Account Code'), __('Account'), __('Oldest entry'), __('Days'), __('Bucket'), __('Balance')]);
+
+            foreach ($data['rows'] as $row) {
+                fputcsv($out, $student
+                    ? [$row->student?->student_id, trim(($row->student?->first_name ?? '').' '.($row->student?->last_name ?? '')),
+                        $row->class, $row->category, $row->due_date?->format('Y-m-d'), $row->days_overdue, $row->bucket, $row->balance]
+                    : [$row->account->account_code, $row->account->account_name,
+                        $row->oldest_entry?->format('Y-m-d'), $row->days_overdue, $row->bucket, $row->balance]);
+            }
+
+            foreach ($data['buckets'] as $bucket) {
+                fputcsv($out, $student
+                    ? ['', '', '', '', '', '', $bucket, $data['totals'][$bucket] ?? 0]
+                    : ['', '', '', '', $bucket, $data['totals'][$bucket] ?? 0]);
+            }
+
+            fputcsv($out, $student
+                ? ['', '', '', '', '', '', __('Total'), $data['totals']['total'] ?? 0]
+                : ['', '', '', '', __('Total'), $data['totals']['total'] ?? 0]);
+
+            fclose($out);
+        }, $filename.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /** Where the cash came from and went, for one period. */

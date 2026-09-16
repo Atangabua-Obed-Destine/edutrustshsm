@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
+use App\Models\SchoolSetting;
 use App\Models\User;
 use App\Services\TaxCalculationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -25,6 +27,9 @@ class StaffTaxReportController extends Controller implements HasMiddleware
     {
         return [
             static::can('staff-tax-report.view', ['index']),
+            // The reference system exports this report to PDF and Excel; the
+            // export permission was seeded here but guarded nothing.
+            static::can('staff-tax-report.export', ['export']),
         ];
     }
 
@@ -36,12 +41,55 @@ class StaffTaxReportController extends Controller implements HasMiddleware
     {
         $date = $request->input('date', now()->toDateString());
 
+        return view('admin.hr.tax.report', $this->report($date) + ['date' => $date]);
+    }
+
+    /** The same report as PDF or CSV. */
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'format' => ['required', 'in:pdf,csv'],
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $date = $validated['date'] ?? now()->toDateString();
+        $report = $this->report($date);
+        $filename = 'staff-tax-report-'.$date;
+
+        if ($validated['format'] === 'pdf') {
+            return Pdf::loadView('admin.hr.tax.report-pdf', $report + [
+                'date' => $date,
+                'school' => SchoolSetting::current(),
+                'currency' => SchoolSetting::current()?->currency ?? 'FCFA',
+            ])->setPaper('a4', 'portrait')->download($filename.'.pdf');
+        }
+
+        return response()->streamDownload(function () use ($report) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, [__('Staff ID'), __('Staff'), __('Gross'), __('Employee Tax'), __('Employer Tax'), __('Net'), __('Effective %')]);
+
+            foreach ($report['rows'] as $r) {
+                fputcsv($out, [$r->staff->staff_id, $r->staff->full_name, $r->gross, $r->employee_tax, $r->employer_tax, $r->net, $r->effective]);
+            }
+
+            fputcsv($out, ['', __('Total'), $report['totals']['gross'], $report['totals']['employee_tax'], $report['totals']['employer_tax'], $report['totals']['net'], '']);
+
+            fclose($out);
+        }, $filename.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** @return array{rows: \Illuminate\Support\Collection, totals: array<string, float>, distribution: \Illuminate\Support\Collection} */
+    private function report(string $date): array
+    {
         $rows = User::staff()->whereNotNull('basic_salary')->where('basic_salary', '>', 0)
             ->orderBy('staff_id')->get()
             ->map(function ($staff) use ($date) {
                 $gross = (float) $staff->basic_salary;
                 $r = $this->tax->calculate($gross, $date, $staff);
                 $effective = $gross > 0 ? round($r['employee_tax'] / $gross * 100, 2) : 0;
+
                 return (object) [
                     'staff' => $staff,
                     'gross' => $gross,
@@ -67,8 +115,10 @@ class StaffTaxReportController extends Controller implements HasMiddleware
             ['label' => '200,001 – 500,000', 'min' => 200001, 'max' => 500000],
             ['label' => '500,001 +', 'min' => 500001, 'max' => PHP_INT_MAX],
         ];
+
         $distribution = collect($bands)->map(function ($b) use ($rows) {
             $inBand = $rows->filter(fn ($r) => $r->gross >= $b['min'] && $r->gross <= $b['max']);
+
             return (object) [
                 'label' => $b['label'],
                 'count' => $inBand->count(),
@@ -76,6 +126,6 @@ class StaffTaxReportController extends Controller implements HasMiddleware
             ];
         });
 
-        return view('admin.hr.tax.report', compact('rows', 'totals', 'distribution', 'date'));
+        return compact('rows', 'totals', 'distribution');
     }
 }
