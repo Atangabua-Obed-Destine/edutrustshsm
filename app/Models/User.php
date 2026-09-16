@@ -89,6 +89,11 @@ class User extends Authenticatable
         return $this->belongsTo(WorkShiftType::class, 'work_shift_id');
     }
 
+    public function staffNotes()
+    {
+        return $this->hasMany(StaffNote::class)->latest();
+    }
+
     public function bankAccounts()
     {
         return $this->hasMany(StaffBankAccount::class);

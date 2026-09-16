@@ -7,7 +7,17 @@
 <div class="space-y-4">
     <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-700">{{ __('Staff List') }}</h3>
-        <a href="{{ route('admin.staff.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">+ {{ __('Add New') }}</a>
+        <div class="flex items-center gap-2">
+            @can('id-card.print')
+            {{-- Checkboxes in the table point at this form; it cannot wrap the
+                 table because each row already holds its own delete form. --}}
+            <form id="staff-cards-form" method="POST" action="{{ route('admin.staff.id-cards.print') }}" target="_blank">
+                @csrf
+                <button type="submit" class="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium">{{ __('Print ID cards for selected') }}</button>
+            </form>
+            @endcan
+            <a href="{{ route('admin.staff.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">+ {{ __('Add New') }}</a>
+        </div>
     </div>
 
     <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
@@ -47,6 +57,7 @@
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
+                    <th class="px-4 py-3 w-8"></th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Staff ID') }}</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Name') }}</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Department') }}</th>
@@ -60,6 +71,7 @@
             <tbody class="divide-y divide-gray-200">
                 @forelse($staff as $s)
                 <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3"><input type="checkbox" name="staff_ids[]" value="{{ $s->id }}" form="staff-cards-form" class="rounded"></td>
                     <td class="px-4 py-3 text-sm font-mono text-gray-700">{{ $s->staff_id }}</td>
                     <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $s->full_name }}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">{{ $s->department?->name ?? '—' }}</td>
@@ -74,7 +86,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">{{ __('No staff found.') }}</td></tr>
+                <tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">{{ __('No staff found.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

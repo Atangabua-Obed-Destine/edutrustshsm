@@ -70,6 +70,8 @@ use App\Http\Controllers\Admin\LeaveController;
 use App\Http\Controllers\Admin\LeaveTypeController;
 use App\Http\Controllers\Admin\StaffAttendanceController;
 use App\Http\Controllers\Admin\StudentCreditController;
+use App\Http\Controllers\Admin\StaffIdCardController;
+use App\Http\Controllers\Admin\StaffNoteController;
 use App\Http\Controllers\Admin\TaxRemittanceController;
 use App\Http\Controllers\Admin\GeneralLedgerController;
 use App\Http\Controllers\Admin\StaffController;
@@ -178,6 +180,11 @@ Route::prefix('parent')->name('parent.')->group(function () {
 // Auth Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
+// Public check that a staff ID card is genuine. The token is random, so the
+// staff list cannot be walked; throttled all the same.
+Route::get('/verify/staff/{token}', [StaffIdCardController::class, 'verify'])
+    ->middleware('throttle:30,1')->name('staff-card.verify');
+
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // Protected Routes
@@ -688,6 +695,9 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
 
     // Tax engine
     Route::resource('tax-groups', TaxGroupController::class)->except(['show'])->parameters(['tax-groups' => 'tax_group']);
+    Route::post('staff/id-cards/print', [StaffIdCardController::class, 'print'])->name('staff.id-cards.print');
+    Route::post('staff/{staff}/notes', [StaffNoteController::class, 'store'])->name('staff.notes.store');
+    Route::delete('staff-notes/{note}', [StaffNoteController::class, 'destroy'])->name('staff.notes.destroy');
     Route::get('tax-settings', [TaxSettingController::class, 'index'])->name('tax-settings.index');
     Route::post('tax-settings', [TaxSettingController::class, 'store'])->name('tax-settings.store');
     Route::put('tax-settings/{tax_setting}', [TaxSettingController::class, 'update'])->name('tax-settings.update');
