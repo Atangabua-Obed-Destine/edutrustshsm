@@ -17,9 +17,24 @@
                 {{ $asset->method === 'declining' ? __('Declining balance') : __('Straight line') }}
             </p>
         </div>
-        <a href="{{ route('admin.fixed-assets.index') }}" class="text-sm text-blue-600 hover:underline">
-            {{ __('Back to Fixed Assets') }}
-        </a>
+        <div class="flex items-center gap-3">
+            @if(! $asset->isDisposed())
+            @can('fixed-asset.edit')
+            <a href="{{ route('admin.fixed-assets.edit', $asset) }}" class="border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-sm">{{ __('Edit') }}</a>
+            @endcan
+            @endif
+            @can('fixed-asset.delete')
+            @if(! $asset->isDisposed() && ! $asset->schedules->contains('is_posted', true))
+            <form method="POST" action="{{ route('admin.fixed-assets.destroy', $asset) }}" onsubmit="return confirm('{{ __('Delete this asset? It has nothing in the ledger yet.') }}')">
+                @csrf @method('DELETE')
+                <button type="submit" class="border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm">{{ __('Delete') }}</button>
+            </form>
+            @endif
+            @endcan
+            <a href="{{ route('admin.fixed-assets.index') }}" class="text-sm text-blue-600 hover:underline">
+                {{ __('Back to Fixed Assets') }}
+            </a>
+        </div>
     </div>
 
     @if($errors->any())

@@ -18,6 +18,8 @@
         </div>
         <div class="flex items-center gap-3">
             @can('fixed-asset.view')
+            <a href="{{ route('admin.fixed-assets.register') }}" class="text-sm text-blue-600 hover:underline mr-3">{{ __('Asset Register') }}</a>
+            <a href="{{ route('admin.fixed-assets.depreciation-report') }}" class="text-sm text-blue-600 hover:underline mr-3">{{ __('Depreciation Report') }}</a>
             <a href="{{ route('admin.fixed-assets.categories') }}" class="text-sm text-blue-600 hover:underline">
                 {{ __('Categories') }}
             </a>

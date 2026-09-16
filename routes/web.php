@@ -647,6 +647,11 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
         Route::get('student-fee-aging', [AccountingReportsController::class, 'studentFeeAging'])->name('student-fee-aging');
         Route::get('budget-vs-actual', [AccountingReportsController::class, 'budgetVsActual'])->name('budget-vs-actual');
     });
+    Route::get('fixed-assets/register', [FixedAssetController::class, 'register'])->name('fixed-assets.register');
+    Route::get('fixed-assets/depreciation-report', [FixedAssetController::class, 'depreciationReport'])->name('fixed-assets.depreciation-report');
+    Route::get('fixed-assets/{fixedAsset}/edit', [FixedAssetController::class, 'edit'])->name('fixed-assets.edit');
+    Route::put('fixed-assets/{fixedAsset}', [FixedAssetController::class, 'update'])->name('fixed-assets.update');
+    Route::delete('fixed-assets/{fixedAsset}', [FixedAssetController::class, 'destroy'])->name('fixed-assets.destroy');
 
     Route::get('account-mappings', [AccountMappingController::class, 'index'])->name('account-mappings.index');
     Route::post('account-mappings/save', [AccountMappingController::class, 'save'])->name('account-mappings.save');
