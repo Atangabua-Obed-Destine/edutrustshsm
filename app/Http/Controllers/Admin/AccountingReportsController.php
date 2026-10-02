@@ -111,7 +111,7 @@ class AccountingReportsController extends Controller implements HasMiddleware
             'subject' => __('Student'),
             'asOf' => $request->input('as_of') ?? Carbon::today()->toDateString(),
             'kind' => 'student',
-            'forms' => Form::active()->ordered()->get(['id', 'name']),
+            'forms' => Form::active()->forCurrentLevel()->ordered()->get(['id', 'name', 'school_level']),
             'exportKey' => 'student-fees',
         ]);
     }

@@ -44,7 +44,9 @@ class ApplicationController extends Controller
                 ->with('error', __('Admissions are currently closed. No active academic session.'));
         }
 
-        $forms = Form::where('is_active', true)->orderBy('display_order')->get();
+        // Only the school levels this installation runs: a secondary-only
+        // school must not be applied to for a nursery place.
+        $forms = Form::where('is_active', true)->forActiveSchoolLevels()->orderBy('display_order')->get();
 
         return view('apply.create', compact('applicant', 'currentSession', 'forms'));
     }

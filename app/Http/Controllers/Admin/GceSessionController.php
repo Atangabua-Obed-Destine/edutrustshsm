@@ -48,7 +48,7 @@ class GceSessionController extends Controller implements HasMiddleware
         return view('admin.gce.sessions.form', [
             'session' => new GceRegistrationSession(['exam_year' => now()->year, 'min_subjects' => 1, 'max_subjects' => 9]),
             'academicSessions' => AcademicSession::orderByDesc('start_date')->get(),
-            'forms' => Form::where('is_active', true)->orderBy('display_order')->get(),
+            'forms' => Form::where('is_active', true)->where('school_level', 'secondary')->orderBy('display_order')->get(),
             'selectedForms' => [],
         ]);
     }
@@ -69,7 +69,7 @@ class GceSessionController extends Controller implements HasMiddleware
         return view('admin.gce.sessions.form', [
             'session' => $session,
             'academicSessions' => AcademicSession::orderByDesc('start_date')->get(),
-            'forms' => Form::where('is_active', true)->orderBy('display_order')->get(),
+            'forms' => Form::where('is_active', true)->where('school_level', 'secondary')->orderBy('display_order')->get(),
             'selectedForms' => $session->forms->pluck('id')->all(),
         ]);
     }

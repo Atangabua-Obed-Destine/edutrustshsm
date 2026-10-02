@@ -114,20 +114,18 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Cycle') }} <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $schoolLevel === 'secondary' ? __('Cycle') : __('Level') }} <span class="text-red-500">*</span></label>
                             <div class="flex gap-6 mt-2">
+                                {{-- Driven by the school level in context: a nursery school is
+                                     offered Nursery and Primary, not the secondary cycles. --}}
+                                @foreach($levels as $value => $level)
                                 <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" name="cycle" value="first_cycle" id="cycle_first"
-                                           {{ old('cycle', 'first_cycle') === 'first_cycle' ? 'checked' : '' }}
+                                    <input type="radio" name="cycle" value="{{ $value }}" id="cycle_{{ $value }}"
+                                           {{ old('cycle', array_key_first($levels)) === $value ? 'checked' : '' }}
                                            class="w-4 h-4 text-blue-600">
-                                    <span class="text-sm text-gray-700">{{ __('First Cycle') }} <span class="text-xs text-gray-400">({{ __('Form 1–5') }})</span></span>
+                                    <span class="text-sm text-gray-700">{{ $level['label'] }} <span class="text-xs text-gray-400">({{ $level['hint'] }})</span></span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" name="cycle" value="second_cycle" id="cycle_second"
-                                           {{ old('cycle') === 'second_cycle' ? 'checked' : '' }}
-                                           class="w-4 h-4 text-blue-600">
-                                    <span class="text-sm text-gray-700">{{ __('Second Cycle') }} <span class="text-xs text-gray-400">({{ __('6th Form') }})</span></span>
-                                </label>
+                                @endforeach
                             </div>
                         </div>
                     </div>
@@ -854,6 +852,15 @@ function updateDocumentSections(cycle) {
     const primarySection = document.getElementById('primary_cert_section');
     const gceSection = document.getElementById('gce_cert_section');
     const infoDiv = document.getElementById('doc_cycle_info');
+
+    // Neither certificate means anything for a nursery or primary pupil.
+    if (cycle !== 'first_cycle' && cycle !== 'second_cycle') {
+        primarySection.classList.add('hidden');
+        gceSection.classList.add('hidden');
+        infoDiv.innerHTML = @json(__('No entry certificate is required at this level.'));
+        infoDiv.className = 'bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-xs text-blue-700';
+        return;
+    }
 
     if (cycle === 'second_cycle') {
         primarySection.classList.add('hidden');

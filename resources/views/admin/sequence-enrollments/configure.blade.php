@@ -17,8 +17,8 @@
                 <h3 class="text-lg font-semibold text-gray-700">
                     {{ $form->name }}
                     <span class="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{{ $form->short_name }}</span>
-                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ml-2 {{ $form->level === 'first_cycle' ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700' }}">
-                        {{ $form->level === 'first_cycle' ? __('1st Cycle') : __('2nd Cycle') }}
+                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ml-2 {{ in_array($form->level, ['first_cycle', 'nursery']) ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700' }}">
+                        {{ \App\Models\Form::levelLabel($form->level) }}
                     </span>
                 </h3>
                 <p class="text-sm text-gray-500 mt-0.5">{{ __('Assign exam sequences to streams for each term') }}</p>

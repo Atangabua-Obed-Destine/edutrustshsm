@@ -77,8 +77,13 @@ class StudentController extends Controller implements HasMiddleware
         $forms = Form::active()->forCurrentLevel()->ordered()->get();
         $terms = Term::orderBy('term_number')->get();
 
+        // The sub-levels of whichever school level the admin is working in —
+        // nursery/primary, or the secondary cycles.
+        $schoolLevel = \App\Support\LevelContext::current();
+        $levels = Form::subLevelsFor($schoolLevel);
+
         return view('admin.students.create', compact(
-            'currentSession', 'settings', 'batches', 'forms', 'terms'
+            'currentSession', 'settings', 'batches', 'forms', 'terms', 'levels', 'schoolLevel'
         ));
     }
 
