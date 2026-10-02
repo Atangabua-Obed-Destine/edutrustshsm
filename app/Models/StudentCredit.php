@@ -17,7 +17,7 @@ class StudentCredit extends Model
     use Auditable;
 
     protected $fillable = [
-        'student_enrollment_id', 'payment_id', 'amount', 'used_amount',
+        'student_enrollment_id', 'payment_id', 'amount', 'used_amount', 'refunded_amount',
         'balance', 'source', 'note', 'created_by',
     ];
 
@@ -26,6 +26,7 @@ class StudentCredit extends Model
         return [
             'amount' => 'decimal:2',
             'used_amount' => 'decimal:2',
+            'refunded_amount' => 'decimal:2',
             'balance' => 'decimal:2',
         ];
     }
@@ -38,6 +39,11 @@ class StudentCredit extends Model
     public function payment()
     {
         return $this->belongsTo(Payment::class);
+    }
+
+    public function refunds()
+    {
+        return $this->hasMany(StudentCreditRefund::class)->orderByDesc('id');
     }
 
     public function createdBy()
@@ -58,6 +64,21 @@ class StudentCredit extends Model
             ->sum('balance');
     }
 
+    /**
+     * What is left: the original amount, less what went to fees and what was
+     * paid back. Kept in one place because three different writers used to
+     * work it out, and a refund would have been invisible to all of them.
+     */
+    public function recomputeBalance(): static
+    {
+        $this->balance = max(0, round(
+            (float) $this->amount - (float) $this->used_amount - (float) $this->refunded_amount,
+            2
+        ));
+
+        return $this;
+    }
+
     /** Draw an amount down from this credit. Returns what was actually drawn. */
     public function draw(float $amount): float
     {
@@ -68,8 +89,7 @@ class StudentCredit extends Model
         }
 
         $this->used_amount = (float) $this->used_amount + $drawn;
-        $this->balance = round((float) $this->amount - (float) $this->used_amount, 2);
-        $this->save();
+        $this->recomputeBalance()->save();
 
         return $drawn;
     }

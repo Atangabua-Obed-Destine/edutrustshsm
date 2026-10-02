@@ -215,7 +215,9 @@ class FeeCollectionController extends Controller implements HasMiddleware
             ->get();
 
         // Get ALL payments for this enrollment up to and including this payment's date
+        // A reversed receipt is kept as a record but is not money received.
         $allPayments = Payment::where('student_enrollment_id', $payment->student_enrollment_id)
+            ->where('verification_status', '!=', 'reversed')
             ->where('id', '<=', $payment->id)
             ->orderBy('payment_date')
             ->orderBy('id')

@@ -46,8 +46,8 @@
                     <span class="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mt-1 inline-block">{{ $form->short_name }}</span>
                 </div>
                 <div class="flex flex-wrap gap-1">
-                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $form->level === 'first_cycle' ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700' }}">
-                        {{ $form->level === 'first_cycle' ? __('1st Cycle') : __('2nd Cycle') }}
+                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ in_array($form->level, ['first_cycle', 'nursery']) ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700' }}">
+                        {{ \App\Models\Form::levelLabel($form->level) }}
                     </span>
                     <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $form->education_system === 'english' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700' }}">
                         {{ $form->education_system === 'english' ? __('English') : __('French') }}

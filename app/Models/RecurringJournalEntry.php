@@ -14,6 +14,14 @@ class RecurringJournalEntry extends Model
 {
     use Auditable, BelongsToBranch;
 
+    /** Frequencies the schedule column allows, with their labels. */
+    public const FREQUENCIES = [
+        'weekly' => 'Weekly',
+        'monthly' => 'Monthly',
+        'quarterly' => 'Quarterly',
+        'yearly' => 'Yearly',
+    ];
+
     protected $fillable = [
         'branch_id', 'title', 'description', 'frequency',
         'start_date', 'end_date', 'next_run_date', 'last_run_date',

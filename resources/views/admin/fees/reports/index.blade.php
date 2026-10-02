@@ -10,6 +10,7 @@
             <p class="text-sm text-gray-500 mt-1">{{ __('Financial overview and collection tracking') }}</p>
         </div>
         <form class="flex items-center gap-2">
+            <a href="{{ route('admin.fee-reports.partial', ['session_id' => $sessionId]) }}" class="text-sm text-blue-600 hover:underline mr-2">{{ __('Partial Payments') }}</a>
             <select name="session_id" onchange="this.form.submit()" class="rounded-lg border-gray-300 text-sm shadow-sm">
                 @foreach($sessions as $s)
                     <option value="{{ $s->id }}" {{ $sessionId == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>

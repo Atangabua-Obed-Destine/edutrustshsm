@@ -68,7 +68,7 @@ class StaffController extends Controller implements HasMiddleware
 
     public function show(User $staff)
     {
-        $staff->load(['department', 'designation', 'workShift', 'bankAccounts', 'payrolls']);
+        $staff->load(['department', 'designation', 'workShift', 'bankAccounts', 'payrolls', 'staffNotes.createdBy']);
         return view('admin.hr.staff.show', compact('staff'));
     }
 

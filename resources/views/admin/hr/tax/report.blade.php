@@ -12,6 +12,10 @@
         <form method="GET" class="flex items-end gap-2">
             <div><label class="block text-xs text-gray-500 mb-1">{{ __('As of') }}</label><input type="date" name="date" value="{{ $date }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm"></div>
             <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">{{ __('Recompute') }}</button>
+            @can('staff-tax-report.export')
+            <a href="{{ route('admin.tax-report.export', ['date' => $date, 'format' => 'pdf']) }}" class="border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm">PDF</a>
+            <a href="{{ route('admin.tax-report.export', ['date' => $date, 'format' => 'csv']) }}" class="border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm">CSV</a>
+            @endcan
         </form>
     </div>
     <p class="text-xs text-gray-400">{{ __('Recomputed under current tax rules — matches what the payslip would pay today.') }}</p>

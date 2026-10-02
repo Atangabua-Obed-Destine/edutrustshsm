@@ -22,6 +22,12 @@
         </a>
     </div>
 
+    @if($pendingRefunds > 0)
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+        {{ trans_choice(':count refund is waiting to be approved or paid out.|:count refunds are waiting to be approved or paid out.', $pendingRefunds, ['count' => $pendingRefunds]) }}
+    </div>
+    @endif
+
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total Available') }}</p>
@@ -66,7 +72,13 @@
                     <td class="px-6 py-3 text-right font-semibold {{ (float) $credit->balance > 0 ? 'text-emerald-700' : 'text-gray-400' }}">
                         {{ number_format((float) $credit->balance, 2) }}
                     </td>
-                    <td class="px-6 py-3 text-right">
+                    <td class="px-6 py-3 text-right whitespace-nowrap">
+                        <a href="{{ route('admin.student-credits.show', $credit) }}" class="text-gray-600 hover:underline mr-3">
+                            {{ __('View') }}
+                            @if($credit->open_refunds_count > 0)
+                            <span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold">{{ __('Refund pending') }}</span>
+                            @endif
+                        </a>
                         @if((float) $credit->balance > 0)
                         @can('student-credit.apply')
                         <form method="POST" action="{{ route('admin.student-credits.apply') }}" class="inline"

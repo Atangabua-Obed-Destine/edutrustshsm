@@ -10,6 +10,7 @@ use App\Models\ParentPaymentSubmission;
 use App\Models\PaymentAccountTransaction;
 use App\Models\PaymentAccountTransfer;
 use App\Models\PtaMeeting;
+use App\Models\StaffNote;
 use App\Models\Student;
 use Illuminate\Database\Eloquent\Model;
 
@@ -48,6 +49,7 @@ class PrivateFiles
         'leave' => [Leave::class, 'staff-leave.view', ['attachment']],
         'parent-receipt' => [ParentPaymentSubmission::class, 'parent-payment.view', ['receipt_path']],
         'pta-minutes' => [PtaMeeting::class, 'pta.view', ['minutes_path']],
+        'staff-note' => [StaffNote::class, 'staff.view', ['attachment']],
     ];
 
     /** The prefixes the securing command moves off the public disk. */
@@ -61,6 +63,7 @@ class PrivateFiles
         'leave',
         'parent-receipts',
         'pta-minutes',
+        'staff-notes',
     ];
 
     /** @return array{0: class-string<Model>, 1: string, 2: array<int, string>}|null */

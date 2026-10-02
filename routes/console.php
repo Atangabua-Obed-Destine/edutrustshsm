@@ -39,3 +39,36 @@ Schedule::command('fees:remind')
     ->weeklyOn(1, '07:00')
     ->withoutOverlapping()
     ->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| EdutrustPay reporting
+|--------------------------------------------------------------------------
+|
+| This school PUSHES a signed monthly summary to its body's console. Nothing
+| reaches in here: outbound HTTPS only, no inbound endpoint, no tunnel.
+|
+| Three jobs rather than one, because they fail differently. Building the report
+| needs the database and nothing else; delivering it needs the network, which at
+| a school office comes and goes; and the heartbeat has to keep going on the days
+| there is nothing to build, because otherwise a quiet month and a dead server
+| look identical from the other end.
+|
+| All three are no-ops unless EDUTRUSTPAY_ENABLED is true.
+*/
+
+// Built on the 4th, once the previous month has had time to settle.
+Schedule::command('edutrustpay:report')
+    ->monthlyOn(4, '03:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
+// Delivery retries on its own schedule; the outbox decides what is due.
+Schedule::command('edutrustpay:flush')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();
+
+Schedule::command('edutrustpay:heartbeat')
+    ->dailyAt('05:30')
+    ->onOneServer();

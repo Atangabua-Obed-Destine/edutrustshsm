@@ -16,6 +16,7 @@ use App\Models\PaymentAccountTransaction;
 use App\Services\PaymentAccountService;
 use App\Services\PayrollAccountingService;
 use App\Services\TaxCalculationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -37,7 +38,8 @@ class PayrollController extends Controller implements HasMiddleware
             static::can('payroll.generate', ['generate', 'store']),
             static::can('payroll.pay', ['pay']),
             static::can('payroll.unpay', ['unpay']),
-            static::can('payroll.report', ['report']),
+            static::can('payroll.report', ['report', 'payslips']),
+            static::can('payroll.view', ['payslip']),
         ];
     }
 
@@ -245,6 +247,78 @@ class PayrollController extends Controller implements HasMiddleware
             ->get();
 
         return view('admin.hr.payroll.report', compact('payrolls', 'month', 'year', 'salaryMonth'));
+    }
+
+    /** One payslip as a PDF. */
+    public function payslip(Payroll $payroll)
+    {
+        return $this->payslipPdf(collect([$payroll]))
+            ->stream('payslip-'.$payroll->salary_month.'-'.($payroll->user?->staff_id ?? $payroll->id).'.pdf');
+    }
+
+    /** Every payslip for a month, one page each, for printing in one go. */
+    public function payslips(Request $request)
+    {
+        $month = (int) $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
+        $salaryMonth = sprintf('%04d-%02d', $year, $month);
+
+        $payrolls = Payroll::where('salary_month', $salaryMonth)->get();
+
+        if ($payrolls->isEmpty()) {
+            return back()->with('error', __('No payroll has been generated for this month.'));
+        }
+
+        return $this->payslipPdf($payrolls)->stream('payslips-'.$salaryMonth.'.pdf');
+    }
+
+    /**
+     * What each payslip shows.
+     *
+     * The itemised taxes are recomputed with the same engine that set the
+     * totals. If the tax rules have changed since the payroll was generated the
+     * recomputed lines would no longer add up to what was actually withheld, so
+     * the payslip then shows the stored totals and says why, rather than
+     * printing a breakdown that contradicts its own bottom line.
+     *
+     * @param  \Illuminate\Support\Collection<int, Payroll>  $payrolls
+     * @return \Illuminate\Support\Collection<int, object{payroll: Payroll, taxLines: array, itemised: bool}>
+     */
+    public function slipsFor($payrolls)
+    {
+        // Accept any collection: a single payslip arrives as a plain one, and
+        // only an Eloquent collection can eager-load its relations.
+        $payrolls = new \Illuminate\Database\Eloquent\Collection($payrolls->all());
+        $payrolls->load(['user.department', 'user.designation', 'details', 'bankAccount']);
+
+        $slips = $payrolls->sortBy(fn ($p) => $p->user?->staff_id)->values()->map(function (Payroll $payroll) {
+            $asOf = Carbon::parse($payroll->salary_month.'-01')->endOfMonth()->toDateString();
+            $breakdown = $payroll->user
+                ? $this->tax->calculate((float) $payroll->gross_salary, $asOf, $payroll->user)
+                : null;
+
+            $matches = $breakdown
+                && abs($breakdown['employee_tax'] - (float) $payroll->tax) < 1
+                && abs($breakdown['employer_tax'] - (float) $payroll->employer_tax) < 1;
+
+            return (object) [
+                'payroll' => $payroll,
+                'taxLines' => $matches ? $breakdown['lines'] : [],
+                'itemised' => $matches,
+            ];
+        });
+
+        return $slips;
+    }
+
+    /** @param  \Illuminate\Support\Collection<int, Payroll>  $payrolls */
+    private function payslipPdf($payrolls)
+    {
+        return Pdf::loadView('admin.hr.payroll.payslip', [
+            'slips' => $this->slipsFor($payrolls),
+            'school' => \App\Models\SchoolSetting::current(),
+            'currency' => \App\Models\SchoolSetting::current()?->currency ?? 'FCFA',
+        ])->setPaper('a4', 'portrait');
     }
 
     private function paymentAccounts()

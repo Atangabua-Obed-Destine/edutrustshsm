@@ -36,6 +36,8 @@ class PaymentAccountTransaction extends Model
     public const REF_DEPOSIT = 'deposit';
     public const REF_WITHDRAWAL = 'withdrawal';
     public const REF_PAYROLL = 'payroll';
+    public const REF_CREDIT_REFUND = 'credit_refund';
+    public const REF_TAX_REMITTANCE = 'tax_remittance';
 
     /**
      * Source types whose transactions must NOT be hand-edited/deleted on the
@@ -43,7 +45,7 @@ class PaymentAccountTransaction extends Model
      */
     public const LINKED_REFS = [
         self::REF_INCOME, self::REF_EXPENSE, self::REF_FEE_PAYMENT, self::REF_TRANSFER,
-        self::REF_PAYROLL,
+        self::REF_PAYROLL, self::REF_CREDIT_REFUND, self::REF_TAX_REMITTANCE,
     ];
 
     public function isLinked(): bool
@@ -72,6 +74,8 @@ class PaymentAccountTransaction extends Model
             self::REF_FEE_PAYMENT => Payment::find($this->reference_id),
             self::REF_TRANSFER => PaymentAccountTransfer::find($this->reference_id),
             self::REF_PAYROLL => Payroll::find($this->reference_id),
+            self::REF_CREDIT_REFUND => StudentCreditRefund::find($this->reference_id),
+            self::REF_TAX_REMITTANCE => TaxRemittance::find($this->reference_id),
             default => null,
         };
     }

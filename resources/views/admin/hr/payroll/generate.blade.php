@@ -67,6 +67,7 @@
         <div class="flex items-center justify-between mb-3">
             <h4 class="font-semibold text-gray-700">{{ __('Payment') }}</h4>
             <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs {{ $existing->status ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">{{ $existing->status ? __('Paid') : __('Unpaid') }}</span>
+            <a href="{{ route('admin.payroll.payslip', $existing) }}" target="_blank" class="text-sm text-blue-600 hover:underline ml-2">{{ __('Print payslip') }}</a>
         </div>
         @if($existing->status)
             <p class="text-sm text-gray-600">{{ __('Paid on') }} {{ optional($existing->pay_date)->format('d/m/Y') }} · {{ $existing->payment_method }} · {{ __('Net') }} {{ number_format($existing->net_salary, 2) }}</p>

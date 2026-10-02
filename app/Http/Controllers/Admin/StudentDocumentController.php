@@ -139,7 +139,7 @@ class StudentDocumentController extends Controller implements HasMiddleware
 
         return view('admin.documents.marksheet', $data + [
             'sessions' => AcademicSession::orderByDesc('start_date')->get(),
-            'forms' => Form::where('is_active', true)->orderBy('display_order')->get(),
+            'forms' => Form::where('is_active', true)->forCurrentLevel()->orderBy('display_order')->get(),
             'terms' => Term::orderBy('term_number')->get(),
             'classSections' => $request->input('form_id')
                 ? ClassSection::where('form_id', $request->input('form_id'))->where('is_active', true)->orderBy('name')->get()

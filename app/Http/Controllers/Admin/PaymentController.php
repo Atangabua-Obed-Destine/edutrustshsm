@@ -10,9 +10,11 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentFee;
 use App\Services\PaymentRecorder;
+use App\Services\PaymentReversalService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use RuntimeException;
 
 class PaymentController extends Controller implements HasMiddleware
 {
@@ -26,6 +28,7 @@ class PaymentController extends Controller implements HasMiddleware
         return [
             static::can('payment.view', ['index', 'show', 'studentFees']),
             static::can('fee-collection.collect', ['create', 'store']),
+            static::can('payment.reverse', ['reverse']),
         ];
     }
 
@@ -114,9 +117,32 @@ class PaymentController extends Controller implements HasMiddleware
             'enrollment.classSection.form',
             'receivedBy',
             'allocations.studentFee.feeCategory',
+            'reversedBy',
         ]);
 
         return view('admin.fees.payments.show', compact('payment'));
+    }
+
+    /**
+     * Undo a payment recorded in error — fee, plan, credit, account and ledger
+     * together. The payment is kept and marked, never deleted.
+     */
+    public function reverse(Request $request, Payment $payment, PaymentReversalService $reversal)
+    {
+        $validated = $request->validate([
+            // Required: a reversal nobody can explain later is indistinguishable
+            // from money going missing.
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        try {
+            $reversal->reverse($payment, $validated['reason']);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('admin.payments.show', $payment)
+            ->with('success', __('Payment reversed. The fees, any payment plan or credit, the payment account and the ledger have all been put back.'));
     }
 
     /**

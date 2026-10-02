@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ClassSectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\FeeStructureController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\RecurringEntryController;
 use App\Http\Controllers\Admin\MarksController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\AttendanceController;
@@ -69,6 +70,9 @@ use App\Http\Controllers\Admin\LeaveController;
 use App\Http\Controllers\Admin\LeaveTypeController;
 use App\Http\Controllers\Admin\StaffAttendanceController;
 use App\Http\Controllers\Admin\StudentCreditController;
+use App\Http\Controllers\Admin\StaffIdCardController;
+use App\Http\Controllers\Admin\StaffNoteController;
+use App\Http\Controllers\Admin\TaxRemittanceController;
 use App\Http\Controllers\Admin\GeneralLedgerController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\DesignationController;
@@ -76,6 +80,7 @@ use App\Http\Controllers\Admin\WorkShiftTypeController;
 use App\Http\Controllers\Admin\AllowanceTypeController;
 use App\Http\Controllers\Admin\DeductionTypeController;
 use App\Http\Controllers\Admin\TaxGroupController;
+use App\Http\Controllers\Admin\EdutrustPayController;
 use App\Http\Controllers\Admin\TaxSettingController;
 use App\Http\Controllers\Admin\StaffTaxReportController;
 use App\Http\Controllers\Admin\PayrollController;
@@ -175,6 +180,11 @@ Route::prefix('parent')->name('parent.')->group(function () {
 
 // Auth Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+// Public check that a staff ID card is genuine. The token is random, so the
+// staff list cannot be walked; throttled all the same.
+Route::get('/verify/staff/{token}', [StaffIdCardController::class, 'verify'])
+    ->middleware('throttle:30,1')->name('staff-card.verify');
+
 Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
@@ -274,6 +284,7 @@ Route::middleware('auth')->group(function () {
         Route::get('payments/create', [PaymentController::class, 'create'])->name('payments.create');
         Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
+        Route::post('payments/{payment}/reverse', [PaymentController::class, 'reverse'])->name('payments.reverse');
         Route::get('students/{student}/fees', [PaymentController::class, 'studentFees'])->name('student-fees');
 
         // Exam Schedule
@@ -408,6 +419,18 @@ Route::middleware('auth')->group(function () {
         Route::post('settings/level-mode', [SettingsController::class, 'setLevelMode'])->name('settings.level-mode');
         Route::put('settings/group/{group}', [SettingsController::class, 'updateGroup'])->name('settings.group.update');
 
+        /*
+         * EdutrustPay connection settings.
+         *
+         * Fine-grained permissions are applied in the controller's constructor:
+         * viewing, changing and testing the credentials are separate, because a
+         * wrong value here stops reporting with no visible error at this end —
+         * from the body's console the school simply goes quiet.
+         */
+        Route::get('edutrustpay', [EdutrustPayController::class, 'index'])->name('edutrustpay.index');
+        Route::put('edutrustpay/{branch}', [EdutrustPayController::class, 'update'])->name('edutrustpay.update');
+        Route::post('edutrustpay/{branch}/test', [EdutrustPayController::class, 'test'])->name('edutrustpay.test');
+
         // Roles & Permissions
         Route::resource('roles', RoleController::class);
 
@@ -440,6 +463,8 @@ Route::middleware('auth')->group(function () {
 
         // Fee Reports
         Route::get('fee-reports', [FeeReportController::class, 'index'])->name('fee-reports.index');
+        Route::get('fee-reports/partial-payments', [FeeReportController::class, 'partial'])->name('fee-reports.partial');
+        Route::get('fee-reports/partial-payments/export', [FeeReportController::class, 'partialCsv'])->name('fee-reports.partial.csv');
 
         // Payment Plans
         Route::get('payment-plans', [PaymentPlanController::class, 'index'])->name('payment-plans.index');
@@ -564,11 +589,27 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::post('fiscal-years/{fiscalYear}/set-active', [FiscalYearController::class, 'setActive'])->name('fiscal-years.set-active');
     Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'close'])->name('fiscal-years.close');
     Route::get('fiscal-years/{fiscalYear}/closing', [FiscalYearController::class, 'previewClosing'])->name('fiscal-years.closing');
+    Route::post('fiscal-years/{fiscalYear}/closing/confirm', [FiscalYearController::class, 'confirmChecklist'])->name('fiscal-years.closing.confirm');
     Route::post('fiscal-years/{fiscalYear}/reopen', [FiscalYearController::class, 'reopen'])->name('fiscal-years.reopen');
     Route::post('accounting-periods/{period}/toggle', [FiscalYearController::class, 'togglePeriod'])->name('accounting-periods.toggle');
     Route::resource('fiscal-years', FiscalYearController::class)->only(['index', 'store', 'destroy']);
 
     // Journal Entries
+        // Recurring journal entry templates.
+        Route::get('recurring-entries', [RecurringEntryController::class, 'index'])->name('recurring-entries.index');
+        Route::get('recurring-entries/create', [RecurringEntryController::class, 'create'])->name('recurring-entries.create');
+        Route::post('recurring-entries', [RecurringEntryController::class, 'store'])->name('recurring-entries.store');
+        Route::post('recurring-entries/process-all', [RecurringEntryController::class, 'processAll'])->name('recurring-entries.process-all');
+        Route::get('recurring-entries/{recurringEntry}', [RecurringEntryController::class, 'show'])->name('recurring-entries.show');
+        Route::get('recurring-entries/{recurringEntry}/edit', [RecurringEntryController::class, 'edit'])->name('recurring-entries.edit');
+        Route::put('recurring-entries/{recurringEntry}', [RecurringEntryController::class, 'update'])->name('recurring-entries.update');
+        Route::delete('recurring-entries/{recurringEntry}', [RecurringEntryController::class, 'destroy'])->name('recurring-entries.destroy');
+        Route::post('recurring-entries/{recurringEntry}/pause', [RecurringEntryController::class, 'pause'])->name('recurring-entries.pause');
+        Route::post('recurring-entries/{recurringEntry}/resume', [RecurringEntryController::class, 'resume'])->name('recurring-entries.resume');
+        Route::post('recurring-entries/{recurringEntry}/skip-next', [RecurringEntryController::class, 'skipNext'])->name('recurring-entries.skip-next');
+        Route::post('recurring-entries/{recurringEntry}/process', [RecurringEntryController::class, 'process'])->name('recurring-entries.process');
+        Route::post('recurring-entries/{recurringEntry}/duplicate', [RecurringEntryController::class, 'duplicate'])->name('recurring-entries.duplicate');
+
     Route::post('journal-entries/{journal_entry}/post', [JournalEntryController::class, 'post'])->name('journal-entries.post');
     Route::post('journal-entries/{journal_entry}/unpost', [JournalEntryController::class, 'unpost'])->name('journal-entries.unpost');
     Route::resource('journal-entries', JournalEntryController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
@@ -595,6 +636,11 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     // Student credits (over-payments held on account)
     Route::get('student-credits', [StudentCreditController::class, 'index'])->name('student-credits.index');
     Route::post('student-credits/apply', [StudentCreditController::class, 'apply'])->name('student-credits.apply');
+    Route::get('student-credits/{credit}', [StudentCreditController::class, 'show'])->name('student-credits.show');
+    Route::post('student-credits/{credit}/refunds', [StudentCreditController::class, 'requestRefund'])->name('student-credits.refunds.request');
+    Route::post('student-credit-refunds/{refund}/approve', [StudentCreditController::class, 'approveRefund'])->name('student-credits.refunds.approve');
+    Route::post('student-credit-refunds/{refund}/reject', [StudentCreditController::class, 'rejectRefund'])->name('student-credits.refunds.reject');
+    Route::post('student-credit-refunds/{refund}/process', [StudentCreditController::class, 'processRefund'])->name('student-credits.refunds.process');
 
     // Late-payment penalties
     Route::get('fee-fines', [FeeFineController::class, 'index'])->name('fee-fines.index');
@@ -609,6 +655,11 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::get('fixed-assets/categories', [FixedAssetController::class, 'categories'])->name('fixed-assets.categories');
     Route::post('fixed-assets/categories', [FixedAssetController::class, 'storeCategory'])->name('fixed-assets.categories.store');
     Route::post('fixed-assets/post-due', [FixedAssetController::class, 'postDue'])->name('fixed-assets.post-due');
+    Route::get('fixed-assets/register', [FixedAssetController::class, 'register'])->name('fixed-assets.register');
+    Route::get('fixed-assets/depreciation-report', [FixedAssetController::class, 'depreciationReport'])->name('fixed-assets.depreciation-report');
+    Route::get('fixed-assets/{fixedAsset}/edit', [FixedAssetController::class, 'edit'])->name('fixed-assets.edit');
+    Route::put('fixed-assets/{fixedAsset}', [FixedAssetController::class, 'update'])->name('fixed-assets.update');
+    Route::delete('fixed-assets/{fixedAsset}', [FixedAssetController::class, 'destroy'])->name('fixed-assets.destroy');
     Route::get('fixed-assets/{fixedAsset}/schedule', [FixedAssetController::class, 'schedule'])->name('fixed-assets.schedule');
     Route::post('fixed-assets/{fixedAsset}/generate', [FixedAssetController::class, 'generate'])->name('fixed-assets.generate');
     Route::post('fixed-assets/{fixedAsset}/dispose', [FixedAssetController::class, 'dispose'])->name('fixed-assets.dispose');
@@ -621,6 +672,10 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
         Route::get('payables-aging', [AccountingReportsController::class, 'payablesAging'])->name('payables-aging');
         Route::get('student-fee-aging', [AccountingReportsController::class, 'studentFeeAging'])->name('student-fee-aging');
         Route::get('budget-vs-actual', [AccountingReportsController::class, 'budgetVsActual'])->name('budget-vs-actual');
+        Route::get('cash-flow-statement', [AccountingReportsController::class, 'cashFlowStatement'])->name('cash-flow-statement');
+        Route::get('comparative-cash-flow', [AccountingReportsController::class, 'comparativeCashFlow'])->name('comparative-cash-flow');
+        Route::get('cash-flow-statement/export', [AccountingReportsController::class, 'exportCashFlow'])->name('cash-flow-export');
+        Route::get('aging/{report}/export', [AccountingReportsController::class, 'exportAging'])->name('aging-export');
     });
 
     Route::get('account-mappings', [AccountMappingController::class, 'index'])->name('account-mappings.index');
@@ -640,6 +695,9 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     // ═══════════════════════════════════════════════════════════════
 
     // Staff
+    Route::post('staff/id-cards/print', [StaffIdCardController::class, 'print'])->name('staff.id-cards.print');
+    Route::post('staff/{staff}/notes', [StaffNoteController::class, 'store'])->name('staff.notes.store');
+    Route::delete('staff-notes/{note}', [StaffNoteController::class, 'destroy'])->name('staff.notes.destroy');
     Route::resource('staff', StaffController::class);
 
     // Org / payroll config (simple lists)
@@ -658,10 +716,16 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::post('tax-settings/{tax_setting}/exemptions', [TaxSettingController::class, 'storeExemption'])->name('tax-settings.exemptions.store');
     Route::delete('tax-exemptions/{exemption}', [TaxSettingController::class, 'destroyExemption'])->name('tax-exemptions.destroy');
     Route::get('tax-report', [StaffTaxReportController::class, 'index'])->name('tax-report.index');
+    Route::get('tax-report/export', [StaffTaxReportController::class, 'export'])->name('tax-report.export');
 
+    Route::get('tax-remittances', [TaxRemittanceController::class, 'index'])->name('tax-remittances.index');
+    Route::post('tax-remittances', [TaxRemittanceController::class, 'store'])->name('tax-remittances.store');
+    Route::post('tax-remittances/{remittance}/void', [TaxRemittanceController::class, 'void'])->name('tax-remittances.void');
     // Payroll
     Route::get('payroll', [PayrollController::class, 'index'])->name('payroll.index');
     Route::get('payroll/report', [PayrollController::class, 'report'])->name('payroll.report');
+    Route::get('payroll/payslips', [PayrollController::class, 'payslips'])->name('payroll.payslips');
+    Route::get('payroll/{payroll}/payslip', [PayrollController::class, 'payslip'])->name('payroll.payslip');
     Route::get('payroll/generate/{staff}', [PayrollController::class, 'generate'])->name('payroll.generate');
     Route::post('payroll/generate/{staff}', [PayrollController::class, 'store'])->name('payroll.store');
     Route::post('payroll/{payroll}/pay', [PayrollController::class, 'pay'])->name('payroll.pay');

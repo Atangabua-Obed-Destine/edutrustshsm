@@ -43,9 +43,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'Assignment History' => ['view', 'delete'],
             'Fee Discount' => ['view', 'create', 'edit', 'delete'],
             'Fee Fine' => ['view', 'create', 'edit', 'delete'],
-            'Student Credit' => ['view', 'apply'],
+            'Student Credit' => ['view', 'apply', 'request-refund', 'approve-refund', 'process-refund'],
             'Fee Report' => ['view', 'export'],
-            'Payment' => ['view', 'refund'],
+            'Payment' => ['view', 'refund', 'reverse'],
             'Attendance' => ['view', 'mark', 'edit', 'report'],
             'Class Schedule' => ['view', 'create', 'edit', 'delete'],
             'Teacher Routine' => ['view'],
@@ -74,6 +74,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Chart of Accounts' => ['view', 'create', 'edit', 'delete'],
             'Fiscal Year' => ['view', 'create', 'close', 'delete'],
             'Journal Entry' => ['view', 'create', 'post', 'unpost', 'delete'],
+            'Recurring Entry' => ['view', 'create', 'edit', 'delete', 'process'],
             'General Ledger' => ['view', 'export'],
             'Account Mapping' => ['view', 'edit', 'post'],
             'Accounting Report' => ['view', 'export'],
@@ -92,6 +93,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Leave Type' => ['view', 'create', 'edit', 'delete'],
             'Payroll' => ['view', 'generate', 'pay', 'unpay', 'report'],
             'Staff Tax Report' => ['view', 'export'],
+            'Tax Remittance' => ['view', 'create', 'void'],
 
             // ── Platform ──
             'Branch' => ['view', 'create', 'edit', 'assign'],
@@ -99,6 +101,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'Parent Payment' => ['view', 'approve', 'reject'],
             'PTA' => ['view', 'create', 'edit', 'delete'],
             'Audit Log' => ['view', 'export'],
+
+            // Connection settings for the body's EdutrustPay console. Viewing,
+            // changing and testing are separate: the credentials decide whose
+            // figures reach the body, and changing one silently stops reporting.
+            'EdutrustPay Reporting' => ['view', 'edit', 'test'],
         ];
 
         $allPermissions = [];
@@ -171,10 +178,10 @@ class RolesAndPermissionsSeeder extends Seeder
             // Budget
             'Budget', 'Budget Allocation', 'Budget Report',
             // OHADA
-            'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'General Ledger', 'Account Mapping',
+            'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'Recurring Entry', 'General Ledger', 'Account Mapping',
             'Accounting Report', 'Fixed Asset',
             // Payroll
-            'Payroll', 'Staff Tax Report', 'Tax Group', 'Tax Setting',
+            'Payroll', 'Staff Tax Report', 'Tax Remittance', 'Tax Group', 'Tax Setting',
             'Allowance Type', 'Deduction Type',
             // Parent-submitted payments land in the accountant's queue
             'Parent Payment',

@@ -50,7 +50,7 @@ class PtaController extends Controller implements HasMiddleware
             ->get();
 
         $sessions = AcademicSession::orderByDesc('start_date')->get();
-        $forms = Form::query()->orderBy('name')->get();
+        $forms = Form::query()->forCurrentLevel()->orderBy('name')->get();
 
         // Levy collection stats.
         $leviesPendingCount = PtaLevyPayment::where('status', 'pending')->count();

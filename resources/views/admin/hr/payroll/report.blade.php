@@ -8,7 +8,12 @@
 
 @section('content')
 <div class="space-y-4">
-    <h3 class="text-lg font-semibold text-gray-700">{{ __('Payroll Report') }}</h3>
+    <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-700">{{ __('Payroll Report') }}</h3>
+        @if($payrolls->isNotEmpty())
+        <a href="{{ route('admin.payroll.payslips', ['month' => $month, 'year' => $year]) }}" target="_blank" class="border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm">{{ __('Print all payslips') }}</a>
+        @endif
+    </div>
 
     <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-wrap items-end gap-3">
         <div>
@@ -39,7 +44,7 @@
             <tbody class="divide-y divide-gray-200">
                 @forelse($payrolls as $p)
                 <tr class="hover:bg-gray-50">
-                    <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ $p->user?->full_name }}</td>
+                    <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ $p->user?->full_name }} <a href="{{ route('admin.payroll.payslip', $p) }}" target="_blank" class="text-xs text-blue-600 hover:underline ml-1">{{ __('Payslip') }}</a></td>
                     <td class="px-3 py-2 text-sm text-right">{{ number_format($p->basic_salary, 0) }}</td>
                     <td class="px-3 py-2 text-sm text-right text-emerald-700">{{ number_format($p->total_allowance + $p->bonus, 0) }}</td>
                     <td class="px-3 py-2 text-sm text-right text-red-700">{{ number_format($p->total_deduction, 0) }}</td>

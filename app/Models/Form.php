@@ -38,6 +38,57 @@ class Form extends Model
         return self::LEVELS[$schoolLevel] ?? [];
     }
 
+    /**
+     * What each sub-level is called, and the classes it covers.
+     *
+     * Screens used to hardcode the secondary pair, which left the student form
+     * offering "First Cycle / Second Cycle" to a nursery school — and, because
+     * its form dropdown matches on this value, offering no classes at all.
+     */
+    public static function levelLabel(?string $level): string
+    {
+        return match ($level) {
+            'nursery' => __('Nursery'),
+            'primary' => __('Primary'),
+            'first_cycle' => __('First Cycle'),
+            'second_cycle' => __('Second Cycle'),
+            default => (string) $level,
+        };
+    }
+
+    public static function levelHint(?string $level): string
+    {
+        return match ($level) {
+            'nursery' => __('Nursery 1–3'),
+            'primary' => __('Class 1–6'),
+            'first_cycle' => __('Form 1–5'),
+            'second_cycle' => __('6th Form'),
+            default => '',
+        };
+    }
+
+    /**
+     * The sub-levels a school level offers, as value => [label, hint].
+     *
+     * @return array<string, array{label: string, hint: string}>
+     */
+    public static function subLevelsFor(string $schoolLevel): array
+    {
+        $levels = [];
+
+        foreach (self::levelsFor($schoolLevel) as $level) {
+            $levels[$level] = ['label' => self::levelLabel($level), 'hint' => self::levelHint($level)];
+        }
+
+        return $levels;
+    }
+
+    /** Forms belonging to the school levels this installation actually runs. */
+    public function scopeForActiveSchoolLevels($query)
+    {
+        return $query->whereIn('school_level', \App\Support\LevelContext::options());
+    }
+
     public function streams()
     {
         return $this->belongsToMany(Stream::class, 'form_stream');

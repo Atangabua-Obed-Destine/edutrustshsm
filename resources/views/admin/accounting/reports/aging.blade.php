@@ -16,9 +16,15 @@
                 {{ __('Outstanding balances grouped by how long they have been due.') }}
             </p>
         </div>
-        <a href="{{ route('admin.accounting-reports.index') }}" class="text-sm text-blue-600 hover:underline">
-            {{ __('Back to Reports') }}
-        </a>
+        <div class="flex items-center gap-2">
+            @can('accounting-report.export')
+            <a href="{{ route('admin.accounting-reports.aging-export', ['report' => $exportKey] + request()->query() + ['format' => 'pdf']) }}" class="border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-sm">PDF</a>
+            <a href="{{ route('admin.accounting-reports.aging-export', ['report' => $exportKey] + request()->query() + ['format' => 'csv']) }}" class="border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-sm">CSV</a>
+            @endcan
+            <a href="{{ route('admin.accounting-reports.index') }}" class="text-sm text-blue-600 hover:underline ml-2">
+                {{ __('Back to Reports') }}
+            </a>
+        </div>
     </div>
 
     <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
