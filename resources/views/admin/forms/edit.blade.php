@@ -70,7 +70,11 @@
                     </label>
                 </div>
 
-                @php $selectedStreams = old('streams', $form->streams->pluck('id')->toArray()); @endphp
+                {{-- Keep the expression form here. This view opens a PHP expression
+                     directive further up, and Blade pairs the first such directive
+                     with the first closing one, reading everything in between as a
+                     single raw block. A block form here would swallow the markup. --}}
+                @php($selectedStreams = old('streams', $form->streams->pluck('id')->toArray()))
                 <div id="streams-section" class="{{ old('has_streams', $form->has_streams) ? '' : 'hidden' }}">
                     <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('Select Streams') }}</label>
                     <div class="space-y-2">
