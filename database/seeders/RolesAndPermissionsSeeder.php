@@ -101,6 +101,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'Parent Payment' => ['view', 'approve', 'reject'],
             'PTA' => ['view', 'create', 'edit', 'delete'],
             'Audit Log' => ['view', 'export'],
+
+            // Connection settings for the body's EdutrustPay console. Viewing,
+            // changing and testing are separate: the credentials decide whose
+            // figures reach the body, and changing one silently stops reporting.
+            'EdutrustPay Reporting' => ['view', 'edit', 'test'],
         ];
 
         $allPermissions = [];

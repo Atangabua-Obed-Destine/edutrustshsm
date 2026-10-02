@@ -347,7 +347,7 @@
             </nav>
 
             <!-- System Settings -->
-            @if(auth()->user()->canAny(['school-settings.view', 'branch.view', 'parent-portal.view', 'pta.view']))
+            @if(auth()->user()->canAny(['school-settings.view', 'branch.view', 'parent-portal.view', 'pta.view', 'edutrustpay-reporting.view']))
             <div class="px-3 pb-2">
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('system-settings-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
@@ -367,6 +367,10 @@
                         @if(auth()->user()->role === 'super_admin')
                         <a href="{{ route('admin.branches.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.branches.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Branches') }}</a>
                         @endif
+                        @can('edutrustpay-reporting.view')
+                        <a href="{{ route('admin.edutrustpay.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.edutrustpay.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('EdutrustPay Reporting') }}</a>
+                        @endcan
+
                         @can('school-settings.view')
                         <a href="{{ route('admin.settings.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.settings.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('School Settings') }}</a>
                         <a href="{{ route('admin.configuration-health.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.configuration-health.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Configuration Health') }}</a>

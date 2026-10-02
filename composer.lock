@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8fbda698fb4dcc31163a54234ea809fc",
+    "content-hash": "7377ce6807104d0fe3a8a6c3db17dd7f",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -672,6 +672,43 @@
                 }
             ],
             "time": "2025-10-31T18:51:33+00:00"
+        },
+        {
+            "name": "edutrustpay/reporting-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../edutrustpay/packages/reporting-contract",
+                "reference": "b204ca2cbeb09e96fc46eec2c2896b6537b7ee2b"
+            },
+            "require": {
+                "ext-bcmath": "*",
+                "ext-json": "*",
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "opis/json-schema": "^2.6",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "EdutrustPay\\Contract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "EdutrustPay\\Contract\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "The EdutrustPay Reporting Contract - the shared, versioned agreement by which institutions push signed monthly figures to a body.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "egulias/email-validator",
@@ -8910,7 +8947,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "edutrustpay/reporting-contract": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
