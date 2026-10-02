@@ -82,8 +82,16 @@ class StudentController extends Controller implements HasMiddleware
         $schoolLevel = \App\Support\LevelContext::current();
         $levels = Form::subLevelsFor($schoolLevel);
 
+        // The class dropdown is filtered by education system as well as level,
+        // so a school whose classes are all French would open on an empty list
+        // with nothing to say why. Start on a system that actually has classes.
+        $educationSystem = $forms->contains('education_system', 'english')
+            ? 'english'
+            : ($forms->first()->education_system ?? 'english');
+
         return view('admin.students.create', compact(
-            'currentSession', 'settings', 'batches', 'forms', 'terms', 'levels', 'schoolLevel'
+            'currentSession', 'settings', 'batches', 'forms', 'terms',
+            'levels', 'schoolLevel', 'educationSystem'
         ));
     }
 

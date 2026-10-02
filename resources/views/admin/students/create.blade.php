@@ -108,8 +108,8 @@
                             <select name="education_system" id="education_system"
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                     style="appearance: auto; -webkit-appearance: menulist;">
-                                <option value="english" {{ old('education_system', 'english') === 'english' ? 'selected' : '' }}>{{ __('English') }}</option>
-                                <option value="french" {{ old('education_system') === 'french' ? 'selected' : '' }}>{{ __('French') }}</option>
+                                <option value="english" {{ old('education_system', $educationSystem) === 'english' ? 'selected' : '' }}>{{ __('English') }}</option>
+                                <option value="french" {{ old('education_system', $educationSystem) === 'french' ? 'selected' : '' }}>{{ __('French') }}</option>
                             </select>
                         </div>
 
@@ -129,6 +129,15 @@
                             </div>
                         </div>
                     </div>
+
+                    @if($forms->isEmpty())
+                        {{-- Without this the Form dropdown is simply empty, which reads as a
+                             broken page rather than as work not yet done. --}}
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4 text-sm text-amber-800">
+                            {{ __('No classes have been set up for :level yet, so nobody can be registered into one.', ['level' => \App\Support\LevelContext::currentLabel()]) }}
+                            <a href="{{ route('admin.forms.create') }}" class="font-medium underline">{{ __('Set up a class first.') }}</a>
+                        </div>
+                    @endif
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
