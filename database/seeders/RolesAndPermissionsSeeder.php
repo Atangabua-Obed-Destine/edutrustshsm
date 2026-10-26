@@ -111,6 +111,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // Filling in the awards is the work of the meeting; closing it
             // freezes the figures onto the record and is the head's act.
             'Class Council' => ['view', 'create', 'edit', 'conclude', 'delete'],
+            // Recording an exit takes a pupil off every class list and fee
+            // report in the school, which is not the same act as editing them.
+            'Student Exit' => ['view', 'create', 'readmit'],
             'Audit Log' => ['view', 'export'],
 
             // Connection settings for the body's EdutrustPay console. Viewing,

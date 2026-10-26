@@ -19,6 +19,7 @@ class Student extends Model
         'birth_certificate', 'primary_certificate', 'gce_ol_certificate',
         'previous_school', 'previous_class', 'transfer_certificate', 'medical_certificate',
         'status', 'admission_date', 'withdrawal_date', 'withdrawal_reason',
+        'destination_school', 'exit_recorded_by',
     ];
 
     protected function casts(): array

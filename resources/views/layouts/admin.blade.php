@@ -94,6 +94,9 @@
                     <div id="admissions-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.students.*', 'admin.bulk-upload.*', 'admin.subject-add-drop.*', 'admin.group-enrol.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.students.create') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.create') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('New Registration') }}</a>
                         <a href="{{ route('admin.students.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.index') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student List') }}</a>
+                        @can('student-exit.view')
+                        <a href="{{ route('admin.students.archive') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.archive') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Former Pupils') }}</a>
+                        @endcan
                         <a href="{{ route('admin.group-enrol.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.group-enrol.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Group Enrol') }}</a>
                         <a href="{{ route('admin.subject-add-drop.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.subject-add-drop.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Subject Add/Drop') }}</a>
                         <a href="{{ route('admin.bulk-upload.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.bulk-upload.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Bulk Upload') }}</a>

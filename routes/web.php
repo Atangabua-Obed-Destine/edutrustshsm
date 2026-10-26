@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\GceSubjectController;
 use App\Http\Controllers\Admin\PrivateFileController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StudentDocumentController;
+use App\Http\Controllers\Admin\StudentExitController;
 use App\Http\Controllers\Admin\FeeCategoryController;
 use App\Http\Controllers\Admin\FeeDiscountController;
 use App\Http\Controllers\Admin\FeeReportController;
@@ -550,7 +551,14 @@ Route::middleware('auth')->group(function () {
     // before this one was ever consulted, so the carve-out never applied.
     // ═══════════════════════════════════════════════════════════════
     Route::middleware('role:super_admin,admin,staff')->prefix('admin')->name('admin.')->group(function () {
-            // One pupil across every term they have been here.
+            // Leaving, and the roll of those who have left.
+        Route::get('students/archive', [StudentExitController::class, 'index'])->name('students.archive');
+        Route::get('students/{student}/exit', [StudentExitController::class, 'create'])->name('students.exit');
+        Route::post('students/{student}/exit', [StudentExitController::class, 'store'])->name('students.exit.store');
+        Route::post('students/{student}/readmit', [StudentExitController::class, 'readmit'])->name('students.readmit');
+        Route::get('students/{student}/leaving-certificate', [StudentExitController::class, 'certificate'])->name('students.leaving-certificate');
+
+        // One pupil across every term they have been here.
         Route::get('students/{student}/history', [StudentController::class, 'history'])->name('students.history');
         Route::get('students/{student}/history.pdf', [StudentController::class, 'historyPdf'])->name('students.history.pdf');
         Route::get('students/form-streams/{form}', [StudentController::class, 'getFormStreams'])->name('students.form-streams');
