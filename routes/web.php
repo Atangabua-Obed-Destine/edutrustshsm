@@ -550,7 +550,10 @@ Route::middleware('auth')->group(function () {
     // before this one was ever consulted, so the carve-out never applied.
     // ═══════════════════════════════════════════════════════════════
     Route::middleware('role:super_admin,admin,staff')->prefix('admin')->name('admin.')->group(function () {
-            Route::get('students/form-streams/{form}', [StudentController::class, 'getFormStreams'])->name('students.form-streams');
+            // One pupil across every term they have been here.
+        Route::get('students/{student}/history', [StudentController::class, 'history'])->name('students.history');
+        Route::get('students/{student}/history.pdf', [StudentController::class, 'historyPdf'])->name('students.history.pdf');
+        Route::get('students/form-streams/{form}', [StudentController::class, 'getFormStreams'])->name('students.form-streams');
             Route::get('students/form-sections/{form}', [StudentController::class, 'getFormSections'])->name('students.form-sections');
             Route::resource('students', StudentController::class)->except(['destroy']);
 

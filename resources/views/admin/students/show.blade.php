@@ -38,6 +38,7 @@
             <a href="{{ route('admin.documents.leaving-certificate', $student) }}" target="_blank" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Leaving Certificate') }}</a>
             @endunless
             @endcan
+            <a href="{{ route('admin.students.history', $student) }}" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Academic Record') }}</a>
             <a href="{{ route('admin.students.edit', $student) }}" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Edit') }}</a>
             <a href="{{ route('admin.students.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">← {{ __('Back') }}</a>
         </div>

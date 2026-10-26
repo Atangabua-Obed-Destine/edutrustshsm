@@ -304,6 +304,33 @@ class StudentController extends Controller implements HasMiddleware
         return view('admin.students.show', compact('student'));
     }
 
+    /**
+     * One pupil across every term they have been here.
+     *
+     * Report cards exist per term and nothing put them side by side, so
+     * "how has this child been doing" could only be answered by opening six
+     * documents at once.
+     */
+    public function history(Student $student, \App\Services\StudentAcademicHistoryService $history)
+    {
+        $student->load('guardian');
+
+        return view('admin.students.history', [
+            'student' => $student,
+            'history' => $history->forStudent($student),
+        ]);
+    }
+
+    /** The same record as a document, for a transfer or a file. */
+    public function historyPdf(Student $student, \App\Services\StudentAcademicHistoryService $history)
+    {
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.students.history-pdf', [
+            'student' => $student,
+            'history' => $history->forStudent($student),
+            'school' => SchoolSetting::current(),
+        ])->setPaper('a4')->download('academic-record-'.str($student->student_id)->slug().'.pdf');
+    }
+
     public function edit(Student $student)
     {
         $student->load(['guardian', 'currentEnrollment']);
