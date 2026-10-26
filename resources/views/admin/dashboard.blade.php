@@ -73,6 +73,70 @@
         </div>
     </div>
 
+    <!-- Staff notices and the calendar -->
+    @if($notices->isNotEmpty() || $events->isNotEmpty())
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">{{ __('For staff') }}</h3>
+                @can('announcement.view')
+                    <a href="{{ route('admin.announcements.index') }}" class="text-xs font-medium text-teal-600 hover:text-teal-700">{{ __('Notice Board') }} →</a>
+                @endcan
+            </div>
+
+            @forelse($notices as $notice)
+                <div class="py-3 {{ ! $loop->last ? 'border-b border-gray-100' : '' }}">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                @if($notice->category)
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $notice->category->badgeClasses() }}">{{ $notice->category->name }}</span>
+                                @endif
+                                <span class="text-sm font-semibold text-gray-800">{{ $notice->title }}</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">{{ \Illuminate\Support\Str::limit($notice->body, 120) }}</p>
+                        </div>
+                        <span class="text-xs text-gray-400 whitespace-nowrap">{{ $notice->published_at?->diffForHumans() }}</span>
+                    </div>
+                </div>
+            @empty
+                <p class="text-sm text-gray-500 py-4">{{ __('Nothing has been posted for staff.') }}</p>
+            @endforelse
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">{{ __('Coming up') }}</h3>
+                @can('event.view')
+                    <a href="{{ route('admin.events.index') }}" class="text-xs font-medium text-teal-600 hover:text-teal-700">{{ __('School Calendar') }} →</a>
+                @endcan
+            </div>
+
+            @forelse($events as $event)
+                <div class="flex items-start gap-3 py-3 {{ ! $loop->last ? 'border-b border-gray-100' : '' }}">
+                    <div class="text-center bg-gray-50 rounded-lg px-2.5 py-1.5 shrink-0">
+                        <div class="text-base font-bold text-gray-700 leading-none">{{ $event->starts_on->format('j') }}</div>
+                        <div class="text-[0.55rem] uppercase text-gray-500">{{ $event->starts_on->format('M') }}</div>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-sm font-semibold text-gray-800">{{ $event->title }}</div>
+                        <div class="text-xs text-gray-500">
+                            {{ $event->whenLabel() }}@if($event->venue) · {{ $event->venue }}@endif
+                        </div>
+                    </div>
+                    @if($event->isRunning())
+                        <span class="ml-auto px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs shrink-0">{{ __('On now') }}</span>
+                    @endif
+                </div>
+            @empty
+                <p class="text-sm text-gray-500 py-4">{{ __('Nothing is scheduled.') }}</p>
+            @endforelse
+        </div>
+
+    </div>
+    @endif
+
     <!-- Quick Actions -->
     @if(in_array(auth()->user()->role, ['super_admin', 'admin']))
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

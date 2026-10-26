@@ -393,4 +393,55 @@ class NoticeBoardTest extends TestCase
         $this->assertSame('pta', $notice->category->slug);
         $this->assertSame(Announcement::AUDIENCE_GUARDIANS, $notice->audience);
     }
+    // ------------------------------------------------------------ the staff side
+
+    public function test_the_dashboard_shows_staff_notices_and_hides_parent_ones(): void
+    {
+        $this->notice(['title' => 'Staff briefing Thursday', 'audience' => Announcement::AUDIENCE_STAFF]);
+        $this->notice(['title' => 'Fees due Friday', 'audience' => Announcement::AUDIENCE_GUARDIANS]);
+        $this->notice(['title' => 'School closes early', 'audience' => Announcement::AUDIENCE_BOTH]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.dashboard'))->assertSuccessful();
+
+        $titles = $response->viewData('notices')->pluck('title')->sort()->values()->all();
+
+        // "Both" counts as staff; a parents-only notice does not.
+        $this->assertSame(['School closes early', 'Staff briefing Thursday'], $titles);
+        $response->assertDontSee('Fees due Friday');
+    }
+
+    public function test_the_dashboard_lists_staff_events_still_to_come(): void
+    {
+        Event::create([
+            'branch_id' => $this->branch->id, 'title' => 'Staff meeting',
+            'starts_on' => now()->addDays(2)->toDateString(),
+            'ends_on' => now()->addDays(2)->toDateString(),
+            'scope' => Event::SCOPE_ALL, 'audience' => Event::AUDIENCE_STAFF,
+            'published_at' => now(),
+        ]);
+        Event::create([
+            'branch_id' => $this->branch->id, 'title' => 'Parents evening',
+            'starts_on' => now()->addDays(3)->toDateString(),
+            'ends_on' => now()->addDays(3)->toDateString(),
+            'scope' => Event::SCOPE_ALL, 'audience' => Event::AUDIENCE_GUARDIANS,
+            'published_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.dashboard'))->assertSuccessful();
+
+        $this->assertSame(['Staff meeting'], $response->viewData('events')->pluck('title')->all());
+    }
+
+    public function test_a_draft_staff_notice_is_not_on_the_dashboard(): void
+    {
+        $this->notice([
+            'title' => 'Unfinished memo',
+            'audience' => Announcement::AUDIENCE_STAFF,
+            'published_at' => null,
+        ]);
+
+        $this->actingAs($this->admin)->get(route('admin.dashboard'))
+            ->assertSuccessful()
+            ->assertDontSee('Unfinished memo');
+    }
 }
