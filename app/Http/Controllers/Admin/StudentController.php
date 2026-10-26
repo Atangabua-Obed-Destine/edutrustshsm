@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller implements HasMiddleware
 {
@@ -102,13 +103,25 @@ class StudentController extends Controller implements HasMiddleware
         $isSecondCycle = $formModel && $formModel->level === 'second_cycle';
         $hasStreams = $formModel && $formModel->has_streams;
 
+        // The section and stream have to belong to the form being admitted into.
+        // The screen guarantees that by resetting them whenever the form changes,
+        // but a replayed or hand-made POST does not, and the result would be a
+        // pupil sitting in another form's class with that form's subjects.
+        $formId = $formModel?->id ?? 0;
+
         $validated = $request->validate([
             // Tab 1: Admission & Class
             'batch_id'          => ['required', 'exists:batches,id'],
             'admission_date'    => ['required', 'date'],
             'form_id'           => ['required', 'exists:forms,id'],
-            'stream_id'         => [$hasStreams ? 'required' : 'nullable', 'exists:streams,id'],
-            'class_section_id'  => ['required', 'exists:class_sections,id'],
+            'stream_id'         => [
+                $hasStreams ? 'required' : 'nullable',
+                Rule::exists('form_stream', 'stream_id')->where('form_id', $formId),
+            ],
+            'class_section_id'  => [
+                'required',
+                Rule::exists('class_sections', 'id')->where('form_id', $formId),
+            ],
             'term_id'           => ['required', 'exists:terms,id'],
             'residence_type'    => ['required', 'in:day,boarding,half_boarding'],
             // Tab 2: Personal Information
@@ -157,6 +170,8 @@ class StudentController extends Controller implements HasMiddleware
         ], [
             'gce_ol_certificate_file.required' => 'GCE Ordinary Level certificate is required for Second Cycle admission.',
             'stream_id.required' => 'Please select a stream for this form.',
+            'stream_id.exists' => __('That stream does not belong to the selected form.'),
+            'class_section_id.exists' => __('That section does not belong to the selected form.'),
         ]);
 
         $student = DB::transaction(function () use ($validated, $request) {

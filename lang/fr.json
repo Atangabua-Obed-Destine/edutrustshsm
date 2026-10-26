@@ -2963,6 +2963,8 @@
     "That month has already been paid to this authority. Void the existing payment first, or tick the box to record an additional one.": "Ce mois a déjà été payé à cet organisme. Annulez d'abord le paiement existant, ou cochez la case pour en enregistrer un complémentaire.",
     "That payment has already been voided.": "Ce paiement a déjà été annulé.",
     "That period has already been posted.": "Cette période a déjà été comptabilisée.",
+    "That section does not belong to the selected form.": "Cette section n'appartient pas à la classe sélectionnée.",
+    "That stream does not belong to the selected form.": "Cette série n'appartient pas à la classe sélectionnée.",
     "The :account account is missing from the chart of accounts.": "Le compte :account est absent du plan comptable.",
     "The amount is auto-filled from the fee structure if one exists for the student's form/stream.": "Le montant est prérempli à partir de la grille tarifaire si elle existe pour la classe et la série de l'élève.",
     "The Board changes these between series, so they are set here rather than fixed in the system.": "Le Board les modifie d'une session à l'autre : elles se règlent ici plutôt que d'être figées dans le système.",
