@@ -104,6 +104,10 @@ class RolesAndPermissionsSeeder extends Seeder
             // school are different acts, so publishing is its own permission.
             'Announcement' => ['view', 'create', 'edit', 'publish', 'delete'],
             'Event' => ['view', 'create', 'edit', 'delete'],
+            // Reading the school's own results back to it. Separate from
+            // marks entry: a head of department should see the picture
+            // without being able to change a mark.
+            'Academic Analytics' => ['view', 'export'],
             'Audit Log' => ['view', 'export'],
 
             // Connection settings for the body's EdutrustPay console. Viewing,

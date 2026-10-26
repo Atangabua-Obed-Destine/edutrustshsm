@@ -100,6 +100,7 @@ use App\Http\Controllers\ParentPortal\ParentNoticeController;
 use App\Http\Controllers\ParentPortal\ParentPtaController;
 use App\Http\Controllers\Admin\ParentPortalController;
 use App\Http\Controllers\Admin\ParentPaymentVerificationController;
+use App\Http\Controllers\Admin\AcademicAnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\PtaController;
@@ -345,6 +346,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('timetable/entries/{entry}', [TimetableController::class, 'destroyEntry'])->name('timetable.entries.destroy');
 
         // Report Cards
+        // What the term's results say about the school.
+        Route::get('analytics', [AcademicAnalyticsController::class, 'index'])->name('analytics.index');
+        Route::get('analytics/subjects.csv', [AcademicAnalyticsController::class, 'export'])->name('analytics.export');
+
         Route::get('report-cards', [ReportCardController::class, 'index'])->name('report-cards.index');
         Route::get('report-cards/sections-by-form/{form}', [ReportCardController::class, 'sectionsByForm'])->name('report-cards.sections-by-form');
         Route::post('report-cards/generate', [ReportCardController::class, 'generate'])->name('report-cards.generate');
