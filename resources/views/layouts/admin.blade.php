@@ -121,6 +121,7 @@
                         @can('academic-analytics.view')
                         <a href="{{ route('admin.analytics.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.analytics.index') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Academic Analytics') }}</a>
                         <a href="{{ route('admin.analytics.readiness') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.analytics.readiness') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Readiness') }}</a>
+                        <a href="{{ route('admin.analytics.school-report') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.analytics.school-report') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('State of the School') }}</a>
                         @endcan
                         @can('class-council.view')
                         <a href="{{ route('admin.councils.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.councils.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class Councils') }}</a>

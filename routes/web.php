@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\GceCandidateController;
 use App\Http\Controllers\Admin\GceSessionController;
 use App\Http\Controllers\Admin\GceSubjectController;
 use App\Http\Controllers\Admin\PrivateFileController;
+use App\Http\Controllers\Admin\SchoolReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StudentDocumentController;
 use App\Http\Controllers\Admin\StudentExitController;
@@ -353,6 +354,10 @@ Route::middleware('auth')->group(function () {
         Route::get('analytics', [AcademicAnalyticsController::class, 'index'])->name('analytics.index');
         Route::get('analytics/subjects.csv', [AcademicAnalyticsController::class, 'export'])->name('analytics.export');
         Route::get('analytics/readiness', [ExamReadinessController::class, 'index'])->name('analytics.readiness');
+
+        // The school's own report card, once a term.
+        Route::get('analytics/state-of-the-school', [SchoolReportController::class, 'index'])->name('analytics.school-report');
+        Route::get('analytics/state-of-the-school.pdf', [SchoolReportController::class, 'download'])->name('analytics.school-report.pdf');
 
         // The class council — the meeting that turns marks into decisions.
         Route::get('councils', [ClassCouncilController::class, 'index'])->name('councils.index');
