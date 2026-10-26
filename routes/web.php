@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SubjectAddDropController;
 use App\Http\Controllers\Admin\ExamPublishingController;
+use App\Http\Controllers\Admin\ExamReadinessController;
 use App\Http\Controllers\Admin\GroupEnrolController;
 use App\Http\Controllers\Admin\AdmissionController;
 use App\Http\Controllers\Admin\IdCardController;
@@ -349,6 +350,7 @@ Route::middleware('auth')->group(function () {
         // What the term's results say about the school.
         Route::get('analytics', [AcademicAnalyticsController::class, 'index'])->name('analytics.index');
         Route::get('analytics/subjects.csv', [AcademicAnalyticsController::class, 'export'])->name('analytics.export');
+        Route::get('analytics/readiness', [ExamReadinessController::class, 'index'])->name('analytics.readiness');
 
         Route::get('report-cards', [ReportCardController::class, 'index'])->name('report-cards.index');
         Route::get('report-cards/sections-by-form/{form}', [ReportCardController::class, 'sectionsByForm'])->name('report-cards.sections-by-form');

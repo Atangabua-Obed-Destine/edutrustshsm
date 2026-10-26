@@ -116,7 +116,8 @@
                         <a href="{{ route('admin.exam-publishing.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.exam-publishing.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Publishing') }}</a>
                         <a href="{{ route('admin.report-cards.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.report-cards.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Report Cards') }}</a>
                         @can('academic-analytics.view')
-                        <a href="{{ route('admin.analytics.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.analytics.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Academic Analytics') }}</a>
+                        <a href="{{ route('admin.analytics.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.analytics.index') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Academic Analytics') }}</a>
+                        <a href="{{ route('admin.analytics.readiness') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.analytics.readiness') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Readiness') }}</a>
                         @endcan
                         <a href="{{ route('admin.documents.marksheet') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.documents.marksheet*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class Marksheet') }}</a>
                         @can('gce-registration.view')
