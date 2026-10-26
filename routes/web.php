@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\StreamController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\SubjectEnrollmentController;
 use App\Http\Controllers\Admin\SequenceEnrollmentController;
+use App\Http\Controllers\Admin\ClassCouncilController;
 use App\Http\Controllers\Admin\ClassSectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\FeeStructureController;
@@ -351,6 +352,19 @@ Route::middleware('auth')->group(function () {
         Route::get('analytics', [AcademicAnalyticsController::class, 'index'])->name('analytics.index');
         Route::get('analytics/subjects.csv', [AcademicAnalyticsController::class, 'export'])->name('analytics.export');
         Route::get('analytics/readiness', [ExamReadinessController::class, 'index'])->name('analytics.readiness');
+
+        // The class council — the meeting that turns marks into decisions.
+        Route::get('councils', [ClassCouncilController::class, 'index'])->name('councils.index');
+        Route::post('councils', [ClassCouncilController::class, 'store'])->name('councils.store');
+        Route::get('councils/{council}', [ClassCouncilController::class, 'show'])->name('councils.show');
+        Route::put('councils/{council}', [ClassCouncilController::class, 'update'])->name('councils.update');
+        Route::post('councils/{council}/decisions', [ClassCouncilController::class, 'decisions'])->name('councils.decisions');
+        Route::post('councils/{council}/signatures', [ClassCouncilController::class, 'addSignature'])->name('councils.signatures.store');
+        Route::delete('councils/{council}/signatures/{signature}', [ClassCouncilController::class, 'removeSignature'])->name('councils.signatures.destroy');
+        Route::post('councils/{council}/conclude', [ClassCouncilController::class, 'conclude'])->name('councils.conclude');
+        Route::post('councils/{council}/reopen', [ClassCouncilController::class, 'reopen'])->name('councils.reopen');
+        Route::get('councils/{council}/minutes', [ClassCouncilController::class, 'minutes'])->name('councils.minutes');
+        Route::delete('councils/{council}', [ClassCouncilController::class, 'destroy'])->name('councils.destroy');
 
         Route::get('report-cards', [ReportCardController::class, 'index'])->name('report-cards.index');
         Route::get('report-cards/sections-by-form/{form}', [ReportCardController::class, 'sectionsByForm'])->name('report-cards.sections-by-form');

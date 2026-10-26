@@ -110,7 +110,7 @@
                         </span>
                         <svg id="exams-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="exams-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.marks.*', 'admin.report-cards.*', 'admin.exam-schedules.*', 'admin.exam-publishing.*', 'admin.documents.marksheet*', 'admin.gce.*', 'admin.analytics.*') ? 'open' : '' }}">
+                    <div id="exams-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.marks.*', 'admin.report-cards.*', 'admin.exam-schedules.*', 'admin.exam-publishing.*', 'admin.documents.marksheet*', 'admin.gce.*', 'admin.analytics.*', 'admin.councils.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.exam-schedules.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.exam-schedules.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Schedule') }}</a>
                         <a href="{{ route('admin.marks.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.marks.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Marks Entry') }}</a>
                         <a href="{{ route('admin.exam-publishing.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.exam-publishing.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Publishing') }}</a>
@@ -118,6 +118,9 @@
                         @can('academic-analytics.view')
                         <a href="{{ route('admin.analytics.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.analytics.index') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Academic Analytics') }}</a>
                         <a href="{{ route('admin.analytics.readiness') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.analytics.readiness') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Readiness') }}</a>
+                        @endcan
+                        @can('class-council.view')
+                        <a href="{{ route('admin.councils.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.councils.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class Councils') }}</a>
                         @endcan
                         <a href="{{ route('admin.documents.marksheet') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.documents.marksheet*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class Marksheet') }}</a>
                         @can('gce-registration.view')

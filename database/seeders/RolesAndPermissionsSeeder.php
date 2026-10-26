@@ -108,6 +108,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // marks entry: a head of department should see the picture
             // without being able to change a mark.
             'Academic Analytics' => ['view', 'export'],
+            // Filling in the awards is the work of the meeting; closing it
+            // freezes the figures onto the record and is the head's act.
+            'Class Council' => ['view', 'create', 'edit', 'conclude', 'delete'],
             'Audit Log' => ['view', 'export'],
 
             // Connection settings for the body's EdutrustPay console. Viewing,
