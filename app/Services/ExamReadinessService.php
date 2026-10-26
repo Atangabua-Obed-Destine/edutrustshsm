@@ -39,8 +39,8 @@ class ExamReadinessService
      */
     public function report(int $termId, ?int $formId = null, ?int $classSectionId = null): array
     {
-        $sequences = Sequence::where('term_id', $termId)->orderBy('sequence_number')->get();
         $sections = $this->sections($formId, $classSectionId);
+        $sequences = Sequence::forTerm($termId, $sections->pluck('form_id')->unique()->all());
 
         $expected = $this->expectedUnits($sections, $sequences);
         $submissions = $this->submissions($sections, $sequences);
@@ -49,7 +49,7 @@ class ExamReadinessService
         $withoutMarks = $this->studentsWithoutMarks($sections, $sequences);
         $results = $this->resultCounts($termId, $sections);
 
-        $checks = $this->checks($sequences, $expected, $pending, $withoutMarks, $results);
+        $checks = $this->checks($sequences, $expected, $pending, $withoutMarks, $results, $this->registrations($sections));
 
         return [
             'term' => Term::find($termId),
@@ -270,7 +270,8 @@ class ExamReadinessService
         Collection $expected,
         Collection $pending,
         Collection $withoutMarks,
-        array $results
+        array $results,
+        int $registrations
     ): array {
         $checks = [];
 
@@ -288,7 +289,10 @@ class ExamReadinessService
             ));
         }
 
-        if ($expected->isEmpty()) {
+        // Asked of the registrations themselves, not of the expected work:
+        // with no sequences there is no expected work either, and blaming
+        // subject registration for that sent people to the wrong screen.
+        if ($registrations === 0) {
             $checks[] = $this->check('subjects', __('Subject registration'), self::BLOCKER,
                 __('No pupil in scope is registered for any subject, so no marks are expected.'));
         }
@@ -344,6 +348,24 @@ class ExamReadinessService
         }
 
         return $checks;
+    }
+
+    /**
+     * How many subject registrations the pupils in scope have between them.
+     *
+     * @param  Collection<int, ClassSection>  $sections
+     */
+    private function registrations(Collection $sections): int
+    {
+        if ($sections->isEmpty()) {
+            return 0;
+        }
+
+        return DB::table('student_subjects')
+            ->join('student_enrollments', 'student_subjects.student_enrollment_id', '=', 'student_enrollments.id')
+            ->whereIn('student_enrollments.class_section_id', $sections->pluck('id'))
+            ->where('student_enrollments.status', 'active')
+            ->count();
     }
 
     /** @return array<string, string> */

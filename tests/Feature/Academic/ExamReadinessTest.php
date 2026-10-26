@@ -20,6 +20,7 @@ use App\Models\TermResult;
 use App\Models\User;
 use App\Services\ExamReadinessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -90,6 +91,14 @@ class ExamReadinessTest extends TestCase
         $this->class = ClassSection::create([
             'branch_id' => $this->branch->id, 'form_id' => $form->id,
             'section' => 'A', 'name' => 'Form 1A', 'max_students' => 40, 'is_active' => true,
+        ]);
+
+        // A sequence belongs to a term through this pivot, not through
+        // sequences.term_id — which exists but is NULL in real installations.
+        DB::table('form_sequence')->insert([
+            'form_id' => $form->id,
+            'term_id' => $this->term->id,
+            'sequence_id' => $this->seq1->id,
         ]);
 
         $this->maths = Subject::create(['branch_id' => $this->branch->id, 'name' => 'Mathematics', 'code' => 'MTH', 'is_active' => true]);
@@ -241,7 +250,7 @@ class ExamReadinessTest extends TestCase
 
     public function test_a_term_with_no_sequences_cannot_be_averaged(): void
     {
-        $this->seq1->delete();
+        DB::table('form_sequence')->where('sequence_id', $this->seq1->id)->delete();
         $this->pupil('Ada', [$this->maths]);
 
         $report = $this->report();

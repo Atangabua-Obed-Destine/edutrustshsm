@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ClassSection;
 use App\Models\GradeScale;
 use App\Models\Mark;
 use App\Models\SchoolSetting;
@@ -345,7 +346,7 @@ class AcademicAnalyticsService
      */
     private function sequenceTrend(int $termId, ?int $formId, ?int $classSectionId): array
     {
-        $sequences = Sequence::where('term_id', $termId)->orderBy('sequence_number')->get();
+        $sequences = Sequence::forTerm($termId, $this->formsInScope($formId, $classSectionId));
 
         if ($sequences->isEmpty()) {
             return [];
@@ -424,6 +425,26 @@ class AcademicAnalyticsService
             'published' => $published,
             'percent' => $this->rate($published, $enrollments),
         ];
+    }
+
+    /**
+     * The forms the current filter covers, for looking up their sequences.
+     *
+     * @return array<int, int>
+     */
+    private function formsInScope(?int $formId, ?int $classSectionId): array
+    {
+        if ($classSectionId) {
+            return ClassSection::where('id', $classSectionId)->pluck('form_id')->all();
+        }
+
+        if ($formId) {
+            return [$formId];
+        }
+
+        return ClassSection::where('is_active', true)
+            ->whereHas('form', fn ($q) => $q->forCurrentLevel())
+            ->distinct()->pluck('form_id')->all();
     }
 
     private function rate(int $part, int $whole): ?float

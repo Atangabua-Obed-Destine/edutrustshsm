@@ -37,8 +37,18 @@ return new class extends Migration
 
         Schema::rename('pta_announcements', 'announcements');
 
+        // Not a rename: `audience` is an ENUM with a default of 'all', and
+        // MySQL rejects renaming it — it re-emits the column without the
+        // allowed values, leaving the default invalid. SQLite accepts it,
+        // which is why only the real database caught this. Add, copy, drop.
         Schema::table('announcements', function (Blueprint $table) {
-            $table->renameColumn('audience', 'scope');
+            $table->string('scope', 20)->default('all')->after('body');
+        });
+
+        DB::table('announcements')->update(['scope' => DB::raw('audience')]);
+
+        Schema::table('announcements', function (Blueprint $table) {
+            $table->dropColumn('audience');
         });
 
         Schema::table('announcements', function (Blueprint $table) {
@@ -135,8 +145,15 @@ return new class extends Migration
             $table->dropColumn(['reference', 'audience', 'attachment']);
         });
 
+        // Mirror of the add/copy/drop above.
         Schema::table('announcements', function (Blueprint $table) {
-            $table->renameColumn('scope', 'audience');
+            $table->enum('audience', ['all', 'form_specific', 'class_specific'])->default('all')->after('body');
+        });
+
+        DB::table('announcements')->update(['audience' => DB::raw('scope')]);
+
+        Schema::table('announcements', function (Blueprint $table) {
+            $table->dropColumn('scope');
         });
 
         Schema::rename('announcements', 'pta_announcements');
