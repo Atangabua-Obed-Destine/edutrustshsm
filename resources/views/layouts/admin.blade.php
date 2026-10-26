@@ -219,7 +219,7 @@
                         </span>
                         <svg id="parent-pta-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="parent-pta-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.parent-portal.*', 'admin.parent-payments.*', 'admin.pta.*') ? 'open' : '' }}">
+                    <div id="parent-pta-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.parent-portal.*', 'admin.parent-payments.*', 'admin.pta.*', 'admin.announcements.*', 'admin.events.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.parent-portal.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.parent-portal.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Parent Accounts') }}</a>
                         @php($pendingPayments = \App\Models\ParentPaymentSubmission::where('status', 'pending')->count())
                         <a href="{{ route('admin.parent-payments.index') }}" class="flex items-center justify-between px-3 py-2 rounded text-sm {{ request()->routeIs('admin.parent-payments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">
@@ -229,6 +229,12 @@
                             @endif
                         </a>
                         <a href="{{ route('admin.pta.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.pta.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('PTA Management') }}</a>
+                        @can('announcement.view')
+                        <a href="{{ route('admin.announcements.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.announcements.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Notice Board') }}</a>
+                        @endcan
+                        @can('event.view')
+                        <a href="{{ route('admin.events.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.events.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('School Calendar') }}</a>
+                        @endcan
                     </div>
                 </div>
                 @endif
@@ -347,7 +353,7 @@
             </nav>
 
             <!-- System Settings -->
-            @if(auth()->user()->canAny(['school-settings.view', 'branch.view', 'parent-portal.view', 'pta.view', 'edutrustpay-reporting.view']))
+            @if(auth()->user()->canAny(['school-settings.view', 'branch.view', 'parent-portal.view', 'pta.view', 'announcement.view', 'event.view', 'edutrustpay-reporting.view']))
             <div class="px-3 pb-2">
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('system-settings-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">

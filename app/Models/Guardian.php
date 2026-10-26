@@ -81,5 +81,17 @@ class Guardian extends Authenticatable
     }
 
     public function user() { return $this->belongsTo(User::class); }
+    /**
+     * Where the "go home" link on an error page should send this guardian.
+     *
+     * The error layout asks auth()->user() for this, and on the guardians
+     * guard that is a Guardian rather than a User. Without it, every 404 a
+     * signed-in parent met turned into a 500.
+     */
+    public function homeRoute(): ?string
+    {
+        return 'parent.dashboard';
+    }
+
     public function students() { return $this->hasMany(Student::class); }
 }

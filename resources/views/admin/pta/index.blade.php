@@ -94,7 +94,7 @@
     {{-- ── ANNOUNCEMENTS ── --}}
     <div x-show="tab==='announcements'" x-cloak class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-1">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-data="{ audience: 'all' }">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-data="{ scope: 'all' }">
                 <h3 class="text-sm font-semibold text-gray-800 mb-4">{{ __('New Announcement') }}</h3>
                 <form method="POST" action="{{ route('admin.pta.announcements.store') }}" class="space-y-3">
                     @csrf
@@ -102,12 +102,12 @@
                     <textarea name="body" rows="4" placeholder="{{ __('Message...') }}" required class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2"></textarea>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Audience') }}</label>
-                        <select name="audience" x-model="audience" class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                        <select name="scope" x-model="scope" class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
                             <option value="all">{{ __('All parents') }}</option>
                             <option value="form_specific">{{ __('Specific form') }}</option>
                         </select>
                     </div>
-                    <div x-show="audience==='form_specific'" x-cloak>
+                    <div x-show="scope==='form_specific'" x-cloak>
                         <select name="target_form_id" class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
                             @foreach($forms as $f)<option value="{{ $f->id }}">{{ $f->name }}</option>@endforeach
                         </select>
@@ -138,7 +138,7 @@
                             </div>
                             <p class="text-sm text-gray-600 mt-1">{{ \Illuminate\Support\Str::limit($a->body, 160) }}</p>
                             <p class="text-xs text-gray-400 mt-2">
-                                {{ $a->audience === 'all' ? __('All parents') : ($a->audience === 'form_specific' ? ($a->targetForm->name ?? __('Form')) : ($a->targetClass->name ?? __('Class'))) }}
+                                {{ $a->scope === 'all' ? __('All parents') : $a->reach() }}
                                 · {{ $a->created_at->format('d M Y') }}
                             </p>
                         </div>

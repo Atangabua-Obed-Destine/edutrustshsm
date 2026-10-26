@@ -95,9 +95,13 @@ use App\Http\Controllers\ParentPortal\ParentSubjectController;
 use App\Http\Controllers\ParentPortal\ParentTimetableController;
 use App\Http\Controllers\ParentPortal\ParentAttendanceController;
 use App\Http\Controllers\ParentPortal\ParentPaymentController;
+use App\Http\Controllers\ParentPortal\ParentFileController;
+use App\Http\Controllers\ParentPortal\ParentNoticeController;
 use App\Http\Controllers\ParentPortal\ParentPtaController;
 use App\Http\Controllers\Admin\ParentPortalController;
 use App\Http\Controllers\Admin\ParentPaymentVerificationController;
+use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\PtaController;
 use App\Http\Controllers\Admin\AuditLogController;
 use Illuminate\Support\Facades\Route;
@@ -169,6 +173,16 @@ Route::prefix('parent')->name('parent.')->group(function () {
         Route::get('/payments/submit', [ParentPaymentController::class, 'create'])->name('payments.create');
         Route::post('/payments/submit', [ParentPaymentController::class, 'store'])->name('payments.store');
         Route::get('/payments/{submission}', [ParentPaymentController::class, 'show'])->name('payments.show');
+
+        // Notices and the school calendar
+        Route::get('/notices', [ParentNoticeController::class, 'index'])->name('notices.index');
+        Route::get('/notices/events', [ParentNoticeController::class, 'events'])->name('notices.events');
+        Route::get('/notices/{notice}', [ParentNoticeController::class, 'show'])->name('notices.show');
+
+        // Attachments a guardian may read. The admin file route checks a staff
+        // permission, so it can never serve them.
+        Route::get('/files/notice/{notice}', [ParentFileController::class, 'notice'])->name('files.notice');
+        Route::get('/files/pta-minutes/{meeting}', [ParentFileController::class, 'ptaMinutes'])->name('files.pta-minutes');
 
         // PTA
         Route::get('/pta', [ParentPtaController::class, 'index'])->name('pta.index');
@@ -360,6 +374,25 @@ Route::middleware('auth')->group(function () {
         Route::get('parent-payments/{submission}', [ParentPaymentVerificationController::class, 'show'])->name('parent-payments.show');
         Route::post('parent-payments/{submission}/approve', [ParentPaymentVerificationController::class, 'approve'])->name('parent-payments.approve');
         Route::post('parent-payments/{submission}/reject', [ParentPaymentVerificationController::class, 'reject'])->name('parent-payments.reject');
+
+        // Notice board — the school's own announcements, of which PTA is one
+        // category. Publishing is gated separately from writing.
+        Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('announcements/create', [AnnouncementController::class, 'create'])->name('announcements.create');
+        Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::get('announcements/{announcement}/edit', [AnnouncementController::class, 'edit'])->name('announcements.edit');
+        Route::put('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
+        Route::post('announcements/{announcement}/toggle', [AnnouncementController::class, 'togglePublish'])->name('announcements.toggle');
+        Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+
+        // School calendar
+        Route::get('events', [EventController::class, 'index'])->name('events.index');
+        Route::get('events/create', [EventController::class, 'create'])->name('events.create');
+        Route::post('events', [EventController::class, 'store'])->name('events.store');
+        Route::get('events/{event}/edit', [EventController::class, 'edit'])->name('events.edit');
+        Route::put('events/{event}', [EventController::class, 'update'])->name('events.update');
+        Route::post('events/{event}/toggle', [EventController::class, 'togglePublish'])->name('events.toggle');
+        Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
 
         // PTA Management
         Route::get('pta', [PtaController::class, 'index'])->name('pta.index');

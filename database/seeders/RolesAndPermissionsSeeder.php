@@ -100,6 +100,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'Parent Portal' => ['view', 'invite', 'password', 'revoke'],
             'Parent Payment' => ['view', 'approve', 'reject'],
             'PTA' => ['view', 'create', 'edit', 'delete'],
+            // Writing a notice and putting it in front of every parent in the
+            // school are different acts, so publishing is its own permission.
+            'Announcement' => ['view', 'create', 'edit', 'publish', 'delete'],
+            'Event' => ['view', 'create', 'edit', 'delete'],
             'Audit Log' => ['view', 'export'],
 
             // Connection settings for the body's EdutrustPay console. Viewing,

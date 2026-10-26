@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\ParentPortal;
 
 use App\Http\Controllers\Controller;
-use App\Models\PtaAnnouncement;
+use App\Models\Announcement;
+use App\Models\AnnouncementCategory;
 use App\Models\PtaLevy;
 use App\Models\PtaLevyPayment;
 use App\Models\PtaMeeting;
@@ -60,15 +61,10 @@ class ParentPtaController extends Controller
      */
     protected function announcementsFor($children)
     {
-        $formIds = $children->map(fn ($c) => optional($c->currentEnrollment?->classSection)->form_id)->filter()->unique()->all();
-        $classIds = $children->map(fn ($c) => $c->currentEnrollment?->class_section_id)->filter()->unique()->all();
-
-        return PtaAnnouncement::published()
-            ->where(function ($q) use ($formIds, $classIds) {
-                $q->where('audience', 'all')
-                    ->orWhere(fn ($sub) => $sub->where('audience', 'form_specific')->whereIn('target_form_id', $formIds ?: [0]))
-                    ->orWhere(fn ($sub) => $sub->where('audience', 'class_specific')->whereIn('target_class_section_id', $classIds ?: [0]));
-            })
+        return Announcement::published()
+            ->inCategory(AnnouncementCategory::PTA)
+            ->forGuardians()
+            ->addressedToChildren($children)
             ->orderByDesc('published_at')
             ->get();
     }
