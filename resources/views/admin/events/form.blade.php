@@ -96,9 +96,9 @@
             </div>
 
             <div x-show="scope === 'form_specific'" x-cloak>
-                <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Form') }}</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Class') }}</label>
                 <select name="target_form_id" style="appearance:auto;" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white">
-                    <option value="">{{ __('— Select Form —') }}</option>
+                    <option value="">{{ __('— Select Class —') }}</option>
                     @foreach($forms as $form)
                         <option value="{{ $form->id }}" @selected(old('target_form_id', $event->target_form_id) == $form->id)>{{ $form->name }}</option>
                     @endforeach
@@ -107,7 +107,7 @@
             </div>
 
             <div x-show="scope === 'class_specific'" x-cloak>
-                <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Class') }}</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Class Section') }}</label>
                 <select name="target_class_section_id" style="appearance:auto;" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white">
                     <option value="">{{ __('— Select Section —') }}</option>
                     @foreach($sections as $section)

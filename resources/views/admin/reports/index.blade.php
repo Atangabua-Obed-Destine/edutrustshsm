@@ -122,7 +122,7 @@
         {{-- Enrollment by Form --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-200">
             <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-700">{{ __('Enrollment by Form') }}</h3>
+                <h3 class="text-sm font-semibold text-gray-700">{{ __('Enrollment by Class') }}</h3>
             </div>
             <div class="p-6">
                 @if($enrollmentByForm->isNotEmpty())

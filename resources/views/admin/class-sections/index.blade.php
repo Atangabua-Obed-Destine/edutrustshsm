@@ -20,7 +20,7 @@
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Name') }}</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Form') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Class') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Class Teacher') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Room') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Capacity') }}</th>

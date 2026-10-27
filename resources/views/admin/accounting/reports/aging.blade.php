@@ -35,7 +35,7 @@
             </div>
             @if(($kind ?? null) === 'student' && isset($forms))
             <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Form / Class') }}</label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Class') }}</label>
                 <select name="form_id" class="rounded-lg border-gray-300 text-sm">
                     <option value="">{{ __('All forms') }}</option>
                     @foreach($forms as $form)

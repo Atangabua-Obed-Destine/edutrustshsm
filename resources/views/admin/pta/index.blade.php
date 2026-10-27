@@ -38,7 +38,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Form') }} ({{ __('blank = all') }})</label>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Class') }} ({{ __('blank = all') }})</label>
                         <select name="form_id" class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
                             <option value="">{{ __('All forms') }}</option>
                             @foreach($forms as $f)<option value="{{ $f->id }}">{{ $f->name }}</option>@endforeach
@@ -65,7 +65,7 @@
                 <div class="px-5 py-4 border-b border-gray-100"><h3 class="text-sm font-semibold text-gray-800">{{ __('PTA Levies') }}</h3></div>
                 <table class="w-full text-sm">
                     <thead><tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-100">
-                        <th class="px-5 py-3">{{ __('Session') }}</th><th class="px-5 py-3">{{ __('Form') }}</th>
+                        <th class="px-5 py-3">{{ __('Session') }}</th><th class="px-5 py-3">{{ __('Class') }}</th>
                         <th class="px-5 py-3 text-right">{{ __('Amount') }}</th><th class="px-5 py-3 text-center">{{ __('Payments') }}</th><th class="px-5 py-3"></th>
                     </tr></thead>
                     <tbody class="divide-y divide-gray-50">

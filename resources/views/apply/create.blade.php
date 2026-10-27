@@ -102,9 +102,9 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">{{ __('Form / Class') }} <span class="req">*</span></label>
+                <label class="form-label">{{ __('Class') }} <span class="req">*</span></label>
                 <select name="form_id" id="form_id" class="form-select" required>
-                    <option value="">{{ __('— Select Form —') }}</option>
+                    <option value="">{{ __('— Select Class —') }}</option>
                     @foreach($forms as $form)
                     <option value="{{ $form->id }}"
                             data-has-streams="{{ $form->has_streams ? '1' : '0' }}"

@@ -119,7 +119,7 @@
                     <p class="font-medium">{{ $enrollment->term->name ?? '—' }}</p>
                 </div>
                 <div>
-                    <p class="text-gray-400 text-xs">{{ __('Form') }}</p>
+                    <p class="text-gray-400 text-xs">{{ __('Class') }}</p>
                     <p class="font-medium">{{ $enrollment->classSection->form->name }}</p>
                 </div>
                 <div>
@@ -361,7 +361,7 @@
                         <tr>
                             <th class="px-3 py-2 text-left">{{ __('Session') }}</th>
                             <th class="px-3 py-2 text-left">{{ __('Term') }}</th>
-                            <th class="px-3 py-2 text-left">{{ __('Class') }}</th>
+                            <th class="px-3 py-2 text-left">{{ __('Class Section') }}</th>
                             <th class="px-3 py-2 text-left">{{ __('Stream') }}</th>
                             <th class="px-3 py-2 text-center">{{ __('Status') }}</th>
                             <th class="px-3 py-2 text-center">{{ __('Average') }}</th>

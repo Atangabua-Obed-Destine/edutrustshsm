@@ -35,10 +35,10 @@
 
                 {{-- Form --}}
                 <div>
-                    <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px;">{{ __('Form') }}</label>
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px;">{{ __('Class') }}</label>
                     <select name="form_id" id="formFilter" onchange="loadSections(this.value)"
                             style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white;">
-                        <option value="">{{ __('— Select Form —') }}</option>
+                        <option value="">{{ __('— Select Class —') }}</option>
                         @foreach($forms as $form)
                             <option value="{{ $form->id }}" {{ $formId == $form->id ? 'selected' : '' }}>{{ $form->name }}</option>
                         @endforeach
@@ -90,7 +90,7 @@
                     <th style="padding: 12px 8px; text-align: left; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; width: 56px;">{{ __('Photo') }}</th>
                     <th style="padding: 12px 8px; text-align: left; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('Student ID') }}</th>
                     <th style="padding: 12px 8px; text-align: left; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('Name') }}</th>
-                    <th style="padding: 12px 8px; text-align: left; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('Class') }}</th>
+                    <th style="padding: 12px 8px; text-align: left; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('Class Section') }}</th>
                     <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; width: 140px;">{{ __('Action') }}</th>
                 </tr>
             </thead>
@@ -181,7 +181,7 @@
     @else
     <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 60px 20px; text-align: center;">
         <svg style="width: 48px; height: 48px; color: #cbd5e1; margin: 0 auto 12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
-        <p style="font-size: 16px; font-weight: 600; color: #64748b;">{{ __('Select a Form and click Filter to load students.') }}</p>
+        <p style="font-size: 16px; font-weight: 600; color: #64748b;">{{ __('Select a Class and click Filter to load students.') }}</p>
     </div>
     @endif
 </div>

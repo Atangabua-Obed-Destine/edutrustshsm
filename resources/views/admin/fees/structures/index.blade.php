@@ -33,10 +33,10 @@
             {{-- Form & Stream Filter --}}
             <form method="GET" id="filterForm" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; flex: 1; max-width: 700px;">
                 <div>
-                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Form') }}</label>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Class') }}</label>
                     <select name="form_id" id="indexFormSelect"
                             style="width: 100%; padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; appearance: auto; -webkit-appearance: menulist; background: #fff;">
-                        <option value="">-- {{ __('All Forms') }} --</option>
+                        <option value="">-- {{ __('All Classes') }} --</option>
                         @foreach($forms as $form)
                             <option value="{{ $form->id }}" {{ $formId == $form->id ? 'selected' : '' }}>{{ $form->name }}</option>
                         @endforeach
@@ -193,7 +193,7 @@
     <div style="background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; padding: 60px 20px; text-align: center;">
         <svg style="display: inline-block; width: 48px; height: 48px; color: #cbd5e1; margin-bottom: 10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <p style="font-weight: 600; color: #94a3b8;">{{ __('No fee structures found.') }}</p>
-        <p style="font-size: 0.8rem; color: #cbd5e1; margin-top: 4px;">{{ __('Select a Form and Stream above, or click "Add Fee Structure" to get started.') }}</p>
+        <p style="font-size: 0.8rem; color: #cbd5e1; margin-top: 4px;">{{ __('Select a Class and Stream above, or click "Add Fee Structure" to get started.') }}</p>
     </div>
     @endforelse
 </div>

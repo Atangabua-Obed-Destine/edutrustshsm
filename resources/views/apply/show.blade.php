@@ -53,7 +53,7 @@
         <h3 style="font-size: 0.88rem; font-weight: 700; color: #0f172a; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">{{ __('Class Placement') }}</h3>
         <table style="width: 100%; font-size: 0.82rem;">
             <tr><td style="padding: 5px 0; color: #64748b; width: 40%;">{{ __('Session') }}</td><td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $application->academicSession->name ?? '—' }}</td></tr>
-            <tr><td style="padding: 5px 0; color: #64748b;">{{ __('Form') }}</td><td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $application->form->name ?? '—' }}</td></tr>
+            <tr><td style="padding: 5px 0; color: #64748b;">{{ __('Class') }}</td><td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $application->form->name ?? '—' }}</td></tr>
             @if($application->stream)
             <tr><td style="padding: 5px 0; color: #64748b;">{{ __('Stream') }}</td><td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $application->stream->name }}</td></tr>
             @endif

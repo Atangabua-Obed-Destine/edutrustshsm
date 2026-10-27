@@ -16,7 +16,7 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Form') }}</label>
+            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Class') }}</label>
             <select name="form_id" style="appearance:auto;" class="text-sm border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">{{ __('All forms') }}</option>
                 @foreach($forms as $f)
@@ -25,7 +25,7 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Class') }}</label>
+            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Class Section') }}</label>
             <select name="class_section_id" style="appearance:auto;" class="text-sm border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">{{ __('All classes') }}</option>
                 @foreach($sections as $s)
@@ -156,7 +156,7 @@
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="text-left text-xs text-gray-500 border-b border-gray-200">
-                                <th class="py-2 pr-3">{{ __('Class') }}</th>
+                                <th class="py-2 pr-3">{{ __('Class Section') }}</th>
                                 <th class="py-2 px-3 text-right">{{ __('Pupils') }}</th>
                                 <th class="py-2 px-3 text-right">{{ __('Average') }}</th>
                                 <th class="py-2 pl-3 text-right">{{ __('Pass rate') }}</th>
@@ -224,7 +224,7 @@
                     <thead>
                         <tr class="text-left text-xs text-gray-500 border-b border-gray-200">
                             <th class="py-2 pr-3">{{ __('Pupil') }}</th>
-                            <th class="py-2 px-3">{{ __('Class') }}</th>
+                            <th class="py-2 px-3">{{ __('Class Section') }}</th>
                             <th class="py-2 px-3 text-right">{{ __('Average') }}</th>
                             <th class="py-2 px-3 text-right">{{ __('Change') }}</th>
                             <th class="py-2 px-3 text-right">{{ __('Rank') }}</th>

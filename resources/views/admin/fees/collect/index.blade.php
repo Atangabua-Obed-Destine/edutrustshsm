@@ -38,10 +38,10 @@
 
                 {{-- Form --}}
                 <div>
-                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Form') }}</label>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Class') }}</label>
                     <select name="form_id" id="formSelect"
                             style="width: 100%; padding: 9px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; appearance: auto; -webkit-appearance: menulist; background: #fff;">
-                        <option value="">-- {{ __('All Forms') }} --</option>
+                        <option value="">-- {{ __('All Classes') }} --</option>
                         @foreach($forms as $form)
                             <option value="{{ $form->id }}" {{ $formId == $form->id ? 'selected' : '' }}>{{ $form->name }}</option>
                         @endforeach

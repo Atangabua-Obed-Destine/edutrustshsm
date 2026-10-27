@@ -10,7 +10,7 @@
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
         <div>
             <h2 style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">{{ __('Add Fee Structure') }}</h2>
-            <p style="font-size: 0.825rem; color: #64748b; margin-top: 2px;">{{ __('Select Form & Stream, then load fee categories to define amounts and breakdowns.') }}</p>
+            <p style="font-size: 0.825rem; color: #64748b; margin-top: 2px;">{{ __('Select Class & Stream, then load fee categories to define amounts and breakdowns.') }}</p>
         </div>
         <a href="{{ route('admin.fee-structures.index') }}"
            style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.8rem; color: #475569; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; transition: all .15s;"
@@ -44,15 +44,15 @@
         <div style="background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
                 <div style="width: 28px; height: 28px; background: #1e293b; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;">1</div>
-                <h3 style="font-size: 1rem; font-weight: 600; color: #334155;">{{ __('Select Form & Stream') }}</h3>
+                <h3 style="font-size: 1rem; font-weight: 600; color: #334155;">{{ __('Select Class & Stream') }}</h3>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end;">
                 <div>
-                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Form') }} <span style="color: #ef4444;">*</span></label>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Class') }} <span style="color: #ef4444;">*</span></label>
                     <select id="formSelect" name="form_id" required
                             style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; outline: none; appearance: auto; -webkit-appearance: menulist; background: #fff;">
-                        <option value="">-- {{ __('Select Form') }} --</option>
+                        <option value="">-- {{ __('Select Class') }} --</option>
                         @foreach($forms as $form)
                             <option value="{{ $form->id }}" {{ old('form_id') == $form->id ? 'selected' : '' }}>{{ $form->name }}</option>
                         @endforeach

@@ -58,9 +58,9 @@
                 </select>
             </div>
             <div style="flex: 1; min-width: 160px;">
-                <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Form') }}</label>
+                <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Class') }}</label>
                 <select name="form_id" style="width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; outline: none;">
-                    <option value="">{{ __('All Forms') }}</option>
+                    <option value="">{{ __('All Classes') }}</option>
                     @foreach($forms as $form)
                     <option value="{{ $form->id }}" {{ request('form_id') == $form->id ? 'selected' : '' }}>{{ $form->name }}</option>
                     @endforeach
@@ -108,7 +108,7 @@
                         <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Application #') }}</th>
                         <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Applicant') }}</th>
                         <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Session') }}</th>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Form') }}</th>
+                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Class') }}</th>
                         <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Stream') }}</th>
                         <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Status') }}</th>
                         <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Date') }}</th>

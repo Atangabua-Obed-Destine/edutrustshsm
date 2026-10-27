@@ -44,10 +44,10 @@
 
                 {{-- Form --}}
                 <div>
-                    <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px;">{{ __('Form') }}</label>
+                    <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px;">{{ __('Class') }}</label>
                     <select name="form_id" id="formSelect"
                         style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; color: #111827; background: #fff; appearance: auto; -webkit-appearance: menulist;">
-                        <option value="">{{ __('— Select Form —') }}</option>
+                        <option value="">{{ __('— Select Class —') }}</option>
                         @foreach($forms as $f)
                             <option value="{{ $f->id }}" {{ $formId == $f->id ? 'selected' : '' }}>{{ $f->name }}</option>
                         @endforeach
@@ -172,7 +172,7 @@
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 60px;">{{ __('S/N') }}</th>
                         <th style="padding: 10px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 130px;">{{ __('Student ID') }}</th>
                         <th style="padding: 10px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Student Name') }}</th>
-                        <th style="padding: 10px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Class') }}</th>
+                        <th style="padding: 10px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Class Section') }}</th>
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 80px;">{{ __('Average') }}</th>
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 60px;">{{ __('Rank') }}</th>
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 80px;">{{ __('Status') }}</th>
