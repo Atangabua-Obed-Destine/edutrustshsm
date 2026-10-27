@@ -13,7 +13,7 @@ class ParentDashboardController extends Controller
     {
         $guardian = ParentContext::guardian();
 
-        $children = Student::where('guardian_id', $guardian->id)
+        $children = $guardian->portalStudents()
             ->with(['currentEnrollment.classSection.form', 'currentEnrollment.stream'])
             ->orderBy('first_name')
             ->get();

@@ -6,6 +6,7 @@ use App\Models\Expense;
 use App\Models\Income;
 use App\Models\PaymentAllocation;
 use App\Models\StudentCredit;
+use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\User;
 use App\Observers\ExpenseObserver;
@@ -13,6 +14,7 @@ use App\Observers\IncomeObserver;
 use App\Observers\PaymentAllocationObserver;
 use App\Observers\StudentCreditObserver;
 use App\Observers\StudentEnrollmentObserver;
+use App\Observers\StudentObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -37,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerAuthorization();
         $this->registerRateLimiters();
 
+        Student::observe(StudentObserver::class);
         StudentEnrollment::observe(StudentEnrollmentObserver::class);
 
         // OHADA auto-posting: turn operational facts into journal entries.

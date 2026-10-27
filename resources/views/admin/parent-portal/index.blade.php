@@ -37,6 +37,14 @@
         <div class="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
                 <h3 class="text-base font-semibold text-gray-800">{{ __('Parent / Guardian Portal Access') }}</h3>
+                @if(($duplicateGroups ?? 0) > 0)
+                    @can('parent-portal.merge')
+                        <a href="{{ route('admin.parent-portal.duplicates') }}"
+                           class="inline-flex items-center gap-1.5 mt-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg hover:bg-amber-100">
+                            {{ trans_choice('{1}:count parent looks recorded twice|[2,*]:count parents look recorded more than once', $duplicateGroups, ['count' => $duplicateGroups]) }} →
+                        </a>
+                    @endcan
+                @endif
                 <p class="text-sm text-gray-500 mt-0.5">{{ __('Enable login access so parents can follow their children online.') }}</p>
             </div>
             <form method="GET" class="flex items-center gap-2">
@@ -72,7 +80,24 @@
                                 <div class="text-xs text-gray-400">{{ $guardian->primary_phone ?: '' }}</div>
                             </td>
                             <td class="px-6 py-4 text-center">
-                                <span class="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">{{ $guardian->students_count }}</span>
+                                @if($guardian->students->isEmpty())
+                                    <span class="text-xs text-gray-400">{{ __('None linked') }}</span>
+                                @else
+                                    <div class="flex flex-col gap-0.5">
+                                        @foreach($guardian->students->take(3) as $child)
+                                            <a href="{{ route('admin.students.show', $child) }}"
+                                               class="text-xs text-gray-700 hover:text-teal-700">
+                                                {{ $child->full_name }}
+                                                @if($child->pivot->is_primary)
+                                                    <span class="text-[0.6rem] text-teal-600">★</span>
+                                                @endif
+                                            </a>
+                                        @endforeach
+                                        @if($guardian->students_count > 3)
+                                            <span class="text-[0.65rem] text-gray-400">{{ __('and :count more', ['count' => $guardian->students_count - 3]) }}</span>
+                                        @endif
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-6 py-4 text-center">
                                 @if($guardian->canAccessPortal())

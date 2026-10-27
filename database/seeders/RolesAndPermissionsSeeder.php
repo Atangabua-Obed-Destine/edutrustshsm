@@ -97,7 +97,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // ── Platform ──
             'Branch' => ['view', 'create', 'edit', 'assign'],
-            'Parent Portal' => ['view', 'invite', 'password', 'revoke'],
+            // `link` moves a child between parents and `merge` folds two
+            // parent records into one; neither is an ordinary edit.
+            'Parent Portal' => ['view', 'invite', 'password', 'revoke', 'edit', 'link', 'merge'],
             'Parent Payment' => ['view', 'approve', 'reject'],
             'PTA' => ['view', 'create', 'edit', 'delete'],
             // Writing a notice and putting it in front of every parent in the

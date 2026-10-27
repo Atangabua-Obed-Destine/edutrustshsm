@@ -396,6 +396,16 @@ Route::middleware('auth')->group(function () {
         Route::post('parent-portal/{guardian}/disable', [ParentPortalController::class, 'disable'])->name('parent-portal.disable');
         Route::post('parent-portal/{guardian}/reset-password', [ParentPortalController::class, 'resetPassword'])->name('parent-portal.reset-password');
 
+        // Who belongs to whom.
+        Route::post('parent-portal/{guardian}/students', [ParentPortalController::class, 'attachStudent'])->name('parent-portal.students.attach');
+        Route::delete('parent-portal/{guardian}/students/{student}', [ParentPortalController::class, 'detachStudent'])->name('parent-portal.students.detach');
+        Route::post('parent-portal/{guardian}/students/{student}/primary', [ParentPortalController::class, 'makePrimary'])->name('parent-portal.students.primary');
+        Route::put('parent-portal/{guardian}/students/{student}', [ParentPortalController::class, 'updateLink'])->name('parent-portal.students.update');
+
+        // Parents the system recorded more than once.
+        Route::get('parent-portal-duplicates', [ParentPortalController::class, 'duplicates'])->name('parent-portal.duplicates');
+        Route::post('parent-portal-duplicates/merge', [ParentPortalController::class, 'merge'])->name('parent-portal.merge');
+
         // Parent Payment Receipt Verification
         Route::get('parent-payments', [ParentPaymentVerificationController::class, 'index'])->name('parent-payments.index');
         Route::get('parent-payments/{submission}', [ParentPaymentVerificationController::class, 'show'])->name('parent-payments.show');

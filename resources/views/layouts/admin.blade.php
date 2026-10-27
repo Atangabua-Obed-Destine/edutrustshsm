@@ -231,7 +231,10 @@
                         <svg id="parent-pta-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
                     <div id="parent-pta-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.parent-portal.*', 'admin.parent-payments.*', 'admin.pta.*', 'admin.announcements.*', 'admin.events.*') ? 'open' : '' }}">
-                        <a href="{{ route('admin.parent-portal.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.parent-portal.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Parent Accounts') }}</a>
+                        <a href="{{ route('admin.parent-portal.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.parent-portal.index', 'admin.parent-portal.show') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Parent Accounts') }}</a>
+                        @can('parent-portal.merge')
+                        <a href="{{ route('admin.parent-portal.duplicates') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.parent-portal.duplicates') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Duplicate Parents') }}</a>
+                        @endcan
                         @php($pendingPayments = \App\Models\ParentPaymentSubmission::where('status', 'pending')->count())
                         <a href="{{ route('admin.parent-payments.index') }}" class="flex items-center justify-between px-3 py-2 rounded text-sm {{ request()->routeIs('admin.parent-payments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">
                             <span>{{ __('Payment Submissions') }}</span>
