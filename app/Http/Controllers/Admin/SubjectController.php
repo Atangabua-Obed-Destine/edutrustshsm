@@ -18,7 +18,7 @@ class SubjectController extends Controller implements HasMiddleware
 
     public function index()
     {
-        $subjects = Subject::with('department')->orderBy('name')->get();
+        $subjects = Subject::with('department')->forCurrentLevel()->orderBy('name')->get();
         return view('admin.subjects.index', compact('subjects'));
     }
 
@@ -33,6 +33,7 @@ class SubjectController extends Controller implements HasMiddleware
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'code' => ['required', 'string', 'max:20', \Illuminate\Validation\Rule::unique('subjects', 'code')->where('branch_id', \App\Support\BranchContext::current())],
+            'school_level' => ['nullable', 'in:nursery_primary,secondary'],
             'department_id' => ['nullable', 'exists:departments,id'],
             'description' => ['nullable', 'string'],
         ]);
@@ -54,6 +55,7 @@ class SubjectController extends Controller implements HasMiddleware
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'code' => ['required', 'string', 'max:20', \Illuminate\Validation\Rule::unique('subjects', 'code')->where('branch_id', \App\Support\BranchContext::current())->ignore($subject->id)],
+            'school_level' => ['nullable', 'in:nursery_primary,secondary'],
             'department_id' => ['nullable', 'exists:departments,id'],
             'description' => ['nullable', 'string'],
         ]);

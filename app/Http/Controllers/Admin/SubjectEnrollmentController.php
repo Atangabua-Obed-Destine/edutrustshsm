@@ -57,8 +57,11 @@ class SubjectEnrollmentController extends Controller implements HasMiddleware
             ->orderBy('streams.name')
             ->get();
 
+        // Narrowed to the level of the class being configured, so a primary
+        // class cannot be given Further Mathematics by a slip of the mouse.
         $subjects = Subject::with('department')
             ->where('is_active', true)
+            ->forLevel($form->school_level)
             ->orderBy('name')
             ->get();
 

@@ -18,6 +18,7 @@
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Code') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Name') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Taught at') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Department') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Status') }}</th>
                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Actions') }}</th>
@@ -28,6 +29,13 @@
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 text-sm font-mono text-gray-600">{{ $subject->code }}</td>
                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $subject->name }}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                            {{ $subject->school_level === 'nursery_primary' ? 'bg-sky-100 text-sky-700'
+                               : ($subject->school_level === 'secondary' ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600') }}">
+                            {{ $subject->levelLabel() }}
+                        </span>
+                    </td>
                     <td class="px-6 py-4 text-sm text-gray-600">{{ $subject->department?->name ?? '—' }}</td>
                     <td class="px-6 py-4">
                         @if($subject->is_active)
@@ -46,7 +54,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">{{ __('No subjects found.') }}</td>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">{{ __('No subjects found.') }}</td>
                 </tr>
                 @endforelse
             </tbody>
