@@ -88,7 +88,7 @@ class NoticeBoardTest extends TestCase
             'guardian_name' => 'Mami Ngwa', 'guardian_phone' => '677000111',
             'guardian_email' => 'mami@example.test',
             'emergency_contact_name' => 'Mami Ngwa', 'emergency_contact_phone' => '677000111',
-            'password' => bcrypt('password'), 'portal_enabled' => true,
+            'password' => bcrypt('password'), 'portal_access' => true,
         ]);
 
         $this->child = Student::create([

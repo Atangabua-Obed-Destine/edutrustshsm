@@ -238,7 +238,7 @@ class ConfigurationHealthService
             $this->ok('Fees', __('Fee structure configured'), __('Fee categories are priced for the current academic year.'));
         }
 
-        if (PaymentAccount::where('is_active', true)->count() === 0) {
+        if (PaymentAccount::active()->count() === 0) {
             $this->warn('Fees', __('No payment accounts'), __('Payments cannot be tied to a cash or bank account, so treasury balances will not move when money is received.'), 'admin.payment-account.index', __('Add Payment Accounts'));
         }
     }

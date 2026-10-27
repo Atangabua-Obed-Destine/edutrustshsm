@@ -34,9 +34,14 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('students', function (Blueprint $table) {
-            $table->dropIndex('students_branch_status_index');
             $table->dropConstrainedForeignId('exit_recorded_by');
             $table->dropColumn('destination_school');
         });
+
+        // The branch/status index is deliberately left behind. students has a
+        // foreign key on branch_id with no index of its own, so MySQL adopted
+        // this one to cover it and refuses to drop it — "needed in a foreign
+        // key constraint". A spare index is a far smaller problem than a
+        // rollback that cannot complete.
     }
 };
