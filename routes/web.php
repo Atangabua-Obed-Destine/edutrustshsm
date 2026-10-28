@@ -268,7 +268,9 @@ Route::middleware('auth')->group(function () {
         Route::resource('forms', FormController::class)->except(['show']);
 
         // Streams
-        Route::resource('streams', StreamController::class)->except(['show']);
+        // Streams are Science, Arts and the like — a secondary division.
+        Route::resource('streams', StreamController::class)->except(['show'])
+            ->middleware('school-level:secondary');
 
         // Subjects
         Route::resource('subjects', SubjectController::class)->except(['show']);
@@ -448,7 +450,10 @@ Route::middleware('auth')->group(function () {
         // controller, since each file hangs off a different record.
         Route::get('files/{source}/{id}/{field}', [PrivateFileController::class, 'show'])->name('files.show');
 
-        // GCE Ordinary / Advanced Level registration.
+        // GCE Ordinary / Advanced Level registration. A secondary
+        // qualification, so a nursery or primary school has no use for it —
+        // and hiding the menu entry alone would leave the address working.
+        Route::middleware('school-level:secondary')->group(function () {
         Route::get('gce/subjects', [GceSubjectController::class, 'index'])->name('gce.subjects.index');
         Route::post('gce/subjects', [GceSubjectController::class, 'store'])->name('gce.subjects.store');
         Route::put('gce/subjects/{gceSubject}', [GceSubjectController::class, 'update'])->name('gce.subjects.update');
@@ -471,6 +476,7 @@ Route::middleware('auth')->group(function () {
         Route::put('gce/candidates/{candidate}', [GceCandidateController::class, 'update'])->name('gce.candidates.update');
         Route::post('gce/candidates/{candidate}/status', [GceCandidateController::class, 'setStatus'])->name('gce.candidates.status');
         Route::post('gce/candidates/{candidate}/payment', [GceCandidateController::class, 'recordPayment'])->name('gce.candidates.payment');
+        });
         Route::delete('gce/candidates/{candidate}', [GceCandidateController::class, 'destroy'])->name('gce.candidates.destroy');
         Route::get('gce/candidates/{candidate}/slip', [GceCandidateController::class, 'entrySlip'])->name('gce.candidates.slip');
 
@@ -588,7 +594,10 @@ Route::middleware('auth')->group(function () {
             Route::get('group-enrol/preview-subjects', [GroupEnrolController::class, 'previewSubjects'])->name('group-enrol.preview-subjects');
 
             // Subject Add/Drop
-            Route::get('subject-add-drop', [SubjectAddDropController::class, 'index'])->name('subject-add-drop.index');
+            // Adding and dropping subjects is about electives, which a
+            // nursery or primary pupil does not have — every subject is core.
+            Route::get('subject-add-drop', [SubjectAddDropController::class, 'index'])
+                ->middleware('school-level:secondary')->name('subject-add-drop.index');
             Route::get('subject-add-drop/load/{student}', [SubjectAddDropController::class, 'loadStudent'])->name('subject-add-drop.load');
             Route::post('subject-add-drop/add', [SubjectAddDropController::class, 'addSubject'])->name('subject-add-drop.add');
             Route::post('subject-add-drop/drop', [SubjectAddDropController::class, 'dropSubject'])->name('subject-add-drop.drop');

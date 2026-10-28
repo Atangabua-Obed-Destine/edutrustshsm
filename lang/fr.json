@@ -3388,6 +3388,7 @@
     "This report card has not been published yet.": "Ce bulletin n'a pas encore été publié.",
     "This request has already been decided.": "Cette demande a déjà été traitée.",
     "This school PUSHES a signed summary of each month to its body's console. Nothing reaches in here: outbound only, no inbound endpoint, no access to this database from that side.": "Cet établissement ENVOIE chaque mois un récapitulatif signé à la console de sa tutelle. Rien n'entre ici : sortant uniquement, aucun point d'accès entrant, aucun accès à cette base de données depuis l'autre côté.",
+    "This school runs one level. Every list is filtered to it.": "Cet établissement ne fonctionne qu'à un seul niveau. Toutes les listes y sont filtrées.",
     "This sequence number already exists for the selected term.": "Ce numéro de séquence existe déjà pour le trimestre sélectionné.",
     "This series has candidates entered, so it cannot be deleted. Close it instead.": "Des candidats sont inscrits à cette session : elle ne peut pas être supprimée. Clôturez-la plutôt.",
     "This series has no classes attached, so the system cannot tell who should sit it.": "Aucune classe n'est rattachée à cette session : le système ne peut pas déterminer qui doit la passer.",

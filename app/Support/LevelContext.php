@@ -51,6 +51,30 @@ class LevelContext
     }
 
     /**
+     * Whether this school runs a given level at all.
+     *
+     * Distinct from current(): a school may run both and be working in one.
+     * This asks what the school is, not where the admin is standing — which
+     * is the right question for deciding whether a whole feature belongs.
+     */
+    public static function runs(string $level): bool
+    {
+        return in_array($level, self::options(), true);
+    }
+
+    /** Whether this school runs any secondary level. */
+    public static function runsSecondary(): bool
+    {
+        return self::runs('secondary');
+    }
+
+    /** Whether this school runs any nursery or primary level. */
+    public static function runsNurseryPrimary(): bool
+    {
+        return self::runs('nursery_primary');
+    }
+
+    /**
      * Whether the header level switcher should be shown — only when the school
      * runs more than one level (mode = Both).
      */

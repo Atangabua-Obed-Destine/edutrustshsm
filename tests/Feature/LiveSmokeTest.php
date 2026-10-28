@@ -205,6 +205,17 @@ class LiveSmokeTest extends TestCase
                 continue;
             }
 
+            // A feature this school's level mode refuses is meant to 404.
+            // Read from the route's own middleware rather than a list here,
+            // so gating a new screen does not also mean editing this test.
+            $required = collect($route->gatherMiddleware())
+                ->filter(fn ($m) => is_string($m) && str_starts_with($m, 'school-level:'))
+                ->flatMap(fn ($m) => explode(',', substr($m, strlen('school-level:'))));
+
+            if ($required->isNotEmpty() && ! $required->contains(fn ($level) => \App\Support\LevelContext::runs($level))) {
+                continue;
+            }
+
             $params = [];
             $skip = false;
 

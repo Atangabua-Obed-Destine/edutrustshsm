@@ -53,7 +53,9 @@
                         <a href="{{ route('admin.terms.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.terms.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Terms') }}</a>
                         <a href="{{ route('admin.sequences.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.sequences.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Sequences') }}</a>
                         <a href="{{ route('admin.forms.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.forms.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Classes') }}</a>
+                        @if(\App\Support\LevelContext::runsSecondary())
                         <a href="{{ route('admin.streams.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.streams.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Streams') }}</a>
+                        @endif
                         <a href="{{ route('admin.subjects.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.subjects.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Subjects') }}</a>
                         <a href="{{ route('admin.subject-enrollments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.subject-enrollments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Enroll Subjects') }}</a>
                         <a href="{{ route('admin.sequence-enrollments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.sequence-enrollments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Enrol Sequences') }}</a>
@@ -98,7 +100,9 @@
                         <a href="{{ route('admin.students.archive') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.archive') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Former Pupils') }}</a>
                         @endcan
                         <a href="{{ route('admin.group-enrol.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.group-enrol.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Group Enrol') }}</a>
+                        @if(\App\Support\LevelContext::runsSecondary())
                         <a href="{{ route('admin.subject-add-drop.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.subject-add-drop.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Subject Add/Drop') }}</a>
+                        @endif
                         <a href="{{ route('admin.bulk-upload.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.bulk-upload.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Bulk Upload') }}</a>
                     </div>
                 </div>
@@ -128,7 +132,9 @@
                         @endcan
                         <a href="{{ route('admin.documents.marksheet') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.documents.marksheet*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class Marksheet') }}</a>
                         @can('gce-registration.view')
+                        @if(\App\Support\LevelContext::runsSecondary())
                         <a href="{{ route('admin.gce.sessions.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.gce.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('GCE Registration') }}</a>
+                        @endif
                         @endcan
                     </div>
                 </div>
@@ -465,6 +471,16 @@
                                 @endforeach
                             </select>
                         </form>
+                        @elseif(auth()->user()->canAny(['academic-session.view', 'form.view', 'student.view']) && \App\Support\LevelContext::isConfigured())
+                        {{-- One level, so nothing to switch — but every list on
+                             every screen is still filtered by it. Without this
+                             the filter is invisible, and a school whose mode is
+                             set wrongly looks like a school with no pupils. --}}
+                        <span class="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-gray-50"
+                              title="{{ __('This school runs one level. Every list is filtered to it.') }}">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                            {{ \App\Support\LevelContext::currentLabel() }}
+                        </span>
                         @endif
 
                         {{-- Language Switcher --}}
