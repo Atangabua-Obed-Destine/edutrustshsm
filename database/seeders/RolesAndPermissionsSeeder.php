@@ -64,6 +64,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Payment Account' => ['view', 'create', 'edit', 'delete', 'deposit', 'withdraw', 'recompute'],
             'Fund Transfer' => ['view', 'create', 'delete'],
             'Payment Account Report' => ['view', 'link'],
+            'Daybook' => ['view', 'export'],
 
             // ── Budget ──
             'Budget' => ['view', 'create', 'edit', 'delete', 'approve', 'revise'],
@@ -190,7 +191,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Quick Assign Fee', 'Assignment History', 'Fee Discount', 'Fee Fine', 'Student Credit', 'Fee Report', 'Payment',
             // Accounts & treasury
             'Income', 'Income Category', 'Expense', 'Expense Category', 'Outcome',
-            'Payment Account', 'Fund Transfer', 'Payment Account Report',
+            'Payment Account', 'Fund Transfer', 'Payment Account Report', 'Daybook',
             // Budget
             'Budget', 'Budget Allocation', 'Budget Report',
             // OHADA

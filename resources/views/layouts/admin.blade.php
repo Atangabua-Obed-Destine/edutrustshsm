@@ -263,7 +263,7 @@
                 @endif
 
                 <!-- Income & Expense -->
-                @if(auth()->user()->canAny(['income.view', 'expense.view', 'outcome.view', 'payment-account.view', 'fund-transfer.view', 'budget.view', 'chart-of-accounts.view', 'journal-entry.view', 'general-ledger.view', 'payroll.view']))
+                @if(auth()->user()->canAny(['daybook.view', 'income.view', 'expense.view', 'outcome.view', 'payment-account.view', 'fund-transfer.view', 'budget.view', 'chart-of-accounts.view', 'journal-entry.view', 'general-ledger.view', 'payroll.view']))
             <div class="sidebar-group">
                 <button onclick="toggleSubmenu('accounts-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                     <span class="flex items-center">
@@ -272,7 +272,10 @@
                     </span>
                     <svg id="accounts-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </button>
-                <div id="accounts-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.account.*') ? 'open' : '' }}">
+                <div id="accounts-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.account.*', 'admin.daybook.*') ? 'open' : '' }}">
+                    @can('daybook.view')
+                    <a href="{{ route('admin.daybook.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.daybook.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Cash Book') }}</a>
+                    @endcan
                     <a href="{{ route('admin.account.income.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.account.income.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Income List') }}</a>
                     <a href="{{ route('admin.account.income-category.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.account.income-category.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Income Categories') }}</a>
                     <a href="{{ route('admin.account.expense.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.account.expense.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Expense List') }}</a>

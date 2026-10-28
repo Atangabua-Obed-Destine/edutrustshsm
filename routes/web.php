@@ -61,6 +61,7 @@ use App\Http\Controllers\Admin\PaymentAccountController;
 use App\Http\Controllers\Admin\PaymentAccountTransferController;
 use App\Http\Controllers\Admin\PaymentAccountReportController;
 use App\Http\Controllers\Admin\BudgetController;
+use App\Http\Controllers\Admin\DaybookController;
 use App\Http\Controllers\Admin\BudgetAllocationController;
 use App\Http\Controllers\Admin\BudgetDashboardController;
 use App\Http\Controllers\Admin\BudgetReportController;
@@ -642,9 +643,16 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::post('payment-account-report/link', [PaymentAccountReportController::class, 'link'])->name('payment-account-report.link');
     Route::get('payment-account-report/statement/{payment_account}', [PaymentAccountReportController::class, 'statement'])->name('payment-account-report.statement');
 
+    // ── Cash Book ──
+    Route::get('daybook', [DaybookController::class, 'index'])->name('daybook.index');
+    Route::get('daybook/year', [DaybookController::class, 'year'])->name('daybook.year');
+    Route::get('daybook/pdf', [DaybookController::class, 'pdf'])->name('daybook.pdf');
+    Route::get('daybook/csv', [DaybookController::class, 'csv'])->name('daybook.csv');
+
     // ── Budgets ──
     Route::get('budget-dashboard', [BudgetDashboardController::class, 'index'])->name('budget-dashboard');
     Route::get('budget/{budget}/summary-json', [BudgetDashboardController::class, 'summary'])->name('budget.summary-json');
+    Route::get('budget/{budget}/monthly', [BudgetController::class, 'monthly'])->name('budget.monthly');
 
     // Budget reports
     Route::get('budget-report/performance', [BudgetReportController::class, 'performance'])->name('budget-report.performance');
