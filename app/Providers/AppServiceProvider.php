@@ -28,7 +28,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Asked by the menu and by a banner on several screens in the same
+        // request; one instance means one count.
+        $this->app->scoped(\App\Services\OutOfScopeService::class);
     }
 
     /**

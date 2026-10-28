@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\PrivateFileController;
 use App\Http\Controllers\Admin\SchoolReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StudentDocumentController;
+use App\Http\Controllers\Admin\OutOfScopeController;
 use App\Http\Controllers\Admin\StudentExitController;
 use App\Http\Controllers\Admin\FeeCategoryController;
 use App\Http\Controllers\Admin\FeeDiscountController;
@@ -574,6 +575,10 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:super_admin,admin,staff')->prefix('admin')->name('admin.')->group(function () {
             // Leaving, and the roll of those who have left.
         Route::get('students/archive', [StudentExitController::class, 'index'])->name('students.archive');
+        // Pupils and classes at a level the school no longer runs.
+        Route::get('students/out-of-scope', [OutOfScopeController::class, 'index'])->name('students.out-of-scope');
+        Route::post('students/out-of-scope/exit', [OutOfScopeController::class, 'exitClass'])->name('students.out-of-scope.exit');
+        Route::post('students/out-of-scope/retire', [OutOfScopeController::class, 'retireClasses'])->name('students.out-of-scope.retire');
         Route::get('students/{student}/exit', [StudentExitController::class, 'create'])->name('students.exit');
         Route::post('students/{student}/exit', [StudentExitController::class, 'store'])->name('students.exit.store');
         Route::post('students/{student}/readmit', [StudentExitController::class, 'readmit'])->name('students.readmit');

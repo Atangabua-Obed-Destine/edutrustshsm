@@ -96,6 +96,9 @@
                     <div id="admissions-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.students.*', 'admin.bulk-upload.*', 'admin.subject-add-drop.*', 'admin.group-enrol.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.students.create') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.create') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('New Registration') }}</a>
                         <a href="{{ route('admin.students.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.index') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student List') }}</a>
+                        @if(app(\App\Services\OutOfScopeService::class)->hasAny())
+                        <a href="{{ route('admin.students.out-of-scope') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.out-of-scope') ? 'text-white bg-white/10' : 'text-amber-300 hover:text-white' }}">{{ __('Outside this level') }}</a>
+                        @endif
                         @can('student-exit.view')
                         <a href="{{ route('admin.students.archive') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.archive') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Former Pupils') }}</a>
                         @endcan

@@ -14,6 +14,8 @@
         </a>
     </div>
 
+    <x-out-of-scope-notice />
+
     {{-- Filters --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <form method="GET" action="{{ route('admin.students.index') }}" class="flex flex-col sm:flex-row gap-3">
