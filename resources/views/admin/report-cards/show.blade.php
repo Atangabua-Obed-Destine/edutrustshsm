@@ -140,6 +140,14 @@
             $subjectResults = $termResult->subjectResults->sortBy(fn ($r) => $r->subject->name);
             $seqCount = $sequences->count();
             if ($seqCount === 0) $seqCount = 2; // fallback
+
+            // Every subject weighted the same means the coefficient says
+            // nothing, so the column, its total and the weighted score come
+            // off the card. True of a primary class, where all coefficients
+            // are 1, and of any secondary class that chooses not to weight.
+            // Read from what is being printed rather than from the school
+            // level, so it is right either way.
+            $weighted = $subjectResults->contains(fn ($sr) => (float) $sr->coefficient !== 1.0);
         @endphp
         <table class="marks-table">
             <thead>
@@ -153,8 +161,10 @@
                     <th>{{ __('Seq 1') }}</th>
                     <th>{{ __('Seq 2') }}</th>
                     @endif
+                    @if($weighted)
                     <th>{{ __('Coeff') }}</th>
                     <th>{{ __('Total') }}</th>
+                    @endif
                     <th>{{ __('Average') }}</th>
                     <th>{{ __('Rank') }}</th>
                     <th style="text-align:left; width:80px;">{{ __("Teacher's Name") }}</th>
@@ -189,8 +199,10 @@
                     <td>{{ $sr->sequence_1_score !== null ? number_format($sr->sequence_1_score, 1) : '-' }}</td>
                     <td>{{ $sr->sequence_2_score !== null ? number_format($sr->sequence_2_score, 1) : '-' }}</td>
                     @endif
+                    @if($weighted)
                     <td>{{ number_format($sr->coefficient, 1) }}</td>
                     <td>{{ $sr->weighted_score !== null ? number_format($sr->weighted_score, 2) : '-' }}</td>
+                    @endif
                     <td class="avg-highlight {{ $isFail ? 'fail' : 'pass' }}">
                         {{ $avg !== null ? number_format($avg, 2) : '-' }}
                     </td>
@@ -208,8 +220,10 @@
                 <tr>
                     <td colspan="2" style="text-align:right; font-weight:800;">{{ __('TOTAL') }}</td>
                     <td colspan="{{ $sequences->count() ?: 2 }}"></td>
+                    @if($weighted)
                     <td>{{ number_format($termResult->total_coefficient, 1) }}</td>
                     <td>{{ number_format($termResult->total_weighted_score, 2) }}</td>
+                    @endif
                     <td class="avg-highlight {{ $termResult->term_average < 10 ? 'fail' : 'pass' }}" style="font-size:12px;">
                         {{ number_format($termResult->term_average, 2) }}/20
                     </td>
@@ -236,6 +250,7 @@
                     <span class="stat-label">{{ __('Class Rank') }}</span>
                     <span class="stat-value">{{ $termResult->class_rank }}<span style="color:#94a3b8; font-weight:400;"> / {{ $termResult->total_students }}</span></span>
                 </div>
+                @if($weighted)
                 <div class="stat-row">
                     <span class="stat-label">{{ __('Total Weighted Score') }}</span>
                     <span class="stat-value">{{ number_format($termResult->total_weighted_score, 2) }}</span>
@@ -244,6 +259,12 @@
                     <span class="stat-label">{{ __('Total Coefficient') }}</span>
                     <span class="stat-value">{{ number_format($termResult->total_coefficient, 1) }}</span>
                 </div>
+                @else
+                <div class="stat-row">
+                    <span class="stat-label">{{ __('Subjects') }}</span>
+                    <span class="stat-value">{{ $subjectResults->count() }}</span>
+                </div>
+                @endif
             </div>
 
             <div class="summary-box">

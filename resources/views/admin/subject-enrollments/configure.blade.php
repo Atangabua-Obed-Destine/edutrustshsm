@@ -3,6 +3,14 @@
 @section('title', __('Enroll Subjects') . ' — ' . $form->name)
 @section('breadcrumb', __('Academic > Subject Enrollment') . ' > ' . $form->name)
 
+@php
+    // A nursery or primary pupil does not choose subjects — every one is
+    // compulsory, which is the same reason Subject Add/Drop is kept to
+    // secondary schools. A selector with one possible answer is noise, and
+    // worse, it invites an answer that means nothing.
+    $offersElectives = $form->school_level !== 'nursery_primary';
+@endphp
+
 @section('content')
 <div class="max-w-6xl">
     <!-- Header -->
@@ -70,9 +78,11 @@
             <span class="text-gray-500">
                 {{ __('Core:') }} <strong id="stat-core" class="text-blue-600">0</strong>
             </span>
+            @if($offersElectives)
             <span class="text-gray-500">
                 {{ __('Elective:') }} <strong id="stat-elective" class="text-orange-600">0</strong>
             </span>
+            @endif
             <span class="text-gray-500">
                 {{ __('Total Coeff:') }} <strong id="stat-coeff" class="text-gray-800">0</strong>
             </span>
@@ -90,9 +100,11 @@
             <button onclick="bulkAction('all-core')" class="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition">
                 {{ __('Select All Core') }}
             </button>
-            <button onclick="bulkAction('all-elective')" class="px-3 py-1.5 text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition">
+@if($offersElectives)
+                        <button onclick="bulkAction('all-elective')" class="px-3 py-1.5 text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition">
                 {{ __('Select All Elective') }}
             </button>
+            @endif
             <button onclick="bulkAction('clear')" class="px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition">
                 {{ __('Clear All') }}
             </button>
@@ -155,7 +167,9 @@
                                 disabled
                                 onchange="updateType({{ $subject->id }}, this.value)">
                             <option value="core">{{ __('Core') }}</option>
+                            @if($offersElectives)
                             <option value="elective">{{ __('Elective') }}</option>
+                            @endif
                         </select>
                     </td>
                     <td class="px-4 py-3">
@@ -490,10 +504,18 @@ function updateStats() {
     const elective = entries.filter(e => e.type === 'elective').length;
     const totalCoeff = entries.reduce((sum, e) => sum + e.coefficient, 0);
 
-    document.getElementById('stat-enrolled').textContent = enrolled;
-    document.getElementById('stat-core').textContent = core;
-    document.getElementById('stat-elective').textContent = elective;
-    document.getElementById('stat-coeff').textContent = totalCoeff;
+    // The elective counter is not rendered for a class where every subject
+    // is compulsory, so it is written only if it is there. Without the guard
+    // this throws and takes the rest of the script with it.
+    const write = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
+
+    write('stat-enrolled', enrolled);
+    write('stat-core', core);
+    write('stat-elective', elective);
+    write('stat-coeff', totalCoeff);
 }
 
 // ── Stream Counts (badges on tabs) ──
