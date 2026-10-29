@@ -68,6 +68,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // ── Budget ──
             'Budget' => ['view', 'create', 'edit', 'delete', 'approve', 'revise'],
+            'Budget Line' => ['view', 'edit'],
+            'Budget Sheet' => ['view', 'edit', 'approve', 'export'],
             'Budget Allocation' => ['view', 'create', 'edit', 'delete'],
             'Budget Report' => ['view', 'export'],
 
@@ -193,7 +195,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Income', 'Income Category', 'Expense', 'Expense Category', 'Outcome',
             'Payment Account', 'Fund Transfer', 'Payment Account Report', 'Daybook',
             // Budget
-            'Budget', 'Budget Allocation', 'Budget Report',
+            'Budget', 'Budget Line', 'Budget Sheet', 'Budget Allocation', 'Budget Report',
             // OHADA
             'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'Recurring Entry', 'General Ledger', 'Account Mapping',
             'Accounting Report', 'Fixed Asset',

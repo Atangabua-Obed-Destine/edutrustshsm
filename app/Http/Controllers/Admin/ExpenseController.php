@@ -59,7 +59,9 @@ class ExpenseController extends Controller implements HasMiddleware
         $methods = IncomeController::METHODS;
         $budgets = Budget::where('status', 'active')->orderBy('title')->get();
 
-        return view('admin.account.expense.create', compact('categories', 'accounts', 'methods', 'budgets'));
+        $budgetLines = \App\Models\BudgetLine::active()->postable()->whereIn('section', ['expenditure', 'capital'])->orderBy('code')->get();
+
+        return view('admin.account.expense.create', compact('categories', 'accounts', 'methods', 'budgets', 'budgetLines'));
     }
 
     public function store(Request $request)
@@ -104,7 +106,9 @@ class ExpenseController extends Controller implements HasMiddleware
             ? BudgetAllocation::with('expenseCategory')->where('budget_id', $expense->budget_id)->get()
             : collect();
 
-        return view('admin.account.expense.edit', compact('expense', 'categories', 'accounts', 'methods', 'budgets', 'allocations'));
+        $budgetLines = \App\Models\BudgetLine::active()->postable()->whereIn('section', ['expenditure', 'capital'])->orderBy('code')->get();
+
+        return view('admin.account.expense.edit', compact('expense', 'categories', 'accounts', 'methods', 'budgets', 'allocations', 'budgetLines'));
     }
 
     public function update(Request $request, Expense $expense)
@@ -184,6 +188,7 @@ class ExpenseController extends Controller implements HasMiddleware
             'reference'          => ['nullable', 'string', 'max:191'],
             'payment_method'     => ['nullable', 'string', 'max:191'],
             'payment_account_id' => ['nullable', 'exists:payment_accounts,id'],
+            'budget_line_id'     => ['nullable', 'exists:budget_lines,id'],
             'budget_id'          => ['nullable', 'exists:budgets,id'],
             'budget_allocation_id' => ['nullable', 'exists:budget_allocations,id'],
             'note'               => ['nullable', 'string'],

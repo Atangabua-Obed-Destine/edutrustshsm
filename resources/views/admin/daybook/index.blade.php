@@ -35,6 +35,15 @@
         </p>
     </div>
 
+    @if($book['unanalysed']['count'] > 0)
+        <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center gap-3">
+            <p class="flex-1">{{ trans_choice('{1} :count entry worth :amount has no budget line. It happened and the book has it, but the Income & Expenditure sheet cannot report it.|[2,*] :count entries worth :amount have no budget line. They happened and the book has them, but the Income & Expenditure sheet cannot report them.', $book['unanalysed']['count'], ['count' => $book['unanalysed']['count'], 'amount' => number_format($book['unanalysed']['amount'])]) }}</p>
+            @can('budget-line.edit')
+                <a href="{{ route('admin.budget-line.index') }}" class="font-medium underline underline-offset-2 whitespace-nowrap">{{ __('Point the categories at lines') }}</a>
+            @endcan
+        </div>
+    @endif
+
     {{-- Totals --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-white rounded-xl border border-gray-200 p-4">
@@ -65,6 +74,7 @@
                         <th class="px-4 py-3 text-left">{{ __('Reference') }}</th>
                         <th class="px-4 py-3 text-left">{{ __('Description') }}</th>
                         <th class="px-4 py-3 text-left">{{ __('Heading') }}</th>
+                        <th class="px-4 py-3 text-left" title="{{ __('The budget line this movement belongs to on the Income & Expenditure sheet.') }}">{{ __('Analysis') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('In') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('Out') }}</th>
                         <th class="px-4 py-3 text-right">{{ __('Balance') }}</th>
@@ -92,6 +102,7 @@
                                 <span class="text-xs text-gray-400" title="{{ collect($row['split'])->map(fn ($v, $k) => $k.': '.number_format($v, 0))->join(' · ') }}">({{ count($row['split']) }})</span>
                             @endif
                         </td>
+                        <td class="px-4 py-2 text-xs {{ $row['unanalysed'] > 0 ? 'text-amber-700 font-medium' : 'text-gray-500' }}" title="{{ $row['line']?->displayName() }}">{{ $row['analysis'] }}</td>
                         <td class="px-4 py-2 text-right text-emerald-700">{{ $row['direction'] === 'in' ? number_format($row['amount'], 0) : '' }}</td>
                         <td class="px-4 py-2 text-right text-red-700">{{ $row['direction'] === 'out' ? number_format($row['amount'], 0) : '' }}</td>
                         <td class="px-4 py-2 text-right font-medium {{ $row['balance'] < 0 ? 'text-red-700' : 'text-gray-800' }}">{{ number_format($row['balance'], 0) }}</td>

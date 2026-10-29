@@ -66,6 +66,8 @@ use App\Http\Controllers\Admin\BudgetController;
 use App\Http\Controllers\Admin\DaybookController;
 use App\Http\Controllers\Admin\BudgetAllocationController;
 use App\Http\Controllers\Admin\BudgetDashboardController;
+use App\Http\Controllers\Admin\BudgetLineController;
+use App\Http\Controllers\Admin\BudgetSheetController;
 use App\Http\Controllers\Admin\BudgetReportController;
 use App\Http\Controllers\Admin\ChartOfAccountController;
 use App\Http\Controllers\Admin\FiscalYearController;
@@ -665,10 +667,33 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     // ── Cash Book ──
     Route::get('daybook', [DaybookController::class, 'index'])->name('daybook.index');
     Route::get('daybook/year', [DaybookController::class, 'year'])->name('daybook.year');
+    Route::get('daybook/summary', [DaybookController::class, 'summary'])->name('daybook.summary');
     Route::get('daybook/pdf', [DaybookController::class, 'pdf'])->name('daybook.pdf');
     Route::get('daybook/csv', [DaybookController::class, 'csv'])->name('daybook.csv');
 
     // ── Budgets ──
+    // The rows of the Income & Expenditure sheet, and the sheet itself.
+    Route::get('budget-line', [BudgetLineController::class, 'index'])->name('budget-line.index');
+    Route::post('budget-line/template', [BudgetLineController::class, 'loadTemplate'])->name('budget-line.template');
+    Route::post('budget-line', [BudgetLineController::class, 'store'])->name('budget-line.store');
+    Route::post('budget-line/reorder', [BudgetLineController::class, 'reorder'])->name('budget-line.reorder');
+    Route::post('budget-line/auto-sort', [BudgetLineController::class, 'autoSort'])->name('budget-line.auto-sort');
+    Route::put('budget-line/{line}', [BudgetLineController::class, 'update'])->name('budget-line.update');
+    Route::post('budget-line/{line}/toggle', [BudgetLineController::class, 'toggle'])->name('budget-line.toggle');
+    Route::delete('budget-line/{line}', [BudgetLineController::class, 'destroy'])->name('budget-line.destroy');
+    Route::post('budget-line/{line}/category', [BudgetLineController::class, 'storeCategory'])->name('budget-line.category');
+    Route::post('budget-line/{line}/link', [BudgetLineController::class, 'linkCategory'])->name('budget-line.link');
+
+    Route::get('budget-sheet', [BudgetSheetController::class, 'index'])->name('budget-sheet.index');
+    Route::post('budget-sheet', [BudgetSheetController::class, 'store'])->name('budget-sheet.store');
+    Route::get('budget-sheet/{budget}', [BudgetSheetController::class, 'show'])->name('budget-sheet.show');
+    Route::get('budget-sheet/{budget}/pdf', [BudgetSheetController::class, 'pdf'])->name('budget-sheet.pdf');
+    Route::get('budget-sheet/{budget}/csv', [BudgetSheetController::class, 'csv'])->name('budget-sheet.csv');
+    Route::post('budget-sheet/{budget}/figures', [BudgetSheetController::class, 'saveFigures'])->name('budget-sheet.figures');
+    Route::post('budget-sheet/{budget}/forecast', [BudgetSheetController::class, 'forecast'])->name('budget-sheet.forecast');
+    Route::post('budget-sheet/{budget}/period', [BudgetSheetController::class, 'updatePeriod'])->name('budget-sheet.period');
+    Route::delete('budget-sheet/{budget}', [BudgetSheetController::class, 'destroy'])->name('budget-sheet.destroy');
+
     Route::get('budget-dashboard', [BudgetDashboardController::class, 'index'])->name('budget-dashboard');
     Route::get('budget/{budget}/summary-json', [BudgetDashboardController::class, 'summary'])->name('budget.summary-json');
     Route::get('budget/{budget}/monthly', [BudgetController::class, 'monthly'])->name('budget.monthly');

@@ -28,7 +28,7 @@ class DaybookController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
-            static::can('daybook.view', ['year']),
+            static::can('daybook.view', ['year', 'summary']),
             static::can('daybook.export', ['pdf', 'csv']),
         ];
     }
@@ -48,6 +48,32 @@ class DaybookController extends Controller implements HasMiddleware
             'year' => $year,
             'analysis' => $this->daybook->year($year['start'], $year['end']),
             'currency' => SchoolSetting::current()?->currency ?? 'FCFA',
+        ]);
+    }
+
+    /** The month against the Income & Expenditure sheet: Budget · Monthly · B/F · Cumulative · Balance. */
+    public function summary(Request $request)
+    {
+        $sheets = \App\Models\Budget::where('is_institutional', true)->orderByDesc('start_date')->get();
+        $month = $this->monthFrom($request);
+
+        $budget = $request->integer('budget')
+            ? $sheets->firstWhere('id', $request->integer('budget'))
+            : ($sheets->first(fn ($s) => $s->start_date->lte($month->copy()->endOfMonth()) && $s->end_date->gte($month)) ?? $sheets->first());
+
+        if ($budget && ! $request->has('month')) {
+            $month = now()->between($budget->start_date, $budget->end_date) ? now()->startOfMonth() : $budget->start_date->copy()->startOfMonth();
+        }
+        if ($budget) {
+            $month = $month->max($budget->start_date->copy()->startOfMonth())->min($budget->end_date->copy()->startOfMonth());
+        }
+
+        return view('admin.daybook.summary', [
+            'sheets' => $sheets,
+            'budget' => $budget,
+            'month' => $month,
+            'months' => $budget ? $this->daybook->monthsFor($budget) : [],
+            'summary' => $budget ? $this->daybook->monthlySummary($budget, $month) : null,
         ]);
     }
 

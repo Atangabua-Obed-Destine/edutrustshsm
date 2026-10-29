@@ -278,6 +278,7 @@
                 <div id="accounts-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.account.*', 'admin.daybook.*') ? 'open' : '' }}">
                     @can('daybook.view')
                     <a href="{{ route('admin.daybook.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.daybook.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Cash Book') }}</a>
+                    <a href="{{ route('admin.daybook.summary') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.daybook.summary') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Monthly Summary') }}</a>
                     @endcan
                     <a href="{{ route('admin.account.income.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.account.income.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Income List') }}</a>
                     <a href="{{ route('admin.account.income-category.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.account.income-category.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Income Categories') }}</a>
@@ -317,6 +318,12 @@
                     <div id="budgets-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.budget*') ? 'open' : '' }}">
                         <a href="{{ route('admin.budget-dashboard') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.budget-dashboard') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Dashboard') }}</a>
                         <a href="{{ route('admin.budget.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.budget.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Budgets') }}</a>
+                        @can('budget-sheet.view')
+                        <a href="{{ route('admin.budget-sheet.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.budget-sheet.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Income & Expenditure') }}</a>
+                        @endcan
+                        @can('budget-line.view')
+                        <a href="{{ route('admin.budget-line.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.budget-line.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Budget Lines') }}</a>
+                        @endcan
                         <a href="{{ route('admin.budget-report.performance') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.budget-report.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Reports') }}</a>
                     </div>
                 </div>

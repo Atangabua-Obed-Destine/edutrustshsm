@@ -64,6 +64,16 @@
             @endif
             @error('attach') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Budget line') }}</label>
+            <select name="budget_line_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="">{{ __('From the category') }}</option>
+                @foreach($budgetLines ?? [] as $bl)
+                    <option value="{{ $bl->id }}" {{ (string) old('budget_line_id', $expense?->budget_line_id) === (string) $bl->id ? 'selected' : '' }}>{{ $bl->code }} — {{ $bl->displayName() }}</option>
+                @endforeach
+            </select>
+            <p class="text-xs text-gray-400 mt-1">{{ __('Where this lands on the Income & Expenditure sheet. Leave it on the category unless this one transaction belongs elsewhere.') }}</p>
+        </div>
         @isset($budgets)
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Budget') }}</label>

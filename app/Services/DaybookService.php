@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\AcademicSession;
+use App\Models\Budget;
+use App\Models\BudgetAllocation;
+use App\Models\BudgetLine;
 use App\Models\Payroll;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -58,6 +61,227 @@ class DaybookService
             ->values();
     }
 
+    /* ------------------------------------------------------------ the sheet */
+
+    /**
+     * One month of the book summarised the way the bursar's workbook does it:
+     * Budget · Monthly · B/F · Cumulative · Balance, line by line of the
+     * Income & Expenditure sheet.
+     *
+     * B/F is the cumulative to the end of the previous month within the same
+     * sheet, so the first month of a sheet opens at zero rather than
+     * inheriting last year's total. Balance is what is left of the budget:
+     * headroom on expenditure, the shortfall still to collect on income.
+     *
+     * Figures come from BudgetActualsService — the one place that decides
+     * where money lands on a line — so this agrees with the sheet by
+     * construction.
+     *
+     * @return array{
+     *   lines: array<int, array{line: BudgetLine, budget: float, monthly: float, brought: float, cumulative: float, balance: float}>,
+     *   totals: array<string, array<string, float>>, group_ends: array<int, BudgetLine>,
+     *   profit_centres: array<string, array{income: float, expenditure: float, margin: float}>, unallocated: float
+     * }
+     */
+    public function monthlySummary(Budget $budget, Carbon $month): array
+    {
+        $actuals = app(BudgetActualsService::class);
+        $sheetStart = $budget->start_date->copy()->startOfDay();
+        $sheetEnd = $budget->end_date->copy()->endOfDay();
+
+        $from = $month->copy()->startOfMonth()->max($sheetStart);
+        $to = $month->copy()->endOfMonth()->min($sheetEnd);
+
+        $monthResult = $actuals->forPeriod($from->toDateString(), $to->toDateString());
+        $monthly = $monthResult['lines'];
+
+        $priorEnd = $from->copy()->subDay();
+        $brought = $priorEnd->gte($sheetStart)
+            ? $actuals->forPeriod($sheetStart->toDateString(), $priorEnd->toDateString())['lines']
+            : [];
+
+        $budgeted = BudgetAllocation::where('budget_id', $budget->id)->whereNotNull('budget_line_id')
+            ->pluck('allocated_amount', 'budget_line_id')->map(fn ($v) => (float) $v)->all();
+
+        $sheetLines = BudgetLine::sheet();
+        $monthly = BudgetLine::rollUp($sheetLines, $monthly);
+        $brought = BudgetLine::rollUp($sheetLines, $brought);
+        $budgeted = BudgetLine::rollUp($sheetLines, $budgeted);
+
+        $lines = [];
+        $totals = [];
+        foreach (BudgetLine::SECTIONS as $section) {
+            $totals[$section] = ['budget' => 0.0, 'monthly' => 0.0, 'brought' => 0.0, 'cumulative' => 0.0];
+        }
+
+        foreach ($sheetLines as $line) {
+            $m = (float) ($monthly[$line->id] ?? 0);
+            $b = (float) ($brought[$line->id] ?? 0);
+            $plan = (float) ($budgeted[$line->id] ?? 0);
+
+            $lines[$line->id] = [
+                'line' => $line,
+                'budget' => $plan,
+                'monthly' => $m,
+                'brought' => $b,
+                'cumulative' => $m + $b,
+                'balance' => $plan - ($m + $b),
+            ];
+
+            // A heading already contains its lines; adding it to the section
+            // total would count that money twice.
+            if (! $line->is_header) {
+                $totals[$line->section]['budget'] += $plan;
+                $totals[$line->section]['monthly'] += $m;
+                $totals[$line->section]['brought'] += $b;
+                $totals[$line->section]['cumulative'] += $m + $b;
+            }
+        }
+
+        return [
+            'lines' => $lines,
+            'totals' => $totals,
+            'group_ends' => BudgetLine::groupEnds($sheetLines),
+            'profit_centres' => $this->profitCentres($lines),
+            'unallocated' => array_sum($monthResult['unallocated']),
+        ];
+    }
+
+    /**
+     * Trading activities, paired: lines sharing a profit-centre name, income
+     * against expenditure, so the margin per activity is visible. Nothing
+     * here is added to any total.
+     *
+     * @param  array<int, array>  $summaryLines
+     * @return array<string, array{income: float, expenditure: float, margin: float}>
+     */
+    public function profitCentres(array $summaryLines): array
+    {
+        $centres = [];
+        foreach ($summaryLines as $row) {
+            $line = $row['line'];
+            $name = trim((string) $line->profit_centre);
+            if ($line->is_header || $name === '') {
+                continue;
+            }
+            $centres[$name] ??= ['income' => 0.0, 'expenditure' => 0.0, 'margin' => 0.0];
+            $side = $line->section === BudgetLine::SECTION_INCOME ? 'income' : 'expenditure';
+            $centres[$name][$side] += $row['cumulative'];
+        }
+        foreach ($centres as $name => $c) {
+            $centres[$name]['margin'] = $c['income'] - $c['expenditure'];
+        }
+        ksort($centres);
+
+        return $centres;
+    }
+
+    /**
+     * The months a sheet spans, in order.
+     *
+     * @return array<int, Carbon>
+     */
+    public function monthsFor(Budget $budget): array
+    {
+        $months = [];
+        foreach (CarbonPeriod::create($budget->start_date->copy()->startOfMonth(), '1 month', $budget->end_date) as $start) {
+            $months[] = $start->copy();
+        }
+
+        return $months;
+    }
+
+    /**
+     * Which line each row of the book belongs to — the analysis column.
+     *
+     * The same rules as BudgetActualsService: a line named on the row wins,
+     * then the category's mapping; tuition goes by the pupil's level; paid
+     * salaries go to the payroll line. A row with no line is money the sheet
+     * cannot report, and is marked rather than dropped.
+     *
+     * @param  Collection<int, array>  $rows
+     * @return Collection<int, array>  the same rows with 'lines' (line id|'' => amount) and 'line' (?BudgetLine, or null when mixed/none)
+     */
+    public function analyse(Collection $rows): Collection
+    {
+        $lines = BudgetLine::query()->get()->keyBy('id');
+        $mappings = DB::table('default_account_mappings')->whereNotNull('budget_line_id')
+            ->get(['mapping_type', 'category_id', 'budget_line_id'])
+            ->keyBy(fn ($m) => $m->mapping_type.':'.$m->category_id);
+        $levelLines = $lines->where('status', true)->where('is_header', false)->whereNotNull('school_level')->pluck('id', 'school_level');
+        $payrollLine = $lines->where('status', true)->where('is_header', false)->where('is_payroll', true)->first()?->id;
+
+        $ids = fn (string $source) => $rows->where('source', $source)->pluck('source_id')->all();
+
+        $own = [
+            'income' => DB::table('incomes')->whereIn('id', $ids('income'))->pluck('budget_line_id', 'id'),
+            'expense' => DB::table('expenses')->whereIn('id', $ids('expense'))->pluck('budget_line_id', 'id'),
+        ];
+        $categoryOf = [
+            'income' => DB::table('incomes')->whereIn('id', $ids('income'))->pluck('category_id', 'id'),
+            'expense' => DB::table('expenses')->whereIn('id', $ids('expense'))->pluck('category_id', 'id'),
+        ];
+
+        $feeSplits = DB::table('payment_allocations as a')
+            ->join('student_fees as f', 'f.id', '=', 'a.student_fee_id')
+            ->join('fee_categories as c', 'c.id', '=', 'f.fee_category_id')
+            ->leftJoin('student_enrollments as se', 'se.id', '=', 'f.student_enrollment_id')
+            ->leftJoin('class_sections as cs', 'cs.id', '=', 'se.class_section_id')
+            ->leftJoin('forms as fm', 'fm.id', '=', 'cs.form_id')
+            ->whereIn('a.payment_id', $ids('payment'))
+            ->selectRaw('a.payment_id, c.id as category_id, c.is_tuition, fm.level, SUM(a.amount) as amount')
+            ->groupBy('a.payment_id', 'c.id', 'c.is_tuition', 'fm.level')
+            ->get()
+            ->groupBy('payment_id');
+
+        return $rows->map(function (array $row) use ($lines, $mappings, $levelLines, $payrollLine, $own, $categoryOf, $feeSplits) {
+            $byLine = [];
+            $add = function (?int $lineId, float $amount) use (&$byLine) {
+                $key = $lineId ?: '';
+                $byLine[$key] = ($byLine[$key] ?? 0) + $amount;
+            };
+
+            switch ($row['source']) {
+                case 'income':
+                case 'expense':
+                    $lineId = $own[$row['source']][$row['source_id']] ?? null;
+                    if (! $lineId) {
+                        $category = $categoryOf[$row['source']][$row['source_id']] ?? null;
+                        $lineId = $mappings[$row['source'].':'.$category]->budget_line_id ?? null;
+                    }
+                    $add($lineId ? (int) $lineId : null, $row['amount']);
+                    break;
+                case 'payroll':
+                    $add($payrollLine ? (int) $payrollLine : null, $row['amount']);
+                    break;
+                case 'payment':
+                    $placed = 0.0;
+                    foreach ($feeSplits->get($row['source_id'], collect()) as $split) {
+                        $lineId = null;
+                        if ($split->is_tuition && $split->level && isset($levelLines[$split->level])) {
+                            $lineId = (int) $levelLines[$split->level];
+                        } elseif (isset($mappings['fee_payment:'.$split->category_id])) {
+                            $lineId = (int) $mappings['fee_payment:'.$split->category_id]->budget_line_id;
+                        }
+                        $add($lineId, (float) $split->amount);
+                        $placed += (float) $split->amount;
+                    }
+                    if ($placed + 0.009 < $row['amount']) {
+                        $add(null, $row['amount'] - $placed);
+                    }
+                    break;
+            }
+
+            $keys = array_keys($byLine);
+            $row['lines'] = $byLine;
+            $row['line'] = count($keys) === 1 && $keys[0] !== '' ? $lines->get((int) $keys[0]) : null;
+            $row['analysis'] = collect($byLine)->map(fn ($amount, $key) => ($key === '' ? __('none') : ($lines->get((int) $key)?->code ?? $key)))->join(' + ');
+            $row['unanalysed'] = (float) ($byLine[''] ?? 0);
+
+            return $row;
+        });
+    }
+
     /**
      * The book for one month: rows with a running balance, and the totals.
      *
@@ -79,7 +303,7 @@ class DaybookService
             ? $this->net($yearStart->toDateString(), $from->copy()->subDay()->toDateString())
             : 0.0;
 
-        $rows = $this->rows($from->toDateString(), $to->toDateString());
+        $rows = $this->analyse($this->rows($from->toDateString(), $to->toDateString()));
 
         $balance = $broughtForward;
         $in = 0.0;
@@ -114,6 +338,7 @@ class DaybookService
             'total_out' => $out,
             'closing' => $balance,
             'headings' => $headings,
+            'unanalysed' => ['count' => $rows->where('unanalysed', '>', 0)->count(), 'amount' => $rows->sum('unanalysed')],
         ];
     }
 

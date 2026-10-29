@@ -143,6 +143,12 @@ class BudgetController extends Controller implements HasMiddleware
 
     public function show(Budget $budget, BudgetSummaryService $summary)
     {
+        // An institutional sheet has its own screen; the budget record is
+        // still reachable from it for revisions and the approval trail.
+        if ($budget->is_institutional && ! request()->boolean('record')) {
+            return redirect()->route('admin.budget-sheet.show', $budget);
+        }
+
         $budget->load(['department', 'allocations.expenseCategory', 'allocations.department', 'revisions.requestedBy', 'createdBy', 'approvedBy']);
         $expenses = $budget->expenses()->with('category')->orderByDesc('date')->limit(50)->get();
         $pacing = $budget->status === 'active' ? $summary->pacing($budget) : null;

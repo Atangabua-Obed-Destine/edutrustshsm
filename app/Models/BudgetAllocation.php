@@ -12,7 +12,7 @@ class BudgetAllocation extends Model
 
     protected $fillable = [
         'branch_id',
-        'budget_id', 'expense_category_id', 'department_id', 'title',
+        'budget_id', 'expense_category_id', 'budget_line_id', 'department_id', 'title',
         'allocated_amount', 'spent_amount', 'remaining_amount', 'period',
         'description', 'is_active', 'created_by', 'updated_by',
     ];
@@ -78,5 +78,10 @@ class BudgetAllocation extends Model
     {
         $u = $this->utilization_percentage;
         return $u > 100 ? 'red' : ($u > 90 ? 'amber' : ($u > 75 ? 'yellow' : 'green'));
+    }
+
+    public function budgetLine()
+    {
+        return $this->belongsTo(BudgetLine::class);
     }
 }

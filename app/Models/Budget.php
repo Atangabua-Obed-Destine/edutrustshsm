@@ -12,7 +12,7 @@ class Budget extends Model
 
     protected $fillable = [
         'branch_id',
-        'title', 'budget_code', 'type', 'department_id', 'fiscal_year',
+        'title', 'budget_code', 'type', 'is_institutional', 'opening_balance', 'department_id', 'fiscal_year',
         'start_date', 'end_date', 'total_amount', 'allocated_amount',
         'spent_amount', 'remaining_amount', 'status', 'description', 'note',
         'created_by', 'updated_by', 'approved_by', 'approved_at',
@@ -28,6 +28,8 @@ class Budget extends Model
             'spent_amount' => 'decimal:2',
             'remaining_amount' => 'decimal:2',
             'approved_at' => 'datetime',
+            'is_institutional' => 'boolean',
+            'opening_balance' => 'decimal:2',
         ];
     }
 
