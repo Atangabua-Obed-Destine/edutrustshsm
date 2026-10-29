@@ -42,6 +42,7 @@
                         @endforeach
                     </select>
                 </div>
+                @if(\App\Support\LevelContext::usesStreams())
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Stream') }}</label>
                     <select name="stream_id" id="indexStreamSelect"
@@ -52,6 +53,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
                 <div>
                     <button type="submit"
                             style="display: inline-flex; align-items: center; gap: 8px; padding: 9px 20px; background: #0ea5e9; color: #fff; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .15s;"
@@ -206,12 +208,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const streamSelect = document.getElementById('indexStreamSelect');
 
     formSelect.addEventListener('change', async function() {
-        streamSelect.innerHTML = '<option value="">-- {{ __("All Streams") }} --</option>';
+        if (streamSelect) streamSelect.innerHTML = '<option value="">-- {{ __("All Streams") }} --</option>';
         if (!this.value) return;
         try {
             const res = await fetch(`${baseUrl}/streams-by-form/${this.value}`);
             const streams = await res.json();
-            streams.forEach(s => {
+            if (streamSelect) streams.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
                 opt.textContent = s.name;

@@ -15,6 +15,7 @@
         @endif
     </div>
 
+    <x-setup-notice />
     <x-out-of-scope-notice />
 
     <!-- Stats Grid -->

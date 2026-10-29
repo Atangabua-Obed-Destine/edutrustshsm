@@ -49,6 +49,7 @@
                 </div>
 
                 {{-- Stream --}}
+                @if(\App\Support\LevelContext::usesStreams())
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Stream') }}</label>
                     <select name="stream_id" id="streamSelect"
@@ -59,6 +60,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 16px; align-items: end;">
@@ -584,7 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cascading: Form → Stream + Sections
     formSelect.addEventListener('change', async function() {
-        streamSelect.innerHTML = '<option value="">-- {{ __("All Streams") }} --</option>';
+        if (streamSelect) streamSelect.innerHTML = '<option value="">-- {{ __("All Streams") }} --</option>';
         sectionSelect.innerHTML = '<option value="">-- {{ __("All Sections") }} --</option>';
         if (!this.value) return;
 
@@ -596,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const streams = await streamRes.json();
             const sections = await sectionRes.json();
 
-            streams.forEach(s => {
+            if (streamSelect) streams.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
                 opt.textContent = s.name;

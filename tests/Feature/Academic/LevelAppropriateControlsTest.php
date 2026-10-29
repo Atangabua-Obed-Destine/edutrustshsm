@@ -194,6 +194,26 @@ class LevelAppropriateControlsTest extends TestCase
             ->assertDontSee(__('Elective:'));
     }
 
+    // ------------------------------------------------------------ streams
+
+    public function test_fee_screens_do_not_ask_for_a_stream_at_primary(): void
+    {
+        $this->form('Primary 3', 'nursery_primary', 'primary');
+        \App\Support\LevelContext::set('nursery_primary');
+
+        foreach (['admin.fee-structures.index', 'admin.fee-structures.create', 'admin.collect-fees.index', 'admin.assignment-history.index'] as $route) {
+            $this->get(route($route))->assertSuccessful()->assertDontSee('name="stream_id"', false);
+        }
+    }
+
+    public function test_fee_screens_still_ask_where_a_class_has_streams(): void
+    {
+        $this->form('Lower Sixth', 'secondary', 'high_school')->update(['has_streams' => true]);
+        \App\Support\LevelContext::set('secondary');
+
+        $this->get(route('admin.fee-structures.index'))->assertSuccessful()->assertSee('name="stream_id"', false);
+    }
+
     public function test_a_secondary_curriculum_still_does(): void
     {
         $secondary = $this->form('Form 1', 'secondary', 'first_cycle');

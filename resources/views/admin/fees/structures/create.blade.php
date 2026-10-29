@@ -59,6 +59,7 @@
                     </select>
                 </div>
 
+                @if(\App\Support\LevelContext::usesStreams())
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Stream') }}</label>
                     <select id="streamSelect" name="stream_id"
@@ -66,6 +67,7 @@
                         <option value="">-- {{ __('All Streams') }} --</option>
                     </select>
                 </div>
+                @endif
 
                 <div>
                     <button type="button" id="loadCategoriesBtn"
@@ -177,12 +179,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===== Cascading: Form → Stream =====
     formSelect.addEventListener('change', async function() {
-        streamSelect.innerHTML = '<option value="">-- {{ __("All Streams") }} --</option>';
+        if (streamSelect) streamSelect.innerHTML = '<option value="">-- {{ __("All Streams") }} --</option>';
         if (!this.value) return;
         try {
             const res = await fetch(`${baseUrl}/streams-by-form/${this.value}`);
             const streams = await res.json();
-            streams.forEach(s => {
+            if (streamSelect) streams.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
                 opt.textContent = s.name;
@@ -208,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Fetch categories and existing data in parallel
             const [catRes, existRes] = await Promise.all([
                 fetch(`${baseUrl}/load-categories`),
-                fetch(`${baseUrl}/load-existing?form_id=${formSelect.value}&stream_id=${streamSelect.value || ''}`)
+                fetch(`${baseUrl}/load-existing?form_id=${formSelect.value}&stream_id=${streamSelect ? streamSelect.value : ''}`)
             ]);
 
             categoriesData = await catRes.json();

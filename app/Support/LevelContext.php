@@ -114,6 +114,20 @@ class LevelContext
     }
 
     /**
+     * Whether any active class at the level the admin is working in is split
+     * into streams (Science / Arts / ...). A nursery or primary school never
+     * is, so its fee screens should not ask which stream.
+     */
+    public static function usesStreams(): bool
+    {
+        return Form::query()
+            ->where('school_level', self::current())
+            ->where('is_active', true)
+            ->where('has_streams', true)
+            ->exists();
+    }
+
+    /**
      * The label for the currently-active school level.
      */
     public static function currentLabel(): string
