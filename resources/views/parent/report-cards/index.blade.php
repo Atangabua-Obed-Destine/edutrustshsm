@@ -21,6 +21,7 @@
             @php
                 $avg = (float) $r->term_average;
                 $avgColor = $avg >= 10 ? '#16a34a' : '#dc2626';
+                $nursery = \App\Services\NurseryAssessmentService::isNursery($r->enrollment->classSection?->form);
             @endphp
             <a href="{{ route('parent.report-cards.show', [$studentModel->id, $r->id]) }}" class="pp-card" style="display:block; padding:20px; transition:transform 0.15s, box-shadow 0.15s;"
                onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.1)'"
@@ -31,12 +32,20 @@
                         <div style="font-size:0.76rem; color:#64748b; margin-top:2px;">{{ $r->enrollment->academicSession->name ?? '' }}</div>
                         <div style="font-size:0.74rem; color:#94a3b8; margin-top:2px;">{{ $r->enrollment->classSection->name ?? $r->enrollment->classSection->form->name ?? '' }}</div>
                     </div>
+                    @unless($nursery)
                     <div style="text-align:center;">
                         <div style="font-size:1.4rem; font-weight:800; color:{{ $avgColor }}; line-height:1;">{{ number_format($avg, 2) }}</div>
                         <div style="font-size:0.62rem; color:#94a3b8; text-transform:uppercase; margin-top:2px;">{{ __('Average') }}</div>
                     </div>
+                    @endunless
                 </div>
                 <div style="display:flex; gap:14px; padding-top:12px; border-top:1px solid #f1f5f9;">
+                    @if($nursery)
+                    <div>
+                        <div style="font-size:0.68rem; color:#94a3b8; text-transform:uppercase;">{{ __('Report') }}</div>
+                        <div style="font-size:0.86rem; font-weight:700; color:#1e293b;">{{ __('Competences') }}</div>
+                    </div>
+                    @else
                     <div>
                         <div style="font-size:0.68rem; color:#94a3b8; text-transform:uppercase;">{{ __('Rank') }}</div>
                         <div style="font-size:0.86rem; font-weight:700; color:#1e293b;">{{ $r->class_rank ?? '—' }}<span style="font-size:0.7rem; color:#94a3b8;">/{{ $r->total_students ?? '—' }}</span></div>
@@ -45,6 +54,7 @@
                         <div style="font-size:0.68rem; color:#94a3b8; text-transform:uppercase;">{{ __('Grade') }}</div>
                         <div style="font-size:0.86rem; font-weight:700; color:#1e293b;">{{ $r->overall_grade ?? '—' }}</div>
                     </div>
+                    @endif
                     <div style="margin-left:auto; align-self:flex-end;">
                         <span style="font-size:0.74rem; color:#14b8a6; font-weight:600;">{{ __('Open') }} →</span>
                     </div>

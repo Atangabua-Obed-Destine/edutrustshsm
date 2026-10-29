@@ -44,7 +44,9 @@ class MarksController extends Controller implements HasMiddleware
     public function index(Request $request)
     {
         $sessions = AcademicSession::orderByDesc('start_date')->get();
-        $forms = Form::active()->forCurrentLevel()->ordered()->get();
+        // A nursery class has no marks to enter; it is assessed by competence.
+        $forms = Form::active()->forCurrentLevel()->where('level', '!=', 'nursery')->ordered()->get();
+        $nurseryClasses = Form::active()->forCurrentLevel()->where('level', 'nursery')->count();
 
         $sessionId = $request->input('academic_session_id');
         $educationSystem = $request->input('education_system', 'english');
@@ -171,7 +173,7 @@ class MarksController extends Controller implements HasMiddleware
             'enrollments', 'existingMarks', 'submission', 'gradeScales',
             'classSection', 'subject', 'sequence', 'filtered', 'coefficient',
             'recentSubmissions'
-        ));
+        , 'nurseryClasses'));
     }
 
     /**

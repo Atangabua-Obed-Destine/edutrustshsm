@@ -11,6 +11,13 @@
         <p class="mt-1 text-sm text-gray-500">{{ __('Select class, subject & sequence, then enter student marks') }}</p>
     </div>
 
+    @if(($nurseryClasses ?? 0) > 0)
+    <div class="bg-sky-50 border border-sky-200 rounded-lg px-4 py-3 text-sm text-sky-900 flex flex-col sm:flex-row sm:items-center gap-3">
+        <p class="flex-1">{{ trans_choice('{1} The nursery class is not listed here: nursery children are assessed by competence, not marked.|[2,*] The :count nursery classes are not listed here: nursery children are assessed by competence, not marked.', $nurseryClasses, ['count' => $nurseryClasses]) }}</p>
+        <a href="{{ route('admin.nursery.index') }}" class="font-medium underline underline-offset-2 whitespace-nowrap">{{ __('Nursery Assessment') }}</a>
+    </div>
+    @endif
+
     {{-- Alerts --}}
     @if(session('success'))
     <div class="bg-green-50 border border-green-200 rounded-lg p-4">

@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\FeeStructureController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\RecurringEntryController;
 use App\Http\Controllers\Admin\MarksController;
+use App\Http\Controllers\Admin\NurseryAssessmentController;
+use App\Http\Controllers\Admin\NurseryCompetenceController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\TimetableController;
@@ -327,6 +329,23 @@ Route::middleware('auth')->group(function () {
         Route::post('marks/{submission}/submit', [MarksController::class, 'submit'])->name('marks.submit');
         Route::post('marks/{submission}/approve', [MarksController::class, 'approve'])->name('marks.approve');
         Route::post('marks/{submission}/return', [MarksController::class, 'returnMarks'])->name('marks.return');
+
+        // Nursery classes are assessed by competence, not marked. Only a
+        // school that runs nursery/primary has these screens at all.
+        Route::middleware('school-level:nursery_primary')->group(function () {
+            Route::get('nursery-assessment', [NurseryAssessmentController::class, 'index'])->name('nursery.index');
+            Route::get('nursery-assessment/{enrollment}/{term}', [NurseryAssessmentController::class, 'edit'])->name('nursery.edit');
+            Route::post('nursery-assessment/{enrollment}/{term}', [NurseryAssessmentController::class, 'update'])->name('nursery.update');
+
+            Route::get('nursery-competences', [NurseryCompetenceController::class, 'index'])->name('nursery.competences.index');
+            Route::post('nursery-competences/seed', [NurseryCompetenceController::class, 'seed'])->name('nursery.competences.seed');
+            Route::post('nursery-competences/areas', [NurseryCompetenceController::class, 'storeArea'])->name('nursery.competences.areas.store');
+            Route::put('nursery-competences/areas/{area}', [NurseryCompetenceController::class, 'updateArea'])->name('nursery.competences.areas.update');
+            Route::delete('nursery-competences/areas/{area}', [NurseryCompetenceController::class, 'destroyArea'])->name('nursery.competences.areas.destroy');
+            Route::post('nursery-competences/areas/{area}/competences', [NurseryCompetenceController::class, 'storeCompetence'])->name('nursery.competences.store');
+            Route::put('nursery-competences/{competence}', [NurseryCompetenceController::class, 'updateCompetence'])->name('nursery.competences.update');
+            Route::delete('nursery-competences/{competence}', [NurseryCompetenceController::class, 'destroyCompetence'])->name('nursery.competences.destroy');
+        });
 
         // Exam Publishing
         Route::get('exam-publishing', [ExamPublishingController::class, 'index'])->name('exam-publishing.index');
