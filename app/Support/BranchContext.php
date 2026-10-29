@@ -34,7 +34,7 @@ class BranchContext
      */
     public static function isActive(): bool
     {
-        return auth()->check() || auth('guardians')->check();
+        return auth('web')->check() || auth('guardians')->check();
     }
 
     /**
@@ -52,13 +52,14 @@ class BranchContext
     private static function resolveAccessibleIds(): array
     {
         // Parent/guardian portal: a guardian is pinned to their own branch only.
-        if (auth('guardians')->check()) {
+        // Staff context wins when both sessions are held in one browser.
+        if (auth('guardians')->check() && ! auth('web')->check()) {
             $branchId = auth('guardians')->user()->branch_id;
 
             return $branchId ? [(int) $branchId] : [];
         }
 
-        $user = auth()->user();
+        $user = auth('web')->user();
         if (! $user) {
             return [];
         }
@@ -98,7 +99,9 @@ class BranchContext
 
         // Parent/guardian portal: pinned to their single branch (Guardian has no
         // branches() pivot relation, so never fall through to the User-only logic).
-        if (auth('guardians')->check()) {
+        // A staff member who is also a parent may hold both sessions in one
+        // browser; the staff context wins, or their admin screens go empty.
+        if (auth('guardians')->check() && ! auth('web')->check()) {
             return (int) $accessible[0];
         }
 
@@ -108,7 +111,7 @@ class BranchContext
         }
 
         // Prefer the user's default branch, else the first accessible one.
-        $default = auth()->user()?->branches()
+        $default = auth('web')->user()?->branches()
             ->wherePivot('is_default', true)
             ->whereIn('branches.id', $accessible)
             ->value('branches.id');

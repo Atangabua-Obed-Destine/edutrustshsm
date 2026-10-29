@@ -311,11 +311,22 @@ class MarksController extends Controller implements HasMiddleware
                 );
             }
 
-            // Update submission stats
-            $submission = MarksSubmission::where('class_section_id', $validated['class_section_id'])
-                ->where('subject_id', $validated['subject_id'])
-                ->where('sequence_id', $validated['sequence_id'])
-                ->first();
+            // The submission tracker is what gets submitted and approved. It
+            // used to exist only if the grid page had been opened first, so
+            // marks saved any other way could never reach a report card.
+            $submission = MarksSubmission::firstOrCreate(
+                [
+                    'class_section_id' => $validated['class_section_id'],
+                    'subject_id' => $validated['subject_id'],
+                    'sequence_id' => $validated['sequence_id'],
+                ],
+                [
+                    'teacher_id' => auth()->id(),
+                    'status' => 'draft',
+                    'total_students' => StudentEnrollment::where('class_section_id', $validated['class_section_id'])->where('status', 'active')->count(),
+                    'marks_entered' => 0,
+                ]
+            );
 
             if ($submission) {
                 $passmark = (float) (SchoolSetting::current()?->pass_mark ?? 10);

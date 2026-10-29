@@ -68,6 +68,14 @@ class SubjectController extends Controller implements HasMiddleware
 
     public function destroy(Subject $subject)
     {
+        // Marks and results cascade off a subject.
+        $inUse = \Illuminate\Support\Facades\DB::table('marks')->where('subject_id', $subject->id)->exists()
+            || \Illuminate\Support\Facades\DB::table('student_subjects')->where('subject_id', $subject->id)->exists();
+
+        if ($inUse) {
+            return back()->with('error', __('Pupils have been registered or marked in this subject, so it cannot be deleted. Deactivate it instead.'));
+        }
+
         $subject->delete();
 
         return redirect()->route('admin.subjects.index')

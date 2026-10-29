@@ -93,6 +93,8 @@ class ParentContext
     {
         $guardian = self::guardian();
 
+        abort_if($guardian && ! $guardian->portal_access, 403, __('Portal access for this account has been withdrawn.'));
+
         $student = $guardian
             ? $guardian->portalStudents()->where('students.id', $studentId)->first()
             : null;

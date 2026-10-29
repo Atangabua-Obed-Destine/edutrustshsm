@@ -426,10 +426,19 @@ class StudentController extends Controller implements HasMiddleware
                     // stream_id column, so this used to write null and silently wipe
                     // the student's stream (breaking subject sync and fee resolution).
                     // The edit form has no stream field, so preserve what's there.
+                    $moved = (int) $enrollment->class_section_id !== (int) $validated['class_section_id'];
                     $enrollment->update([
                         'class_section_id' => $validated['class_section_id'],
                         'residence_type' => $validated['residence_type'] ?? $enrollment->residence_type,
                     ]);
+                    // A pupil moved to another class takes that class's
+                    // subjects and is billed anything its structure adds.
+                    // Fees already billed are left as they are.
+                    if ($moved) {
+                        $enrollment->unsetRelation('classSection');
+                        $enrollment->syncCoreSubjects();
+                        $enrollment->syncFees();
+                    }
                 }
             }
         });

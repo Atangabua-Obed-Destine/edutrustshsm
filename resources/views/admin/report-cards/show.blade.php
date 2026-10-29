@@ -225,7 +225,7 @@
                     <td>{{ number_format($termResult->total_weighted_score, 2) }}</td>
                     @endif
                     <td class="avg-highlight {{ $termResult->term_average < 10 ? 'fail' : 'pass' }}" style="font-size:12px;">
-                        {{ number_format($termResult->term_average, 2) }}/20
+                        {{ number_format($termResult->term_average, 2) }}/{{ number_format((float) ($school->max_mark ?? 20), 0) }}
                     </td>
                     <td></td>
                     <td></td>
@@ -293,9 +293,14 @@
         </div>
 
         {{-- Decision --}}
-        @php $passed = $termResult->term_average >= 10; @endphp
+        @php
+            $passMark = (float) ($school->pass_mark ?? 10);
+            $maxMark = (float) ($school->max_mark ?? 20);
+            $passed = (float) $termResult->term_average >= $passMark;
+            $markLabel = number_format($passMark, $passMark == floor($passMark) ? 0 : 1).'/'.number_format($maxMark, 0);
+        @endphp
         <div class="decision-bar {{ $passed ? 'decision-pass' : 'decision-fail' }}">
-            {{ $passed ? __('✓ PASS — Average Above 10/20') : __('✗ BELOW PASS MARK — Average Below 10/20') }}
+            {{ $passed ? __('✓ PASS — Average at or above :mark', ['mark' => $markLabel]) : __('✗ BELOW PASS MARK — Average below :mark', ['mark' => $markLabel]) }}
         </div>
 
         {{-- Remarks --}}

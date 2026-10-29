@@ -106,6 +106,10 @@ class FormController extends Controller implements HasMiddleware
 
     public function destroy(Form $form)
     {
+        if ($form->classSections()->exists() || $form->feeStructures()->exists() || $form->subjects()->exists()) {
+            return back()->with('error', __('This class still has sections, subjects or fee structures under it, so it cannot be deleted. Deactivate it, or remove those first.'));
+        }
+
         $form->delete();
 
         return redirect()->route('admin.forms.index')

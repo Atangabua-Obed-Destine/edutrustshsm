@@ -135,7 +135,7 @@ class FeeCollectionController extends Controller implements HasMiddleware
             'student_fee_id' => ['required', 'exists:student_fees,id'],
             'amount' => ['required', 'numeric', 'min:1'],
             'payment_method' => ['required', 'in:cash,bank_transfer,mtn_momo,orange_money,edutrustpay'],
-            'payment_date' => ['required', 'date'],
+            'payment_date' => ['required', 'date', 'before_or_equal:today'],
             'payer_name' => ['nullable', 'string', 'max:150'],
             'payer_phone' => ['nullable', 'string', 'max:20'],
             'notes' => ['nullable', 'string', 'max:500'],
