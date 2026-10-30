@@ -118,7 +118,7 @@
                             <span id="info_session" class="text-sm text-gray-800 ml-1"></span>
                         </div>
                         <div>
-                            <span class="text-sm text-gray-500">{{ __('Form') }}:</span>
+                            <span class="text-sm text-gray-500">{{ __('Class') }}:</span>
                             <span id="info_form" class="text-sm font-semibold text-gray-800 ml-1"></span>
                         </div>
                         <div class="flex gap-6">

@@ -89,7 +89,7 @@
             <h3 style="font-size: 0.88rem; font-weight: 700; color: #0f172a; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">{{ __('Class Placement') }}</h3>
             <table style="width: 100%; font-size: 0.82rem;">
                 <tr><td style="padding: 5px 0; color: #64748b; width: 40%;">{{ __('Session') }}</td><td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $application->academicSession->name ?? '—' }}</td></tr>
-                <tr><td style="padding: 5px 0; color: #64748b;">{{ __('Form') }}</td><td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $application->form->name ?? '—' }}</td></tr>
+                <tr><td style="padding: 5px 0; color: #64748b;">{{ __('Class') }}</td><td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $application->form->name ?? '—' }}</td></tr>
                 @if($application->stream)
                 <tr><td style="padding: 5px 0; color: #64748b;">{{ __('Stream') }}</td><td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $application->stream->name }}</td></tr>
                 @endif
@@ -228,7 +228,7 @@
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
                     <div>
-                        <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #374151; margin-bottom: 5px;">{{ __('Form / Class') }} <span style="color: #ef4444;">*</span></label>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #374151; margin-bottom: 5px;">{{ __('Class') }} <span style="color: #ef4444;">*</span></label>
                         <select name="form_id" id="enrolFormSelect" required style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 7px; font-size: 0.85rem; outline: none; background: #fff;">
                             @foreach($forms as $form)
                             <option value="{{ $form->id }}" data-has-streams="{{ $form->has_streams ? '1' : '0' }}" {{ old('form_id', $application->form_id) == $form->id ? 'selected' : '' }}>{{ $form->name }}</option>

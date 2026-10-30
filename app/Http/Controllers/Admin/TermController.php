@@ -104,6 +104,15 @@ class TermController extends Controller implements HasMiddleware
 
     public function destroy(Term $term)
     {
+        // Results, enrolments and sequence mappings cascade off a term.
+        $inUse = \Illuminate\Support\Facades\DB::table('term_results')->where('term_id', $term->id)->exists()
+            || \Illuminate\Support\Facades\DB::table('student_enrollments')->where('term_id', $term->id)->exists()
+            || \Illuminate\Support\Facades\DB::table('form_sequence')->where('term_id', $term->id)->exists();
+
+        if ($inUse) {
+            return back()->with('error', __('This term has enrolments, results or sequences recorded against it, so it cannot be deleted.'));
+        }
+
         $term->delete();
 
         return redirect()->route('admin.terms.index')

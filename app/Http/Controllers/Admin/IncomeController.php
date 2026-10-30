@@ -57,7 +57,9 @@ class IncomeController extends Controller implements HasMiddleware
         $accounts = PaymentAccount::active()->orderBy('title')->get();
         $methods = self::METHODS;
 
-        return view('admin.account.income.create', compact('categories', 'accounts', 'methods'));
+        $budgetLines = \App\Models\BudgetLine::active()->postable()->where('section', 'income')->orderBy('code')->get();
+
+        return view('admin.account.income.create', compact('categories', 'accounts', 'methods', 'budgetLines'));
     }
 
     public function store(Request $request)
@@ -87,7 +89,9 @@ class IncomeController extends Controller implements HasMiddleware
         $accounts = PaymentAccount::active()->orderBy('title')->get();
         $methods = self::METHODS;
 
-        return view('admin.account.income.edit', compact('income', 'categories', 'accounts', 'methods'));
+        $budgetLines = \App\Models\BudgetLine::active()->postable()->where('section', 'income')->orderBy('code')->get();
+
+        return view('admin.account.income.edit', compact('income', 'categories', 'accounts', 'methods', 'budgetLines'));
     }
 
     public function update(Request $request, Income $income)
@@ -138,6 +142,7 @@ class IncomeController extends Controller implements HasMiddleware
     {
         return $request->validate([
             'category_id'        => ['required', 'exists:income_categories,id'],
+            'budget_line_id'     => ['nullable', 'exists:budget_lines,id'],
             'title'              => ['required', 'string', 'max:191'],
             'invoice_id'         => ['nullable', 'string', 'max:191'],
             'amount'             => ['required', 'numeric', 'min:0.01'],

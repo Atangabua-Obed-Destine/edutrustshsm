@@ -12,6 +12,7 @@ class Income extends Model
 
     protected $fillable = [
         'branch_id',
+        'budget_line_id',
         'category_id', 'title', 'invoice_id', 'amount', 'date', 'reference',
         'payment_method', 'payment_account_id', 'note', 'attach', 'status',
         'created_by', 'updated_by',
@@ -39,5 +40,10 @@ class Income extends Model
     public function recordedBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function budgetLine()
+    {
+        return $this->belongsTo(BudgetLine::class);
     }
 }

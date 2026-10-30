@@ -10,6 +10,7 @@ use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\PaymentAccount;
 use App\Models\PaymentAccountTransaction;
+use App\Services\BudgetMatcher;
 use App\Services\PaymentAccountService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -24,7 +25,7 @@ class ExpenseController extends Controller implements HasMiddleware
 
     protected static string $access = 'expense';
 
-    public function __construct(private PaymentAccountService $accounts)
+    public function __construct(private PaymentAccountService $accounts, private BudgetMatcher $budgets)
     {
     }
 
@@ -58,18 +59,22 @@ class ExpenseController extends Controller implements HasMiddleware
         $methods = IncomeController::METHODS;
         $budgets = Budget::where('status', 'active')->orderBy('title')->get();
 
-        return view('admin.account.expense.create', compact('categories', 'accounts', 'methods', 'budgets'));
+        $budgetLines = \App\Models\BudgetLine::active()->postable()->whereIn('section', ['expenditure', 'capital'])->orderBy('code')->get();
+
+        return view('admin.account.expense.create', compact('categories', 'accounts', 'methods', 'budgets', 'budgetLines'));
     }
 
     public function store(Request $request)
     {
         $data = $this->validateExpense($request);
 
-        $this->normalizeBudget($data);
+        $derived = $this->normalizeBudget($data);
 
         try {
-            DB::transaction(function () use ($request, $data) {
-                $this->assertAllocationFunds($data['budget_allocation_id'] ?? null, $data['amount']);
+            DB::transaction(function () use ($request, $data, $derived) {
+                if (! $derived) {
+                    $this->assertAllocationFunds($data['budget_allocation_id'] ?? null, $data['amount']);
+                }
 
                 $expense = new Expense($data);
                 $expense->status = true;
@@ -101,20 +106,28 @@ class ExpenseController extends Controller implements HasMiddleware
             ? BudgetAllocation::with('expenseCategory')->where('budget_id', $expense->budget_id)->get()
             : collect();
 
-        return view('admin.account.expense.edit', compact('expense', 'categories', 'accounts', 'methods', 'budgets', 'allocations'));
+        $budgetLines = \App\Models\BudgetLine::active()->postable()->whereIn('section', ['expenditure', 'capital'])->orderBy('code')->get();
+
+        return view('admin.account.expense.edit', compact('expense', 'categories', 'accounts', 'methods', 'budgets', 'allocations', 'budgetLines'));
     }
 
     public function update(Request $request, Expense $expense)
     {
         $data = $this->validateExpense($request);
-        $this->normalizeBudget($data);
+        // Re-derived on every edit: a changed date or category may move the
+        // expense to another line, or off the budget altogether.
+        $data['budget_id'] = null;
+        $data['budget_allocation_id'] = $data['budget_allocation_id'] ?? null;
+        $derived = $this->normalizeBudget($data);
         $old = $expense->toArray();
         $oldBudgetId = $expense->budget_id;
         $oldAllocationId = $expense->budget_allocation_id;
 
         try {
-            DB::transaction(function () use ($request, $expense, $data, $oldBudgetId, $oldAllocationId) {
-                $this->assertAllocationFunds($data['budget_allocation_id'] ?? null, $data['amount'], $expense->id);
+            DB::transaction(function () use ($request, $expense, $data, $oldBudgetId, $oldAllocationId, $derived) {
+                if (! $derived) {
+                    $this->assertAllocationFunds($data['budget_allocation_id'] ?? null, $data['amount'], $expense->id);
+                }
                 $this->accounts->reverseFor(PaymentAccountTransaction::REF_EXPENSE, $expense->id);
 
                 if ($request->hasFile('attach')) {
@@ -175,6 +188,7 @@ class ExpenseController extends Controller implements HasMiddleware
             'reference'          => ['nullable', 'string', 'max:191'],
             'payment_method'     => ['nullable', 'string', 'max:191'],
             'payment_account_id' => ['nullable', 'exists:payment_accounts,id'],
+            'budget_line_id'     => ['nullable', 'exists:budget_lines,id'],
             'budget_id'          => ['nullable', 'exists:budgets,id'],
             'budget_allocation_id' => ['nullable', 'exists:budget_allocations,id'],
             'note'               => ['nullable', 'string'],
@@ -182,15 +196,29 @@ class ExpenseController extends Controller implements HasMiddleware
         ]);
     }
 
-    /** If an allocation is chosen, derive its parent budget so the two stay consistent. */
-    private function normalizeBudget(array &$data): void
+    /**
+     * Put the expense on its budget line.
+     *
+     * An allocation chosen by hand wins and is held to its remaining funds.
+     * Otherwise the line is derived from the category and the date — the
+     * form never offered the tag, so without this every budget read zero —
+     * and a derived line is never a reason to refuse recording money that
+     * has already been spent: it shows as over-used instead.
+     *
+     * @return bool whether the line was derived rather than chosen
+     */
+    private function normalizeBudget(array &$data): bool
     {
         if (! empty($data['budget_allocation_id'])) {
             $alloc = BudgetAllocation::find($data['budget_allocation_id']);
             if ($alloc) {
                 $data['budget_id'] = $alloc->budget_id;
             }
+
+            return false;
         }
+
+        return $this->budgets->fill($data);
     }
 
     /** Guard: an expense cannot exceed its allocation's remaining funds. */

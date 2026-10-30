@@ -38,6 +38,23 @@
             <a href="{{ route('admin.documents.leaving-certificate', $student) }}" target="_blank" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Leaving Certificate') }}</a>
             @endunless
             @endcan
+            <a href="{{ route('admin.students.history', $student) }}" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Academic Record') }}</a>
+            @if(in_array($student->status, ['graduated', 'withdrawn', 'expelled']))
+                @can('student-exit.view')
+                    <a href="{{ route('admin.students.leaving-certificate', $student) }}" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Leaving Certificate') }}</a>
+                @endcan
+                @can('student-exit.readmit')
+                    <form method="POST" action="{{ route('admin.students.readmit', $student) }}" class="inline"
+                          onsubmit="return confirm('{{ __('Bring this pupil back onto the roll?') }}')">
+                        @csrf
+                        <button class="bg-white border border-amber-300 hover:bg-amber-50 text-amber-700 px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Re-admit') }}</button>
+                    </form>
+                @endcan
+            @else
+                @can('student-exit.create')
+                    <a href="{{ route('admin.students.exit', $student) }}" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Record leaving') }}</a>
+                @endcan
+            @endif
             <a href="{{ route('admin.students.edit', $student) }}" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Edit') }}</a>
             <a href="{{ route('admin.students.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">← {{ __('Back') }}</a>
         </div>
@@ -102,7 +119,7 @@
                     <p class="font-medium">{{ $enrollment->term->name ?? '—' }}</p>
                 </div>
                 <div>
-                    <p class="text-gray-400 text-xs">{{ __('Form') }}</p>
+                    <p class="text-gray-400 text-xs">{{ __('Class') }}</p>
                     <p class="font-medium">{{ $enrollment->classSection->form->name }}</p>
                 </div>
                 <div>
@@ -344,7 +361,7 @@
                         <tr>
                             <th class="px-3 py-2 text-left">{{ __('Session') }}</th>
                             <th class="px-3 py-2 text-left">{{ __('Term') }}</th>
-                            <th class="px-3 py-2 text-left">{{ __('Class') }}</th>
+                            <th class="px-3 py-2 text-left">{{ __('Class Section') }}</th>
                             <th class="px-3 py-2 text-left">{{ __('Stream') }}</th>
                             <th class="px-3 py-2 text-center">{{ __('Status') }}</th>
                             <th class="px-3 py-2 text-center">{{ __('Average') }}</th>

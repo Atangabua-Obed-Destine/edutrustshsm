@@ -7,7 +7,11 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AuditLog;
 use App\Models\Budget;
 use App\Models\BudgetRevision;
+use App\Models\BudgetAllocation;
 use App\Models\Department;
+use App\Services\BudgetMatcher;
+use App\Services\BudgetSummaryService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -25,6 +29,7 @@ class BudgetController extends Controller implements HasMiddleware
         return [
             static::can('budget.approve', ['submitForApproval', 'approve', 'activate', 'close', 'cancel']),
             static::can('budget.revise', ['revise']),
+            static::can('budget.view', ['monthly']),
         ];
     }
 
@@ -46,25 +51,109 @@ class BudgetController extends Controller implements HasMiddleware
     public function create()
     {
         $departments = Department::orderBy('name')->get();
-        return view('admin.budget.create', compact('departments'));
+        // Last year's budgets, to start this one from.
+        $previous = Budget::whereIn('status', ['active', 'closed'])->orderByDesc('end_date')->get();
+
+        return view('admin.budget.create', compact('departments', 'previous'));
     }
 
     public function store(Request $request)
     {
         $data = $this->validateBudget($request);
+        $seed = $request->validate([
+            'seed_from' => ['nullable', 'in:budget,actual'],
+            'seed_budget_id' => ['nullable', 'required_with:seed_from', 'exists:budgets,id'],
+            'uplift_percent' => ['nullable', 'numeric', 'min:-100', 'max:1000'],
+        ]);
 
-        $budget = Budget::create($data + ['status' => 'draft', 'created_by' => auth()->id()]);
+        $budget = DB::transaction(function () use ($data, $seed) {
+            $budget = Budget::create($data + ['status' => 'draft', 'created_by' => auth()->id()]);
+
+            if (! empty($seed['seed_from'])) {
+                $this->seedFrom($budget, Budget::findOrFail($seed['seed_budget_id']), $seed['seed_from'], (float) ($seed['uplift_percent'] ?? 0));
+            }
+
+            return $budget;
+        });
 
         return redirect()->route('admin.budget.show', $budget)
-            ->with('success', __('Budget created successfully.'));
+            ->with('success', $budget->allocations()->exists()
+                ? __('Budget created with :count lines carried forward. Review every figure before submitting.', ['count' => $budget->allocations()->count()])
+                : __('Budget created successfully.'));
     }
 
-    public function show(Budget $budget)
+    /**
+     * Start a budget from the one before it.
+     *
+     * Retyping every line is how figures get mistyped, and a budget is nearly
+     * always last year plus a judgement about what changes. `budget` copies
+     * what was planned; `actual` copies what was really spent on each line,
+     * which is the better base — a plan that was never met is a poor start
+     * for the next one. An uplift covers known inflation or fee changes.
+     */
+    private function seedFrom(Budget $budget, Budget $previous, string $basis, float $upliftPercent): void
     {
+        $multiplier = 1 + ($upliftPercent / 100);
+        $sum = '0';
+
+        foreach ($previous->allocations()->get() as $line) {
+            $amount = $basis === 'actual' ? (float) $line->spent_amount : (float) $line->allocated_amount;
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $amount = round($amount * $multiplier, 2);
+            BudgetAllocation::create([
+                'budget_id' => $budget->id,
+                'expense_category_id' => $line->expense_category_id,
+                'department_id' => $line->department_id,
+                'title' => $line->title,
+                'allocated_amount' => $amount,
+                'remaining_amount' => $amount,
+                'period' => $line->period,
+                'description' => $line->description,
+                'created_by' => auth()->id(),
+            ]);
+            $sum = bcadd($sum, (string) $amount, 2);
+        }
+
+        // The envelope cannot be smaller than the lines inside it.
+        if (bccomp($sum, (string) $budget->total_amount, 2) > 0) {
+            $budget->total_amount = $sum;
+            $budget->remaining_amount = $sum;
+            $budget->save();
+        }
+
+        $budget->calculateAllocatedAmount();
+    }
+
+    /** The budget month by month: Budget · Month · Brought forward · Cumulative · Balance. */
+    public function monthly(Request $request, Budget $budget, BudgetSummaryService $summary)
+    {
+        $month = preg_match('/^\\d{4}-\\d{2}$/', (string) $request->input('month'))
+            ? Carbon::createFromFormat('Y-m-d', $request->input('month').'-01')
+            : now()->min($budget->end_date)->max($budget->start_date);
+
+        return view('admin.budget.monthly', [
+            'budget' => $budget,
+            'summary' => $summary->monthly($budget, $month),
+            'pacing' => $summary->pacing($budget),
+        ]);
+    }
+
+    public function show(Budget $budget, BudgetSummaryService $summary)
+    {
+        // An institutional sheet has its own screen; the budget record is
+        // still reachable from it for revisions and the approval trail.
+        if ($budget->is_institutional && ! request()->boolean('record')) {
+            return redirect()->route('admin.budget-sheet.show', $budget);
+        }
+
         $budget->load(['department', 'allocations.expenseCategory', 'allocations.department', 'revisions.requestedBy', 'createdBy', 'approvedBy']);
         $expenses = $budget->expenses()->with('category')->orderByDesc('date')->limit(50)->get();
+        $pacing = $budget->status === 'active' ? $summary->pacing($budget) : null;
 
-        return view('admin.budget.show', compact('budget', 'expenses'));
+        return view('admin.budget.show', compact('budget', 'expenses', 'pacing'));
     }
 
     public function edit(Budget $budget)
@@ -126,9 +215,17 @@ class BudgetController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function activate(Budget $budget)
+    public function activate(Budget $budget, BudgetMatcher $matcher)
     {
-        return $this->transition($budget, from: ['approved'], to: 'active', msg: __('Budget activated.'));
+        $response = $this->transition($budget, from: ['approved'], to: 'active', msg: __('Budget activated.'));
+
+        // Spending from before today that belongs to this period is taken in
+        // now, so the budget does not open the year already blind to it.
+        if ($budget->fresh()->status === 'active' && ($taken = $matcher->adopt($budget->fresh())) > 0) {
+            $response->with('success', __('Budget activated. :count expenses already recorded in its period have been taken in.', ['count' => $taken]));
+        }
+
+        return $response;
     }
 
     public function close(Budget $budget)

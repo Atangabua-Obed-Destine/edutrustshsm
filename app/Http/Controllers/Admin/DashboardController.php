@@ -7,8 +7,10 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Models\AcademicSession;
+use App\Models\Announcement;
 use App\Models\Attendance;
 use App\Models\ClassSection;
+use App\Models\Event;
 use App\Models\SchoolSetting;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
@@ -56,6 +58,24 @@ class DashboardController extends Controller implements HasMiddleware
             $stats['absent_today'] = (clone $todayAttendance)->where('status', 'absent')->count();
         }
 
-        return view('admin.dashboard', compact('school', 'currentSession', 'stats'));
+        // What the school has told its own staff. Without this a notice
+        // addressed to staff could be written and filtered for, but never
+        // actually read by anyone.
+        $notices = Announcement::with('category')
+            ->published()
+            ->forStaff()
+            ->orderByDesc('published_at')
+            ->take(5)
+            ->get();
+
+        $events = Event::with('category')
+            ->published()
+            ->forStaff()
+            ->upcoming()
+            ->orderBy('starts_on')
+            ->take(5)
+            ->get();
+
+        return view('admin.dashboard', compact('school', 'currentSession', 'stats', 'notices', 'events'));
     }
 }

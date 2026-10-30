@@ -18,6 +18,7 @@ use App\Models\SchoolSetting;
 use App\Models\Sequence;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
+use App\Support\LevelContext;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -140,7 +141,10 @@ class ConfigurationHealthService
 
     private function checkCurriculum(): void
     {
-        $forms = Form::where('is_active', true)->get();
+        // A primary school is not told its secondary classes lack subjects:
+        // classes at a level the school does not run are someone else's
+        // problem (the out-of-scope screen's), not a configuration gap.
+        $forms = Form::where('is_active', true)->whereIn('school_level', LevelContext::options())->get();
 
         if ($forms->isEmpty()) {
             $this->error('Curriculum', __('No active classes'), __('No form or class level is active, so students have nowhere to be placed.'), 'admin.forms.index', __('Manage Classes'));
@@ -196,7 +200,8 @@ class ConfigurationHealthService
 
     private function checkEnrollments(): void
     {
-        $active = StudentEnrollment::where('status', 'active');
+        $active = StudentEnrollment::where('status', 'active')
+            ->whereHas('classSection.form', fn ($q) => $q->whereIn('school_level', LevelContext::options()));
 
         if ((clone $active)->count() === 0) {
             return;
@@ -238,7 +243,7 @@ class ConfigurationHealthService
             $this->ok('Fees', __('Fee structure configured'), __('Fee categories are priced for the current academic year.'));
         }
 
-        if (PaymentAccount::where('is_active', true)->count() === 0) {
+        if (PaymentAccount::active()->count() === 0) {
             $this->warn('Fees', __('No payment accounts'), __('Payments cannot be tied to a cash or bank account, so treasury balances will not move when money is received.'), 'admin.payment-account.index', __('Add Payment Accounts'));
         }
     }

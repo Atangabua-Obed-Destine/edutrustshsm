@@ -51,7 +51,7 @@
 
                     {{-- Form --}}
                     <div>
-                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px;">{{ __('Form') }} <span style="color: #ef4444;">*</span></label>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px;">{{ __('Class') }} <span style="color: #ef4444;">*</span></label>
                         <select name="form_id" id="srcForm"
                             style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; color: #111827; background: #fff; appearance: auto;">
                             <option value="">{{ __('— Select —') }}</option>
@@ -238,7 +238,7 @@
 
                     {{-- Target Form --}}
                     <div>
-                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px;">{{ __('Form') }} <span style="color: #ef4444;">*</span></label>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px;">{{ __('Class') }} <span style="color: #ef4444;">*</span></label>
                         <select name="target_form_id" id="tgtForm" required
                             style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; color: #111827; background: #fff; appearance: auto;">
                             <option value="">{{ __('— Select —') }}</option>

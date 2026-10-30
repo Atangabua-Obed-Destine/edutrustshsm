@@ -64,9 +64,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'Payment Account' => ['view', 'create', 'edit', 'delete', 'deposit', 'withdraw', 'recompute'],
             'Fund Transfer' => ['view', 'create', 'delete'],
             'Payment Account Report' => ['view', 'link'],
+            'Daybook' => ['view', 'export'],
 
             // ── Budget ──
             'Budget' => ['view', 'create', 'edit', 'delete', 'approve', 'revise'],
+            'Budget Line' => ['view', 'edit'],
+            'Budget Sheet' => ['view', 'edit', 'approve', 'export'],
             'Budget Allocation' => ['view', 'create', 'edit', 'delete'],
             'Budget Report' => ['view', 'export'],
 
@@ -97,9 +100,25 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // ── Platform ──
             'Branch' => ['view', 'create', 'edit', 'assign'],
-            'Parent Portal' => ['view', 'invite', 'password', 'revoke'],
+            // `link` moves a child between parents and `merge` folds two
+            // parent records into one; neither is an ordinary edit.
+            'Parent Portal' => ['view', 'invite', 'password', 'revoke', 'edit', 'link', 'merge'],
             'Parent Payment' => ['view', 'approve', 'reject'],
             'PTA' => ['view', 'create', 'edit', 'delete'],
+            // Writing a notice and putting it in front of every parent in the
+            // school are different acts, so publishing is its own permission.
+            'Announcement' => ['view', 'create', 'edit', 'publish', 'delete'],
+            'Event' => ['view', 'create', 'edit', 'delete'],
+            // Reading the school's own results back to it. Separate from
+            // marks entry: a head of department should see the picture
+            // without being able to change a mark.
+            'Academic Analytics' => ['view', 'export'],
+            // Filling in the awards is the work of the meeting; closing it
+            // freezes the figures onto the record and is the head's act.
+            'Class Council' => ['view', 'create', 'edit', 'conclude', 'delete'],
+            // Recording an exit takes a pupil off every class list and fee
+            // report in the school, which is not the same act as editing them.
+            'Student Exit' => ['view', 'create', 'readmit'],
             'Audit Log' => ['view', 'export'],
 
             // Connection settings for the body's EdutrustPay console. Viewing,
@@ -174,9 +193,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'Quick Assign Fee', 'Assignment History', 'Fee Discount', 'Fee Fine', 'Student Credit', 'Fee Report', 'Payment',
             // Accounts & treasury
             'Income', 'Income Category', 'Expense', 'Expense Category', 'Outcome',
-            'Payment Account', 'Fund Transfer', 'Payment Account Report',
+            'Payment Account', 'Fund Transfer', 'Payment Account Report', 'Daybook',
             // Budget
-            'Budget', 'Budget Allocation', 'Budget Report',
+            'Budget', 'Budget Line', 'Budget Sheet', 'Budget Allocation', 'Budget Report',
             // OHADA
             'Chart of Accounts', 'Fiscal Year', 'Journal Entry', 'Recurring Entry', 'General Ledger', 'Account Mapping',
             'Accounting Report', 'Fixed Asset',

@@ -48,7 +48,7 @@
                     {{ $app->full_name }}
                 </div>
                 <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.78rem; color: #94a3b8;">
-                    <span>{{ __('Form:') }} {{ $app->form->name ?? '—' }}</span>
+                    <span>{{ __('Class:') }} {{ $app->form->name ?? '—' }}</span>
                     @if($app->stream)
                     <span>{{ __('Stream:') }} {{ $app->stream->name }}</span>
                     @endif

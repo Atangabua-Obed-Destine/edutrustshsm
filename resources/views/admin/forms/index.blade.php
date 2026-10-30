@@ -1,16 +1,18 @@
 @extends('layouts.admin')
 
-@section('title', __('Forms'))
-@section('breadcrumb', __('Academic > Forms'))
+@section('title', __('Classes'))
+@section('breadcrumb', __('Academic > Classes'))
 
 @section('content')
 <div class="space-y-4">
     <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-700">{{ __('All Forms / Classes') }}</h3>
+        <h3 class="text-lg font-semibold text-gray-700">{{ __('All Classes') }}</h3>
         <a href="{{ route('admin.forms.create') }}" class="bg-[#1e293b] hover:bg-[#334155] text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-            {{ __('+ New Form') }}
+            {{ __('+ New Class') }}
         </a>
     </div>
+
+    <x-out-of-scope-notice />
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table class="w-full">

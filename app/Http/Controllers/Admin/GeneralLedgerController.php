@@ -38,6 +38,14 @@ class GeneralLedgerController extends Controller implements HasMiddleware
     /** Single-account ledger: opening balance + running balance through the period. */
     public function account(Request $request)
     {
+        // Reached by picking an account on the general ledger page. Typed
+        // directly it used to be a bare 404, which says nothing about what
+        // is missing.
+        if (! $request->filled('account_id')) {
+            return redirect()->route('admin.accounting-reports.general-ledger')
+                ->with('error', __('Choose an account to see its ledger.'));
+        }
+
         $account = ChartOfAccount::findOrFail($request->account_id);
         $from = $request->start_date;
         $to = $request->end_date;

@@ -152,7 +152,7 @@
     </form>
 
     {{-- School Level Mode --}}
-    <form action="{{ route('admin.settings.level-mode') }}" method="POST" class="bg-white rounded-xl shadow-sm border border-gray-200">
+    <form id="level-mode" action="{{ route('admin.settings.level-mode') }}" method="POST" class="bg-white rounded-xl shadow-sm border border-gray-200">
         @csrf
         <div class="p-6">
             <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-1">{{ __('School Level Mode') }}</h3>

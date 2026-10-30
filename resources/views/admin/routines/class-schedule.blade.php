@@ -64,10 +64,10 @@
                     </select>
                 </div>
                 <div>
-                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Form') }} <span style="color: #ef4444;">*</span></label>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Class') }} <span style="color: #ef4444;">*</span></label>
                     <select name="form_id" id="formSelect" required
                             style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; background: #fff; appearance: auto; -webkit-appearance: menulist;">
-                        <option value="">{{ __('— Select Form —') }}</option>
+                        <option value="">{{ __('— Select Class —') }}</option>
                         @foreach($forms as $form)
                             <option value="{{ $form->id }}" {{ $formId == $form->id ? 'selected' : '' }}>{{ $form->name }}</option>
                         @endforeach
@@ -189,7 +189,7 @@
     <div style="background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; padding: 48px 24px; text-align: center;">
         <svg style="width: 56px; height: 56px; margin: 0 auto 16px; color: #cbd5e1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         <h3 style="font-size: 1.05rem; font-weight: 600; color: #475569; margin-bottom: 6px;">{{ __('Select a Class to Begin') }}</h3>
-        <p style="font-size: 0.85rem; color: #94a3b8;">{{ __('Choose a Session, Form, and Section above, then click Load to view or edit the timetable.') }}</p>
+        <p style="font-size: 0.85rem; color: #94a3b8;">{{ __('Choose a Session, Class, and Section above, then click Load to view or edit the timetable.') }}</p>
     </div>
     @endif
 </div>

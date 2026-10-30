@@ -10,12 +10,15 @@ use App\Http\Controllers\Admin\StreamController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\SubjectEnrollmentController;
 use App\Http\Controllers\Admin\SequenceEnrollmentController;
+use App\Http\Controllers\Admin\ClassCouncilController;
 use App\Http\Controllers\Admin\ClassSectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\FeeStructureController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\RecurringEntryController;
 use App\Http\Controllers\Admin\MarksController;
+use App\Http\Controllers\Admin\NurseryAssessmentController;
+use App\Http\Controllers\Admin\NurseryCompetenceController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\TimetableController;
@@ -26,8 +29,11 @@ use App\Http\Controllers\Admin\GceCandidateController;
 use App\Http\Controllers\Admin\GceSessionController;
 use App\Http\Controllers\Admin\GceSubjectController;
 use App\Http\Controllers\Admin\PrivateFileController;
+use App\Http\Controllers\Admin\SchoolReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StudentDocumentController;
+use App\Http\Controllers\Admin\OutOfScopeController;
+use App\Http\Controllers\Admin\StudentExitController;
 use App\Http\Controllers\Admin\FeeCategoryController;
 use App\Http\Controllers\Admin\FeeDiscountController;
 use App\Http\Controllers\Admin\FeeReportController;
@@ -41,6 +47,7 @@ use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SubjectAddDropController;
 use App\Http\Controllers\Admin\ExamPublishingController;
+use App\Http\Controllers\Admin\ExamReadinessController;
 use App\Http\Controllers\Admin\GroupEnrolController;
 use App\Http\Controllers\Admin\AdmissionController;
 use App\Http\Controllers\Admin\IdCardController;
@@ -56,8 +63,11 @@ use App\Http\Controllers\Admin\PaymentAccountController;
 use App\Http\Controllers\Admin\PaymentAccountTransferController;
 use App\Http\Controllers\Admin\PaymentAccountReportController;
 use App\Http\Controllers\Admin\BudgetController;
+use App\Http\Controllers\Admin\DaybookController;
 use App\Http\Controllers\Admin\BudgetAllocationController;
 use App\Http\Controllers\Admin\BudgetDashboardController;
+use App\Http\Controllers\Admin\BudgetLineController;
+use App\Http\Controllers\Admin\BudgetSheetController;
 use App\Http\Controllers\Admin\BudgetReportController;
 use App\Http\Controllers\Admin\ChartOfAccountController;
 use App\Http\Controllers\Admin\FiscalYearController;
@@ -95,9 +105,14 @@ use App\Http\Controllers\ParentPortal\ParentSubjectController;
 use App\Http\Controllers\ParentPortal\ParentTimetableController;
 use App\Http\Controllers\ParentPortal\ParentAttendanceController;
 use App\Http\Controllers\ParentPortal\ParentPaymentController;
+use App\Http\Controllers\ParentPortal\ParentFileController;
+use App\Http\Controllers\ParentPortal\ParentNoticeController;
 use App\Http\Controllers\ParentPortal\ParentPtaController;
 use App\Http\Controllers\Admin\ParentPortalController;
 use App\Http\Controllers\Admin\ParentPaymentVerificationController;
+use App\Http\Controllers\Admin\AcademicAnalyticsController;
+use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\PtaController;
 use App\Http\Controllers\Admin\AuditLogController;
 use Illuminate\Support\Facades\Route;
@@ -169,6 +184,16 @@ Route::prefix('parent')->name('parent.')->group(function () {
         Route::get('/payments/submit', [ParentPaymentController::class, 'create'])->name('payments.create');
         Route::post('/payments/submit', [ParentPaymentController::class, 'store'])->name('payments.store');
         Route::get('/payments/{submission}', [ParentPaymentController::class, 'show'])->name('payments.show');
+
+        // Notices and the school calendar
+        Route::get('/notices', [ParentNoticeController::class, 'index'])->name('notices.index');
+        Route::get('/notices/events', [ParentNoticeController::class, 'events'])->name('notices.events');
+        Route::get('/notices/{notice}', [ParentNoticeController::class, 'show'])->name('notices.show');
+
+        // Attachments a guardian may read. The admin file route checks a staff
+        // permission, so it can never serve them.
+        Route::get('/files/notice/{notice}', [ParentFileController::class, 'notice'])->name('files.notice');
+        Route::get('/files/pta-minutes/{meeting}', [ParentFileController::class, 'ptaMinutes'])->name('files.pta-minutes');
 
         // PTA
         Route::get('/pta', [ParentPtaController::class, 'index'])->name('pta.index');
@@ -249,7 +274,9 @@ Route::middleware('auth')->group(function () {
         Route::resource('forms', FormController::class)->except(['show']);
 
         // Streams
-        Route::resource('streams', StreamController::class)->except(['show']);
+        // Streams are Science, Arts and the like — a secondary division.
+        Route::resource('streams', StreamController::class)->except(['show'])
+            ->middleware('school-level:secondary');
 
         // Subjects
         Route::resource('subjects', SubjectController::class)->except(['show']);
@@ -305,6 +332,23 @@ Route::middleware('auth')->group(function () {
         Route::post('marks/{submission}/approve', [MarksController::class, 'approve'])->name('marks.approve');
         Route::post('marks/{submission}/return', [MarksController::class, 'returnMarks'])->name('marks.return');
 
+        // Nursery classes are assessed by competence, not marked. Only a
+        // school that runs nursery/primary has these screens at all.
+        Route::middleware('school-level:nursery_primary')->group(function () {
+            Route::get('nursery-assessment', [NurseryAssessmentController::class, 'index'])->name('nursery.index');
+            Route::get('nursery-assessment/{enrollment}/{term}', [NurseryAssessmentController::class, 'edit'])->name('nursery.edit');
+            Route::post('nursery-assessment/{enrollment}/{term}', [NurseryAssessmentController::class, 'update'])->name('nursery.update');
+
+            Route::get('nursery-competences', [NurseryCompetenceController::class, 'index'])->name('nursery.competences.index');
+            Route::post('nursery-competences/seed', [NurseryCompetenceController::class, 'seed'])->name('nursery.competences.seed');
+            Route::post('nursery-competences/areas', [NurseryCompetenceController::class, 'storeArea'])->name('nursery.competences.areas.store');
+            Route::put('nursery-competences/areas/{area}', [NurseryCompetenceController::class, 'updateArea'])->name('nursery.competences.areas.update');
+            Route::delete('nursery-competences/areas/{area}', [NurseryCompetenceController::class, 'destroyArea'])->name('nursery.competences.areas.destroy');
+            Route::post('nursery-competences/areas/{area}/competences', [NurseryCompetenceController::class, 'storeCompetence'])->name('nursery.competences.store');
+            Route::put('nursery-competences/{competence}', [NurseryCompetenceController::class, 'updateCompetence'])->name('nursery.competences.update');
+            Route::delete('nursery-competences/{competence}', [NurseryCompetenceController::class, 'destroyCompetence'])->name('nursery.competences.destroy');
+        });
+
         // Exam Publishing
         Route::get('exam-publishing', [ExamPublishingController::class, 'index'])->name('exam-publishing.index');
         Route::post('exam-publishing/publish-subject', [ExamPublishingController::class, 'publishSubject'])->name('exam-publishing.publish-subject');
@@ -331,6 +375,28 @@ Route::middleware('auth')->group(function () {
         Route::delete('timetable/entries/{entry}', [TimetableController::class, 'destroyEntry'])->name('timetable.entries.destroy');
 
         // Report Cards
+        // What the term's results say about the school.
+        Route::get('analytics', [AcademicAnalyticsController::class, 'index'])->name('analytics.index');
+        Route::get('analytics/subjects.csv', [AcademicAnalyticsController::class, 'export'])->name('analytics.export');
+        Route::get('analytics/readiness', [ExamReadinessController::class, 'index'])->name('analytics.readiness');
+
+        // The school's own report card, once a term.
+        Route::get('analytics/state-of-the-school', [SchoolReportController::class, 'index'])->name('analytics.school-report');
+        Route::get('analytics/state-of-the-school.pdf', [SchoolReportController::class, 'download'])->name('analytics.school-report.pdf');
+
+        // The class council — the meeting that turns marks into decisions.
+        Route::get('councils', [ClassCouncilController::class, 'index'])->name('councils.index');
+        Route::post('councils', [ClassCouncilController::class, 'store'])->name('councils.store');
+        Route::get('councils/{council}', [ClassCouncilController::class, 'show'])->name('councils.show');
+        Route::put('councils/{council}', [ClassCouncilController::class, 'update'])->name('councils.update');
+        Route::post('councils/{council}/decisions', [ClassCouncilController::class, 'decisions'])->name('councils.decisions');
+        Route::post('councils/{council}/signatures', [ClassCouncilController::class, 'addSignature'])->name('councils.signatures.store');
+        Route::delete('councils/{council}/signatures/{signature}', [ClassCouncilController::class, 'removeSignature'])->name('councils.signatures.destroy');
+        Route::post('councils/{council}/conclude', [ClassCouncilController::class, 'conclude'])->name('councils.conclude');
+        Route::post('councils/{council}/reopen', [ClassCouncilController::class, 'reopen'])->name('councils.reopen');
+        Route::get('councils/{council}/minutes', [ClassCouncilController::class, 'minutes'])->name('councils.minutes');
+        Route::delete('councils/{council}', [ClassCouncilController::class, 'destroy'])->name('councils.destroy');
+
         Route::get('report-cards', [ReportCardController::class, 'index'])->name('report-cards.index');
         Route::get('report-cards/sections-by-form/{form}', [ReportCardController::class, 'sectionsByForm'])->name('report-cards.sections-by-form');
         Route::post('report-cards/generate', [ReportCardController::class, 'generate'])->name('report-cards.generate');
@@ -355,11 +421,40 @@ Route::middleware('auth')->group(function () {
         Route::post('parent-portal/{guardian}/disable', [ParentPortalController::class, 'disable'])->name('parent-portal.disable');
         Route::post('parent-portal/{guardian}/reset-password', [ParentPortalController::class, 'resetPassword'])->name('parent-portal.reset-password');
 
+        // Who belongs to whom.
+        Route::post('parent-portal/{guardian}/students', [ParentPortalController::class, 'attachStudent'])->name('parent-portal.students.attach');
+        Route::delete('parent-portal/{guardian}/students/{student}', [ParentPortalController::class, 'detachStudent'])->name('parent-portal.students.detach');
+        Route::post('parent-portal/{guardian}/students/{student}/primary', [ParentPortalController::class, 'makePrimary'])->name('parent-portal.students.primary');
+        Route::put('parent-portal/{guardian}/students/{student}', [ParentPortalController::class, 'updateLink'])->name('parent-portal.students.update');
+
+        // Parents the system recorded more than once.
+        Route::get('parent-portal-duplicates', [ParentPortalController::class, 'duplicates'])->name('parent-portal.duplicates');
+        Route::post('parent-portal-duplicates/merge', [ParentPortalController::class, 'merge'])->name('parent-portal.merge');
+
         // Parent Payment Receipt Verification
         Route::get('parent-payments', [ParentPaymentVerificationController::class, 'index'])->name('parent-payments.index');
         Route::get('parent-payments/{submission}', [ParentPaymentVerificationController::class, 'show'])->name('parent-payments.show');
         Route::post('parent-payments/{submission}/approve', [ParentPaymentVerificationController::class, 'approve'])->name('parent-payments.approve');
         Route::post('parent-payments/{submission}/reject', [ParentPaymentVerificationController::class, 'reject'])->name('parent-payments.reject');
+
+        // Notice board — the school's own announcements, of which PTA is one
+        // category. Publishing is gated separately from writing.
+        Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('announcements/create', [AnnouncementController::class, 'create'])->name('announcements.create');
+        Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::get('announcements/{announcement}/edit', [AnnouncementController::class, 'edit'])->name('announcements.edit');
+        Route::put('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
+        Route::post('announcements/{announcement}/toggle', [AnnouncementController::class, 'togglePublish'])->name('announcements.toggle');
+        Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+
+        // School calendar
+        Route::get('events', [EventController::class, 'index'])->name('events.index');
+        Route::get('events/create', [EventController::class, 'create'])->name('events.create');
+        Route::post('events', [EventController::class, 'store'])->name('events.store');
+        Route::get('events/{event}/edit', [EventController::class, 'edit'])->name('events.edit');
+        Route::put('events/{event}', [EventController::class, 'update'])->name('events.update');
+        Route::post('events/{event}/toggle', [EventController::class, 'togglePublish'])->name('events.toggle');
+        Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
 
         // PTA Management
         Route::get('pta', [PtaController::class, 'index'])->name('pta.index');
@@ -378,7 +473,10 @@ Route::middleware('auth')->group(function () {
         // controller, since each file hangs off a different record.
         Route::get('files/{source}/{id}/{field}', [PrivateFileController::class, 'show'])->name('files.show');
 
-        // GCE Ordinary / Advanced Level registration.
+        // GCE Ordinary / Advanced Level registration. A secondary
+        // qualification, so a nursery or primary school has no use for it —
+        // and hiding the menu entry alone would leave the address working.
+        Route::middleware('school-level:secondary')->group(function () {
         Route::get('gce/subjects', [GceSubjectController::class, 'index'])->name('gce.subjects.index');
         Route::post('gce/subjects', [GceSubjectController::class, 'store'])->name('gce.subjects.store');
         Route::put('gce/subjects/{gceSubject}', [GceSubjectController::class, 'update'])->name('gce.subjects.update');
@@ -401,6 +499,7 @@ Route::middleware('auth')->group(function () {
         Route::put('gce/candidates/{candidate}', [GceCandidateController::class, 'update'])->name('gce.candidates.update');
         Route::post('gce/candidates/{candidate}/status', [GceCandidateController::class, 'setStatus'])->name('gce.candidates.status');
         Route::post('gce/candidates/{candidate}/payment', [GceCandidateController::class, 'recordPayment'])->name('gce.candidates.payment');
+        });
         Route::delete('gce/candidates/{candidate}', [GceCandidateController::class, 'destroy'])->name('gce.candidates.destroy');
         Route::get('gce/candidates/{candidate}/slip', [GceCandidateController::class, 'entrySlip'])->name('gce.candidates.slip');
 
@@ -496,7 +595,21 @@ Route::middleware('auth')->group(function () {
     // before this one was ever consulted, so the carve-out never applied.
     // ═══════════════════════════════════════════════════════════════
     Route::middleware('role:super_admin,admin,staff')->prefix('admin')->name('admin.')->group(function () {
-            Route::get('students/form-streams/{form}', [StudentController::class, 'getFormStreams'])->name('students.form-streams');
+            // Leaving, and the roll of those who have left.
+        Route::get('students/archive', [StudentExitController::class, 'index'])->name('students.archive');
+        // Pupils and classes at a level the school no longer runs.
+        Route::get('students/out-of-scope', [OutOfScopeController::class, 'index'])->name('students.out-of-scope');
+        Route::post('students/out-of-scope/exit', [OutOfScopeController::class, 'exitClass'])->name('students.out-of-scope.exit');
+        Route::post('students/out-of-scope/retire', [OutOfScopeController::class, 'retireClasses'])->name('students.out-of-scope.retire');
+        Route::get('students/{student}/exit', [StudentExitController::class, 'create'])->name('students.exit');
+        Route::post('students/{student}/exit', [StudentExitController::class, 'store'])->name('students.exit.store');
+        Route::post('students/{student}/readmit', [StudentExitController::class, 'readmit'])->name('students.readmit');
+        Route::get('students/{student}/leaving-certificate', [StudentExitController::class, 'certificate'])->name('students.leaving-certificate');
+
+        // One pupil across every term they have been here.
+        Route::get('students/{student}/history', [StudentController::class, 'history'])->name('students.history');
+        Route::get('students/{student}/history.pdf', [StudentController::class, 'historyPdf'])->name('students.history.pdf');
+        Route::get('students/form-streams/{form}', [StudentController::class, 'getFormStreams'])->name('students.form-streams');
             Route::get('students/form-sections/{form}', [StudentController::class, 'getFormSections'])->name('students.form-sections');
             Route::resource('students', StudentController::class)->except(['destroy']);
 
@@ -508,7 +621,10 @@ Route::middleware('auth')->group(function () {
             Route::get('group-enrol/preview-subjects', [GroupEnrolController::class, 'previewSubjects'])->name('group-enrol.preview-subjects');
 
             // Subject Add/Drop
-            Route::get('subject-add-drop', [SubjectAddDropController::class, 'index'])->name('subject-add-drop.index');
+            // Adding and dropping subjects is about electives, which a
+            // nursery or primary pupil does not have — every subject is core.
+            Route::get('subject-add-drop', [SubjectAddDropController::class, 'index'])
+                ->middleware('school-level:secondary')->name('subject-add-drop.index');
             Route::get('subject-add-drop/load/{student}', [SubjectAddDropController::class, 'loadStudent'])->name('subject-add-drop.load');
             Route::post('subject-add-drop/add', [SubjectAddDropController::class, 'addSubject'])->name('subject-add-drop.add');
             Route::post('subject-add-drop/drop', [SubjectAddDropController::class, 'dropSubject'])->name('subject-add-drop.drop');
@@ -548,9 +664,39 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     Route::post('payment-account-report/link', [PaymentAccountReportController::class, 'link'])->name('payment-account-report.link');
     Route::get('payment-account-report/statement/{payment_account}', [PaymentAccountReportController::class, 'statement'])->name('payment-account-report.statement');
 
+    // ── Cash Book ──
+    Route::get('daybook', [DaybookController::class, 'index'])->name('daybook.index');
+    Route::get('daybook/year', [DaybookController::class, 'year'])->name('daybook.year');
+    Route::get('daybook/summary', [DaybookController::class, 'summary'])->name('daybook.summary');
+    Route::get('daybook/pdf', [DaybookController::class, 'pdf'])->name('daybook.pdf');
+    Route::get('daybook/csv', [DaybookController::class, 'csv'])->name('daybook.csv');
+
     // ── Budgets ──
+    // The rows of the Income & Expenditure sheet, and the sheet itself.
+    Route::get('budget-line', [BudgetLineController::class, 'index'])->name('budget-line.index');
+    Route::post('budget-line/template', [BudgetLineController::class, 'loadTemplate'])->name('budget-line.template');
+    Route::post('budget-line', [BudgetLineController::class, 'store'])->name('budget-line.store');
+    Route::post('budget-line/reorder', [BudgetLineController::class, 'reorder'])->name('budget-line.reorder');
+    Route::post('budget-line/auto-sort', [BudgetLineController::class, 'autoSort'])->name('budget-line.auto-sort');
+    Route::put('budget-line/{line}', [BudgetLineController::class, 'update'])->name('budget-line.update');
+    Route::post('budget-line/{line}/toggle', [BudgetLineController::class, 'toggle'])->name('budget-line.toggle');
+    Route::delete('budget-line/{line}', [BudgetLineController::class, 'destroy'])->name('budget-line.destroy');
+    Route::post('budget-line/{line}/category', [BudgetLineController::class, 'storeCategory'])->name('budget-line.category');
+    Route::post('budget-line/{line}/link', [BudgetLineController::class, 'linkCategory'])->name('budget-line.link');
+
+    Route::get('budget-sheet', [BudgetSheetController::class, 'index'])->name('budget-sheet.index');
+    Route::post('budget-sheet', [BudgetSheetController::class, 'store'])->name('budget-sheet.store');
+    Route::get('budget-sheet/{budget}', [BudgetSheetController::class, 'show'])->name('budget-sheet.show');
+    Route::get('budget-sheet/{budget}/pdf', [BudgetSheetController::class, 'pdf'])->name('budget-sheet.pdf');
+    Route::get('budget-sheet/{budget}/csv', [BudgetSheetController::class, 'csv'])->name('budget-sheet.csv');
+    Route::post('budget-sheet/{budget}/figures', [BudgetSheetController::class, 'saveFigures'])->name('budget-sheet.figures');
+    Route::post('budget-sheet/{budget}/forecast', [BudgetSheetController::class, 'forecast'])->name('budget-sheet.forecast');
+    Route::post('budget-sheet/{budget}/period', [BudgetSheetController::class, 'updatePeriod'])->name('budget-sheet.period');
+    Route::delete('budget-sheet/{budget}', [BudgetSheetController::class, 'destroy'])->name('budget-sheet.destroy');
+
     Route::get('budget-dashboard', [BudgetDashboardController::class, 'index'])->name('budget-dashboard');
     Route::get('budget/{budget}/summary-json', [BudgetDashboardController::class, 'summary'])->name('budget.summary-json');
+    Route::get('budget/{budget}/monthly', [BudgetController::class, 'monthly'])->name('budget.monthly');
 
     // Budget reports
     Route::get('budget-report/performance', [BudgetReportController::class, 'performance'])->name('budget-report.performance');

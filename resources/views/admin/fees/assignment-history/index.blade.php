@@ -65,10 +65,10 @@
 
                 {{-- Form --}}
                 <div>
-                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Form') }}</label>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Class') }}</label>
                     <select name="form_id" id="formSelect"
                             style="width: 100%; padding: 9px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.85rem; outline: none; appearance: auto; -webkit-appearance: menulist; background: #fff;">
-                        <option value="">-- {{ __('All Forms') }} --</option>
+                        <option value="">-- {{ __('All Classes') }} --</option>
                         @foreach($forms as $form)
                             <option value="{{ $form->id }}" {{ $formId == $form->id ? 'selected' : '' }}>{{ $form->name }}</option>
                         @endforeach
@@ -76,6 +76,7 @@
                 </div>
 
                 {{-- Stream --}}
+                @if(\App\Support\LevelContext::usesStreams())
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Stream') }}</label>
                     <select name="stream_id" id="streamSelect"
@@ -86,6 +87,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 16px; align-items: end;">
@@ -359,13 +361,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cascading: Form → Stream
     formSelect.addEventListener('change', async function() {
-        streamSelect.innerHTML = '<option value="">-- {{ __("All Streams") }} --</option>';
+        if (streamSelect) streamSelect.innerHTML = '<option value="">-- {{ __("All Streams") }} --</option>';
         if (!this.value) return;
 
         try {
             const resp = await fetch(baseUrl + '/streams-by-form/' + this.value);
             const streams = await resp.json();
-            streams.forEach(s => {
+            if (streamSelect) streams.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
                 opt.textContent = s.name;

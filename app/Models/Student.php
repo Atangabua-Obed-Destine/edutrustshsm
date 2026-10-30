@@ -19,6 +19,7 @@ class Student extends Model
         'birth_certificate', 'primary_certificate', 'gce_ol_certificate',
         'previous_school', 'previous_class', 'transfer_certificate', 'medical_certificate',
         'status', 'admission_date', 'withdrawal_date', 'withdrawal_reason',
+        'destination_school', 'exit_recorded_by',
     ];
 
     protected function casts(): array
@@ -43,7 +44,16 @@ class Student extends Model
 
     public function user() { return $this->belongsTo(User::class); }
     public function batch() { return $this->belongsTo(Batch::class); }
+    /** The primary guardian — the one the school writes to first. */
     public function guardian() { return $this->belongsTo(Guardian::class); }
+
+    /** Everyone linked to this child, primary or not. */
+    public function guardians()
+    {
+        return $this->belongsToMany(Guardian::class, 'guardian_student')
+            ->withPivot(['relationship', 'is_primary', 'can_access_portal'])
+            ->withTimestamps();
+    }
 
     public function enrollments()
     {

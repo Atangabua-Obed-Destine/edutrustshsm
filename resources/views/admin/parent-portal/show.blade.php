@@ -123,19 +123,87 @@
                     <table class="w-full text-sm">
                         <tbody class="divide-y divide-gray-50">
                             @foreach($guardian->students as $child)
-                                <tr class="hover:bg-gray-50">
+                                <tr class="hover:bg-gray-50 align-top">
                                     <td class="px-5 py-3">
-                                        <div class="font-medium text-gray-800">{{ $child->full_name }}</div>
-                                        <div class="text-xs text-gray-400">{{ $child->student_id }} · {{ $child->currentEnrollment->classSection->name ?? $child->currentEnrollment->classSection->form->name ?? __('Not enrolled') }}</div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-medium text-gray-800">{{ $child->full_name }}</span>
+                                            @if($child->pivot->is_primary)
+                                                <span class="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[0.65rem] font-semibold">{{ __('Main contact') }}</span>
+                                            @endif
+                                            @unless($child->pivot->can_access_portal)
+                                                <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[0.65rem]">{{ __('Cannot see in portal') }}</span>
+                                            @endunless
+                                        </div>
+                                        <div class="text-xs text-gray-400 mt-0.5">
+                                            {{ $child->student_id }} · {{ $child->currentEnrollment->classSection->name ?? $child->currentEnrollment->classSection->form->name ?? __('Not enrolled') }}
+                                            @if($child->pivot->relationship) · {{ $child->pivot->relationship }} @endif
+                                        </div>
+
+                                        @can('parent-portal.link')
+                                            <form method="POST" action="{{ route('admin.parent-portal.students.update', [$guardian, $child]) }}"
+                                                  class="flex flex-wrap items-center gap-2 mt-2">
+                                                @csrf @method('PUT')
+                                                <input type="text" name="relationship" value="{{ $child->pivot->relationship }}" maxlength="60"
+                                                       placeholder="{{ __('Father, mother, aunt…') }}"
+                                                       class="text-xs border border-gray-300 rounded-lg px-2 py-1 w-40">
+                                                <label class="flex items-center gap-1.5 text-xs text-gray-500">
+                                                    <input type="checkbox" name="can_access_portal" value="1" @checked($child->pivot->can_access_portal)
+                                                           class="rounded border-gray-300 text-teal-600">
+                                                    {{ __('May see this child') }}
+                                                </label>
+                                                <button class="text-xs text-gray-600 hover:text-gray-800 underline">{{ __('Save') }}</button>
+                                            </form>
+                                        @endcan
                                     </td>
-                                    <td class="px-5 py-3 text-right">
+                                    <td class="px-5 py-3 text-right whitespace-nowrap">
                                         <a href="{{ route('admin.students.show', $child) }}" class="text-xs text-teal-600 font-medium hover:text-teal-700">{{ __('View student') }} →</a>
+                                        @can('parent-portal.link')
+                                            @unless($child->pivot->is_primary)
+                                                <form method="POST" action="{{ route('admin.parent-portal.students.primary', [$guardian, $child]) }}" class="mt-1.5">
+                                                    @csrf
+                                                    <button class="text-xs text-gray-500 hover:text-gray-700">{{ __('Make main contact') }}</button>
+                                                </form>
+                                            @endunless
+                                            <form method="POST" action="{{ route('admin.parent-portal.students.detach', [$guardian, $child]) }}" class="mt-1.5"
+                                                  onsubmit="return confirm(@json(__('Remove this link? The pupil and the parent both stay on file.')))">
+                                                @csrf @method('DELETE')
+                                                <button class="text-xs text-rose-600 hover:text-rose-700">{{ __('Remove link') }}</button>
+                                            </form>
+                                        @endcan
                                     </td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
                 @endif
+
+                @can('parent-portal.link')
+                    <div class="px-5 py-4 border-t border-gray-100 bg-gray-50/60">
+                        <form method="POST" action="{{ route('admin.parent-portal.students.attach', $guardian) }}"
+                              class="flex flex-wrap items-end gap-2">
+                            @csrf
+                            <div class="flex-1 min-w-56">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Link another child') }}</label>
+                                <select name="student_id" required style="appearance:auto;"
+                                        class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white">
+                                    <option value="">{{ __('— Select a pupil —') }}</option>
+                                    @foreach($linkable as $pupil)
+                                        <option value="{{ $pupil->id }}">{{ $pupil->full_name }} — {{ $pupil->student_id }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Relationship') }}</label>
+                                <input type="text" name="relationship" maxlength="60" placeholder="{{ __('Father, mother, aunt…') }}"
+                                       class="text-sm border border-gray-300 rounded-lg px-3 py-2 w-44">
+                            </div>
+                            <button type="submit" class="bg-[#1e293b] hover:bg-[#334155] text-white px-4 py-2 rounded-lg text-sm font-medium">{{ __('Link') }}</button>
+                        </form>
+                        <p class="text-xs text-gray-400 mt-2">
+                            {{ __('A child can have several parents — a father and a mother with their own logins, or a relative who pays the fees.') }}
+                        </p>
+                    </div>
+                @endcan
             </div>
 
             {{-- Activity: payment submissions --}}

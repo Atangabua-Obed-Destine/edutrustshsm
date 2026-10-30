@@ -169,6 +169,35 @@ class ConfigurationHealthTest extends TestCase
         );
     }
 
+    public function test_classes_at_a_level_the_school_does_not_run_are_not_flagged(): void
+    {
+        $this->currentYear();
+        $this->settings();
+        SchoolSetting::current()->update(['school_level_mode' => 'nursery_primary']);
+
+        Form::create([
+            'branch_id' => $this->branch->id, 'name' => 'Form 2', 'short_name' => 'F2',
+            'level' => 'first_cycle', 'school_level' => 'secondary',
+            'has_streams' => false, 'display_order' => 2, 'is_active' => true,
+        ]);
+        $primary = Form::create([
+            'branch_id' => $this->branch->id, 'name' => 'Primary 3', 'short_name' => 'P3',
+            'level' => 'primary', 'school_level' => 'nursery_primary',
+            'has_streams' => false, 'display_order' => 1, 'is_active' => true,
+        ]);
+        $subject = Subject::create(['branch_id' => $this->branch->id, 'name' => 'Maths', 'code' => 'MTH', 'is_active' => true]);
+        DB::table('form_subject')->insert(['form_id' => $primary->id, 'subject_id' => $subject->id, 'coefficient' => 1, 'type' => 'core']);
+        ClassSection::create([
+            'branch_id' => $this->branch->id, 'form_id' => $primary->id,
+            'section' => 'A', 'name' => 'P3A', 'max_students' => 40, 'is_active' => true,
+        ]);
+
+        $report = $this->report();
+
+        $this->assertStringNotContainsString('Form 2', $this->titles($report['errors']).$this->titles($report['warnings']).collect($report['errors'])->pluck('message')->join(' '));
+        $this->assertStringContainsString(__('Every class has subjects'), $this->titles($report['healthy']));
+    }
+
     public function test_students_with_no_term_or_no_subjects_are_reported(): void
     {
         $session = $this->currentYear();
@@ -204,14 +233,15 @@ class ConfigurationHealthTest extends TestCase
         $this->assertStringContainsString('registered for no subjects', $titles);
     }
 
-    public function test_a_fully_configured_school_reports_healthy(): void
+    /** Everything the health check asks for, with the current term optional. */
+    private function configure(bool $currentTerm = true): void
     {
         $session = $this->currentYear();
         $this->settings();
 
         $term = Term::create([
             'branch_id' => $this->branch->id, 'term_number' => 1, 'name' => 'First Term',
-            'start_date' => '2025-09-01', 'end_date' => '2025-12-15', 'is_current' => true,
+            'start_date' => '2025-09-01', 'end_date' => '2025-12-15', 'is_current' => $currentTerm,
         ]);
         $form = Form::create([
             'branch_id' => $this->branch->id, 'name' => 'Form 1', 'short_name' => 'F1',
@@ -240,10 +270,40 @@ class ConfigurationHealthTest extends TestCase
             'min_mark' => 0, 'max_mark' => 20, 'description' => 'Pass', 'display_order' => 1,
         ]);
 
+    }
+
+    public function test_a_fully_configured_school_reports_healthy(): void
+    {
+        $this->configure();
+
         $report = $this->report();
 
         $this->assertSame(0, $report['summary']['errors'], $this->titles($report['errors']));
         $this->assertGreaterThan(0, $report['summary']['healthy']);
+    }
+
+    public function test_the_dashboard_says_what_is_missing(): void
+    {
+        $this->configure(currentTerm: false);
+
+        $this->get(route('admin.dashboard'))
+            ->assertSuccessful()
+            ->assertSee(__('No single current term'))
+            ->assertSee(__('Fix Terms'))
+            ->assertSee(route('admin.terms.index'), false);
+    }
+
+    public function test_the_dashboard_only_turns_red_when_something_is_broken(): void
+    {
+        $this->configure();
+
+        // Fees and the ledger are still unset, so there is something to say,
+        // but nothing that stops the school working.
+        $this->get(route('admin.dashboard'))
+            ->assertSuccessful()
+            ->assertDontSee(__('No single current term'))
+            ->assertDontSee('cannot work yet')
+            ->assertSee('need attention');
     }
 
     public function test_the_screen_renders(): void

@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\Form;
-use App\Models\PtaAnnouncement;
+use App\Models\Announcement;
+use App\Models\AnnouncementCategory;
 use App\Models\PtaLevy;
 use App\Models\PtaLevyPayment;
 use App\Models\PtaMeeting;
@@ -41,7 +42,10 @@ class PtaController extends Controller implements HasMiddleware
             ->orderByDesc('id')
             ->get();
 
-        $announcements = PtaAnnouncement::with(['targetForm', 'targetClass', 'createdBy'])
+        // Only the PTA's own notices. School-wide ones live on the notice
+        // board, which is the same table under a different category.
+        $announcements = Announcement::with(['targetForm', 'targetClass', 'createdBy'])
+            ->inCategory(AnnouncementCategory::PTA)
             ->orderByDesc('id')
             ->get();
 
@@ -91,28 +95,30 @@ class PtaController extends Controller implements HasMiddleware
         $validated = $request->validate([
             'title'                   => ['required', 'string', 'max:200'],
             'body'                    => ['required', 'string'],
-            'audience'                => ['required', 'in:all,form_specific,class_specific'],
+            'scope'                   => ['required', 'in:all,form_specific,class_specific'],
             'target_form_id'          => ['nullable', 'exists:forms,id'],
             'target_class_section_id' => ['nullable', 'exists:class_sections,id'],
             'publish'                 => ['nullable', 'boolean'],
             'expires_at'              => ['nullable', 'date', 'after:today'],
         ]);
 
-        PtaAnnouncement::create([
+        Announcement::create([
+            'category_id'             => AnnouncementCategory::pta()?->id,
+            'reference'               => Announcement::nextReference(BranchContext::current()),
             'title'                   => $validated['title'],
             'body'                    => $validated['body'],
-            'audience'                => $validated['audience'],
-            'target_form_id'          => $validated['audience'] === 'form_specific' ? ($validated['target_form_id'] ?? null) : null,
-            'target_class_section_id' => $validated['audience'] === 'class_specific' ? ($validated['target_class_section_id'] ?? null) : null,
+            'scope'                   => $validated['scope'],
+            // A PTA notice is for parents; staff read the notice board.
+            'audience'                => Announcement::AUDIENCE_GUARDIANS,
             'published_at'            => $request->boolean('publish') ? now() : null,
             'expires_at'              => $validated['expires_at'] ?? null,
             'created_by'              => auth()->id(),
-        ]);
+        ] + Announcement::targetsFor($validated));
 
         return back()->with('success', __('Announcement saved.'));
     }
 
-    public function togglePublishAnnouncement(PtaAnnouncement $announcement)
+    public function togglePublishAnnouncement(Announcement $announcement)
     {
         $announcement->update([
             'published_at' => $announcement->published_at ? null : now(),
@@ -121,7 +127,7 @@ class PtaController extends Controller implements HasMiddleware
         return back()->with('success', $announcement->published_at ? __('Announcement published.') : __('Announcement unpublished.'));
     }
 
-    public function destroyAnnouncement(PtaAnnouncement $announcement)
+    public function destroyAnnouncement(Announcement $announcement)
     {
         $announcement->delete();
 

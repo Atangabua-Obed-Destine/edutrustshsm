@@ -11,8 +11,13 @@ class DefaultAccountMapping extends Model
 
     protected $fillable = [
         'branch_id',
-        'mapping_type', 'category_id', 'debit_account_id', 'credit_account_id', 'status',
+        'mapping_type', 'category_id', 'budget_line_id', 'debit_account_id', 'credit_account_id', 'status',
     ];
+
+    public function budgetLine()
+    {
+        return $this->belongsTo(BudgetLine::class);
+    }
 
     public function debitAccount()
     {

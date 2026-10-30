@@ -100,6 +100,16 @@ class StaffController extends Controller implements HasMiddleware
 
     public function destroy(User $staff)
     {
+        // A teacher's marks submissions cascade off their user row, and the
+        // receipts and marks they signed would lose their author.
+        $signed = \Illuminate\Support\Facades\DB::table('marks_submissions')->where('teacher_id', $staff->id)->exists()
+            || \Illuminate\Support\Facades\DB::table('payments')->where('received_by', $staff->id)->exists()
+            || \Illuminate\Support\Facades\DB::table('marks')->where('entered_by', $staff->id)->exists();
+
+        if ($signed) {
+            return back()->with('error', __('This staff member has entered marks or received payments, so their record cannot be deleted. Deactivate the account instead.'));
+        }
+
         $old = $staff->toArray();
         $staff->delete();
         return back()->with('success', __('Staff member deleted.'));

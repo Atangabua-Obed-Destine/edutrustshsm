@@ -160,11 +160,15 @@ class StudentDocumentController extends Controller implements HasMiddleware
             __('marksheet').'-'.$data['section']->name.'-'.$data['term']->name, 'landscape');
     }
 
-    public function marksheetCsv(Request $request): StreamedResponse
+    public function marksheetCsv(Request $request)
     {
         $data = $this->marksheetData($request);
 
-        abort_unless($data['section'] && $data['term'], 404);
+        // The same answer the PDF gives: a bare 404 told nobody what was
+        // missing, and the two came off the same form.
+        if (! $data['section'] || ! $data['term']) {
+            return back()->with('error', __('Choose a class and term first.'));
+        }
 
         $filename = __('marksheet').'-'.$data['section']->name.'-'.$data['term']->name.'.csv';
 

@@ -26,6 +26,11 @@ class ClassSection extends Model
     // stream() relations that used to live here referenced columns that do not
     // exist; they crashed on use (Promotion, Bulk Upload) and silently returned
     // null elsewhere (StudentController wiped enrollment streams with them).
+    public function councils()
+    {
+        return $this->hasMany(ClassCouncil::class);
+    }
+
     public function form() { return $this->belongsTo(Form::class); }
     public function classTeacher() { return $this->belongsTo(User::class, 'class_teacher_id'); }
     public function room() { return $this->belongsTo(Room::class); }

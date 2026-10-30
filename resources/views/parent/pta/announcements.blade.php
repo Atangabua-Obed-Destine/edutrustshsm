@@ -16,9 +16,9 @@
                     <span style="font-size:0.68rem; color:#94a3b8; white-space:nowrap;">{{ $a->published_at?->format('d M Y') }}</span>
                 </div>
                 <p style="font-size:0.86rem; color:#475569; line-height:1.6; margin-top:8px; white-space:pre-line;">{{ $a->body }}</p>
-                @if($a->audience !== 'all')
+                @if($a->scope !== 'all')
                     <span style="display:inline-block; margin-top:10px; font-size:0.68rem; font-weight:600; padding:3px 9px; border-radius:99px; background:#f0fdfa; color:#0d9488;">
-                        {{ $a->audience === 'form_specific' ? ($a->targetForm->name ?? __('Form')) : ($a->targetClass->name ?? __('Class')) }}
+                        {{ $a->reach() }}
                     </span>
                 @endif
             </div>

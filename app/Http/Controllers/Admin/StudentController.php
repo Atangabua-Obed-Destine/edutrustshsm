@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller implements HasMiddleware
 {
@@ -102,13 +103,25 @@ class StudentController extends Controller implements HasMiddleware
         $isSecondCycle = $formModel && $formModel->level === 'second_cycle';
         $hasStreams = $formModel && $formModel->has_streams;
 
+        // The section and stream have to belong to the form being admitted into.
+        // The screen guarantees that by resetting them whenever the form changes,
+        // but a replayed or hand-made POST does not, and the result would be a
+        // pupil sitting in another form's class with that form's subjects.
+        $formId = $formModel?->id ?? 0;
+
         $validated = $request->validate([
             // Tab 1: Admission & Class
             'batch_id'          => ['required', 'exists:batches,id'],
             'admission_date'    => ['required', 'date'],
             'form_id'           => ['required', 'exists:forms,id'],
-            'stream_id'         => [$hasStreams ? 'required' : 'nullable', 'exists:streams,id'],
-            'class_section_id'  => ['required', 'exists:class_sections,id'],
+            'stream_id'         => [
+                $hasStreams ? 'required' : 'nullable',
+                Rule::exists('form_stream', 'stream_id')->where('form_id', $formId),
+            ],
+            'class_section_id'  => [
+                'required',
+                Rule::exists('class_sections', 'id')->where('form_id', $formId),
+            ],
             'term_id'           => ['required', 'exists:terms,id'],
             'residence_type'    => ['required', 'in:day,boarding,half_boarding'],
             // Tab 2: Personal Information
@@ -157,6 +170,8 @@ class StudentController extends Controller implements HasMiddleware
         ], [
             'gce_ol_certificate_file.required' => 'GCE Ordinary Level certificate is required for Second Cycle admission.',
             'stream_id.required' => 'Please select a stream for this form.',
+            'stream_id.exists' => __('That stream does not belong to the selected form.'),
+            'class_section_id.exists' => __('That section does not belong to the selected form.'),
         ]);
 
         $student = DB::transaction(function () use ($validated, $request) {
@@ -289,6 +304,33 @@ class StudentController extends Controller implements HasMiddleware
         return view('admin.students.show', compact('student'));
     }
 
+    /**
+     * One pupil across every term they have been here.
+     *
+     * Report cards exist per term and nothing put them side by side, so
+     * "how has this child been doing" could only be answered by opening six
+     * documents at once.
+     */
+    public function history(Student $student, \App\Services\StudentAcademicHistoryService $history)
+    {
+        $student->load('guardian');
+
+        return view('admin.students.history', [
+            'student' => $student,
+            'history' => $history->forStudent($student),
+        ]);
+    }
+
+    /** The same record as a document, for a transfer or a file. */
+    public function historyPdf(Student $student, \App\Services\StudentAcademicHistoryService $history)
+    {
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.students.history-pdf', [
+            'student' => $student,
+            'history' => $history->forStudent($student),
+            'school' => SchoolSetting::current(),
+        ])->setPaper('a4')->download('academic-record-'.str($student->student_id)->slug().'.pdf');
+    }
+
     public function edit(Student $student)
     {
         $student->load(['guardian', 'currentEnrollment']);
@@ -384,10 +426,19 @@ class StudentController extends Controller implements HasMiddleware
                     // stream_id column, so this used to write null and silently wipe
                     // the student's stream (breaking subject sync and fee resolution).
                     // The edit form has no stream field, so preserve what's there.
+                    $moved = (int) $enrollment->class_section_id !== (int) $validated['class_section_id'];
                     $enrollment->update([
                         'class_section_id' => $validated['class_section_id'],
                         'residence_type' => $validated['residence_type'] ?? $enrollment->residence_type,
                     ]);
+                    // A pupil moved to another class takes that class's
+                    // subjects and is billed anything its structure adds.
+                    // Fees already billed are left as they are.
+                    if ($moved) {
+                        $enrollment->unsetRelation('classSection');
+                        $enrollment->syncCoreSubjects();
+                        $enrollment->syncFees();
+                    }
                 }
             }
         });

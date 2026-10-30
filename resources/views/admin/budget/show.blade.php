@@ -22,6 +22,7 @@
                     · {{ $budget->start_date->format('d/m/Y') }} → {{ $budget->end_date->format('d/m/Y') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
+                <a href="{{ route('admin.budget.monthly', $budget) }}" class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-sm">{{ __('Monthly Summary') }}</a>
                 @if($budget->isEditable())
                     <a href="{{ route('admin.budget.edit', $budget) }}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Edit') }}</a>
                 @endif
@@ -54,6 +55,10 @@
             <div class="bg-gray-200 rounded-full h-1.5 mt-1 overflow-hidden"><div class="h-1.5 rounded-full" style="width: {{ min($budget->utilization_percentage, 100) }}%; background: {{ $uColor }};"></div></div>
         </div>
     </div>
+
+    @if($pacing)
+        @include('admin.budget._pacing', ['pacing' => $pacing])
+    @endif
 
     @if($budget->isOverBudget())
     <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">{{ __('⚠ This budget is over its total amount.') }}</div>
@@ -171,7 +176,7 @@
                     <span class="font-medium text-red-700">{{ number_format($e->amount, 2) }}</span>
                 </div>
                 @empty
-                <p class="text-sm text-gray-500">{{ __('No expenses tagged to this budget yet.') }}</p>
+                <p class="text-sm text-gray-500">{{ __('No expenses on this budget yet. Expenses join it by themselves, by category and date, once it is active.') }}</p>
                 @endforelse
             </div>
         </div>

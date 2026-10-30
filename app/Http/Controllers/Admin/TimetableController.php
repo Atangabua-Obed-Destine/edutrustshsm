@@ -91,7 +91,7 @@ class TimetableController extends Controller implements HasMiddleware
     {
         $sessions = AcademicSession::orderByDesc('start_date')->get();
         $forms = Form::active()->forCurrentLevel()->ordered()->get();
-        $subjects = Subject::where('is_active', true)->orderBy('name')->get();
+        $subjects = Subject::where('is_active', true)->forCurrentLevel()->orderBy('name')->get();
         $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])->where('is_active', true)->orderBy('last_name')->get();
         $rooms = Room::where('is_active', true)->orderBy('name')->get();
         $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];

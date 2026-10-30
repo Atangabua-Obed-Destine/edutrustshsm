@@ -46,6 +46,11 @@ class Guardian extends Authenticatable
         return $this->guardian_name
             ?: $this->father_name
             ?: $this->mother_name
+            // The emergency contact is the one name intake actually insists
+            // on, so it is the name most guardians have. Leaving it out of
+            // this chain is why a list of real parents read as a column of
+            // "Parent / Guardian".
+            ?: $this->emergency_contact_name
             ?: __('Parent / Guardian');
     }
 
@@ -63,7 +68,8 @@ class Guardian extends Authenticatable
     {
         return $this->guardian_phone
             ?: $this->father_phone
-            ?: $this->mother_phone;
+            ?: $this->mother_phone
+            ?: $this->emergency_contact_phone;
     }
 
     /** Whether the parent has completed the claim flow and can log in. */
@@ -81,5 +87,41 @@ class Guardian extends Authenticatable
     }
 
     public function user() { return $this->belongsTo(User::class); }
-    public function students() { return $this->hasMany(Student::class); }
+    /**
+     * Where the "go home" link on an error page should send this guardian.
+     *
+     * The error layout asks auth()->user() for this, and on the guardians
+     * guard that is a Guardian rather than a User. Without it, every 404 a
+     * signed-in parent met turned into a 500.
+     */
+    public function homeRoute(): ?string
+    {
+        return 'parent.dashboard';
+    }
+
+    /**
+     * Every child this adult is linked to.
+     *
+     * Through the pivot rather than students.guardian_id, so a parent sees
+     * all their children and not only the ones where they happen to be the
+     * primary contact.
+     */
+    public function students()
+    {
+        return $this->belongsToMany(Student::class, 'guardian_student')
+            ->withPivot(['relationship', 'is_primary', 'can_access_portal'])
+            ->withTimestamps();
+    }
+
+    /** Only the children this guardian may actually see in the portal. */
+    public function portalStudents()
+    {
+        return $this->students()->wherePivot('can_access_portal', true);
+    }
+
+    /** The children this guardian is the school's first point of contact for. */
+    public function primaryStudents()
+    {
+        return $this->students()->wherePivot('is_primary', true);
+    }
 }

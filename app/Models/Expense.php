@@ -12,6 +12,7 @@ class Expense extends Model
 
     protected $fillable = [
         'branch_id',
+        'budget_line_id',
         'category_id', 'title', 'invoice_id', 'amount', 'date', 'reference',
         'payment_method', 'payment_account_id', 'note', 'attach', 'status',
         'budget_id', 'budget_allocation_id', 'approval_status', 'approved_by', 'approved_at',
@@ -51,5 +52,10 @@ class Expense extends Model
     public function recordedBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function budgetLine()
+    {
+        return $this->belongsTo(BudgetLine::class);
     }
 }

@@ -78,7 +78,7 @@ class PaymentController extends Controller implements HasMiddleware
             'student_enrollment_id' => ['required', 'exists:student_enrollments,id'],
             'amount' => ['required', 'numeric', 'min:1'],
             'payment_method' => ['required', 'in:cash,bank_transfer,mtn_momo,orange_money,edutrustpay'],
-            'payment_date' => ['required', 'date'],
+            'payment_date' => ['required', 'date', 'before_or_equal:today'],
             'payer_name' => ['nullable', 'string', 'max:150'],
             'payer_phone' => ['nullable', 'string', 'max:20'],
             'bank_name' => ['nullable', 'string', 'max:100'],

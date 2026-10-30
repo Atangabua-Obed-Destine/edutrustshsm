@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\AdmissionApplication;
+use App\Models\Announcement;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Leave;
@@ -50,6 +51,7 @@ class PrivateFiles
         'parent-receipt' => [ParentPaymentSubmission::class, 'parent-payment.view', ['receipt_path']],
         'pta-minutes' => [PtaMeeting::class, 'pta.view', ['minutes_path']],
         'staff-note' => [StaffNote::class, 'staff.view', ['attachment']],
+        'announcement' => [Announcement::class, 'announcement.view', ['attachment']],
     ];
 
     /** The prefixes the securing command moves off the public disk. */
@@ -64,6 +66,7 @@ class PrivateFiles
         'parent-receipts',
         'pta-minutes',
         'staff-notes',
+        'announcements',
     ];
 
     /** @return array{0: class-string<Model>, 1: string, 2: array<int, string>}|null */

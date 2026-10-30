@@ -11,6 +11,13 @@
         <p class="mt-1 text-sm text-gray-500">{{ __('Select class, subject & sequence, then enter student marks') }}</p>
     </div>
 
+    @if(($nurseryClasses ?? 0) > 0)
+    <div class="bg-sky-50 border border-sky-200 rounded-lg px-4 py-3 text-sm text-sky-900 flex flex-col sm:flex-row sm:items-center gap-3">
+        <p class="flex-1">{{ trans_choice('{1} The nursery class is not listed here: nursery children are assessed by competence, not marked.|[2,*] The :count nursery classes are not listed here: nursery children are assessed by competence, not marked.', $nurseryClasses, ['count' => $nurseryClasses]) }}</p>
+        <a href="{{ route('admin.nursery.index') }}" class="font-medium underline underline-offset-2 whitespace-nowrap">{{ __('Nursery Assessment') }}</a>
+    </div>
+    @endif
+
     {{-- Alerts --}}
     @if(session('success'))
     <div class="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -71,11 +78,11 @@
 
                 {{-- Form --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Form') }} <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Class') }} <span class="text-red-500">*</span></label>
                     <select name="form_id" id="formSelect" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                             style="appearance: auto; -webkit-appearance: menulist;">
-                        <option value="">{{ __('— Select Form —') }}</option>
+                        <option value="">{{ __('— Select Class —') }}</option>
                         @foreach($forms as $form)
                         <option value="{{ $form->id }}" data-system="{{ $form->education_system }}"
                                 {{ $formId == $form->id ? 'selected' : '' }}>
@@ -416,7 +423,7 @@
             <table class="w-full text-sm">
                 <thead style="background-color: #f9fafb;">
                     <tr class="text-gray-600 uppercase text-xs">
-                        <th class="px-4 py-3 text-left">{{ __('Class') }}</th>
+                        <th class="px-4 py-3 text-left">{{ __('Class Section') }}</th>
                         <th class="px-4 py-3 text-left">{{ __('Subject') }}</th>
                         <th class="px-4 py-3 text-left">{{ __('Sequence') }}</th>
                         <th class="px-4 py-3 text-left">{{ __('Teacher') }}</th>
@@ -496,7 +503,7 @@
         const system = document.getElementById('eduSystemSelect').value;
         const formSelect = document.getElementById('formSelect');
         const currentVal = formSelect.value;
-        formSelect.innerHTML = '<option value="">' + @json(__('— Select Form —')) + '</option>';
+        formSelect.innerHTML = '<option value="">' + @json(__('— Select Class —')) + '</option>';
         allForms.filter(f => f.education_system === system).forEach(f => {
             const opt = document.createElement('option');
             opt.value = f.id;

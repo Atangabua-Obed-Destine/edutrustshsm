@@ -11,6 +11,7 @@ use App\Models\SchoolSetting;
 use App\Models\Sequence;
 use App\Models\Term;
 use App\Models\TermResult;
+use App\Services\NurseryAssessmentService;
 use App\Services\TermResultCalculator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -154,6 +155,13 @@ class ReportCardController extends Controller implements HasMiddleware
         $school = SchoolSetting::current();
         $currentSession = AcademicSession::current();
 
+        // A nursery pupil's card is a competence grid, not a marks table.
+        if (NurseryAssessmentService::isNursery($termResult->enrollment->classSection->form)) {
+            $card = app(NurseryAssessmentService::class)->card($termResult);
+
+            return view('admin.report-cards.nursery', compact('termResult', 'school', 'currentSession', 'card'));
+        }
+
         // Load the actual sequences configured for this form + term via form_sequence pivot
         $formId = $termResult->enrollment->classSection->form_id;
         $termId = $termResult->term_id;
@@ -248,13 +256,21 @@ class ReportCardController extends Controller implements HasMiddleware
             $sequences = $sequenceCache[$cacheKey];
 
             // Render the show view to a string
-            $html = view('admin.report-cards.show', [
-                'termResult' => $termResult,
-                'school' => $school,
-                'currentSession' => $currentSession,
-                'sequences' => $sequences,
-                'pdfMode' => true,
-            ])->render();
+            $html = NurseryAssessmentService::isNursery($termResult->enrollment->classSection->form)
+                ? view('admin.report-cards.nursery', [
+                    'termResult' => $termResult,
+                    'school' => $school,
+                    'currentSession' => $currentSession,
+                    'card' => app(NurseryAssessmentService::class)->card($termResult),
+                    'pdfMode' => true,
+                ])->render()
+                : view('admin.report-cards.show', [
+                    'termResult' => $termResult,
+                    'school' => $school,
+                    'currentSession' => $currentSession,
+                    'sequences' => $sequences,
+                    'pdfMode' => true,
+                ])->render();
 
             // Build a safe, unique file name per student
             $student = $termResult->enrollment->student;

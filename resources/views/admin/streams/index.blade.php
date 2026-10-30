@@ -23,7 +23,7 @@
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Name') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Code') }}</th>
                     <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{{ __('Type') }}</th>
-                    <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{{ __('Forms') }}</th>
+                    <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{{ __('Classes') }}</th>
                     <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{{ __('Status') }}</th>
                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Actions') }}</th>
                 </tr>

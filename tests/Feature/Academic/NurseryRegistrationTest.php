@@ -166,4 +166,54 @@ class NurseryRegistrationTest extends TestCase
         $this->assertSame('french', $response->viewData('educationSystem'));
         $response->assertSee('value="french" selected', false);
     }
+    public function test_a_pupil_cannot_be_admitted_into_another_forms_section(): void
+    {
+        $nursery = $this->nurseryForm();
+        $nurserySection = ClassSection::create([
+            'branch_id' => $this->branch->id, 'form_id' => $nursery->id,
+            'section' => 'A', 'name' => 'Nursery 1A', 'max_students' => 25, 'is_active' => true,
+        ]);
+
+        $secondary = Form::create([
+            'branch_id' => $this->branch->id, 'name' => 'Form 1', 'short_name' => 'F1',
+            'level' => 'first_cycle', 'school_level' => 'secondary',
+            'education_system' => 'english', 'has_streams' => false,
+            'display_order' => 1, 'is_active' => true,
+        ]);
+        $secondarySection = ClassSection::create([
+            'branch_id' => $this->branch->id, 'form_id' => $secondary->id,
+            'section' => 'A', 'name' => 'Form 1A', 'max_students' => 40, 'is_active' => true,
+        ]);
+
+        // The screen resets the section whenever the form changes; a replayed
+        // POST does not, and a nursery pupil would land in Form 1A.
+        $payload = $this->payload($nurserySection);
+        $payload['class_section_id'] = $secondarySection->id;
+
+        $this->post(route('admin.students.store'), $payload)
+            ->assertSessionHasErrors('class_section_id');
+
+        $this->assertSame(0, Student::count());
+    }
+
+    public function test_a_stream_from_another_form_is_rejected(): void
+    {
+        $nursery = $this->nurseryForm();
+        $section = ClassSection::create([
+            'branch_id' => $this->branch->id, 'form_id' => $nursery->id,
+            'section' => 'A', 'name' => 'Nursery 1A', 'max_students' => 25, 'is_active' => true,
+        ]);
+
+        $stream = \App\Models\Stream::create([
+            'branch_id' => $this->branch->id, 'name' => 'Science', 'code' => 'SCI', 'is_active' => true,
+        ]);
+
+        $payload = $this->payload($section);
+        $payload['stream_id'] = $stream->id;
+
+        $this->post(route('admin.students.store'), $payload)
+            ->assertSessionHasErrors('stream_id');
+
+        $this->assertSame(0, Student::count());
+    }
 }

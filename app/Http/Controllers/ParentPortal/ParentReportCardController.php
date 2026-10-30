@@ -49,6 +49,12 @@ class ParentReportCardController extends Controller
         $school = SchoolSetting::current();
         $currentSession = AcademicSession::current();
 
+        if (\App\Services\NurseryAssessmentService::isNursery($termResult->enrollment->classSection->form)) {
+            $card = app(\App\Services\NurseryAssessmentService::class)->card($termResult);
+
+            return view('admin.report-cards.nursery', compact('termResult', 'school', 'currentSession', 'card'));
+        }
+
         $formId = $termResult->enrollment->classSection->form_id;
         $termId = $termResult->term_id;
         $seqIds = DB::table('form_sequence')

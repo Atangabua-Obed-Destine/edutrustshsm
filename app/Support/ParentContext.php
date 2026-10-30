@@ -36,7 +36,10 @@ class ParentContext
             return new Collection();
         }
 
-        return Student::where('guardian_id', $guardian->id)
+        // Through the link table, and only links that carry portal access:
+        // a sponsor may be recorded as paying a child's fees without being
+        // entitled to their school reports.
+        return $guardian->portalStudents()
             ->orderBy('first_name')
             ->get();
     }
@@ -89,9 +92,12 @@ class ParentContext
     public static function authorizeStudent(int $studentId): Student
     {
         $guardian = self::guardian();
-        $student = Student::where('guardian_id', $guardian?->id)
-            ->where('id', $studentId)
-            ->first();
+
+        abort_if($guardian && ! $guardian->portal_access, 403, __('Portal access for this account has been withdrawn.'));
+
+        $student = $guardian
+            ? $guardian->portalStudents()->where('students.id', $studentId)->first()
+            : null;
 
         abort_if(! $student, 403, __('You do not have access to this student.'));
 

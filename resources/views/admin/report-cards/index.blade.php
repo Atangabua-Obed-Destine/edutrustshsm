@@ -44,10 +44,10 @@
 
                 {{-- Form --}}
                 <div>
-                    <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px;">{{ __('Form') }}</label>
+                    <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px;">{{ __('Class') }}</label>
                     <select name="form_id" id="formSelect"
                         style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; color: #111827; background: #fff; appearance: auto; -webkit-appearance: menulist;">
-                        <option value="">{{ __('— Select Form —') }}</option>
+                        <option value="">{{ __('— Select Class —') }}</option>
                         @foreach($forms as $f)
                             <option value="{{ $f->id }}" {{ $formId == $f->id ? 'selected' : '' }}>{{ $f->name }}</option>
                         @endforeach
@@ -94,8 +94,17 @@
     </div>
 
     @if($classSectionId && $termId)
+    @php $nurseryClass = \App\Services\NurseryAssessmentService::isNursery($selectedClass?->form); @endphp
     {{-- Action Bar --}}
     <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+        @if($nurseryClass)
+        {{-- Nothing to calculate: the sheets are the report --}}
+        <a href="{{ route('admin.nursery.index', ['class_section_id' => $classSectionId, 'term_id' => $termId]) }}"
+           style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; background: #0d9488; color: #fff; border-radius: 8px; font-size: 0.875rem; font-weight: 600; text-decoration: none;">
+            {{ __('Assess this class') }}
+        </a>
+        <span style="font-size: 0.8rem; color: #6b7280;">{{ __('A nursery report is written on the assessment sheet; there is nothing to recalculate.') }}</span>
+        @else
         {{-- Generate / Recalculate --}}
         <form method="POST" action="{{ route('admin.report-cards.generate') }}" onsubmit="return confirm('{{ __('This will (re)calculate all report cards for this class and term. Proceed?') }}')">
             @csrf
@@ -110,6 +119,7 @@
                 {{ __('Generate / Recalculate') }}
             </button>
         </form>
+        @endif
 
         @if($results->count() > 0)
         {{-- Publish All --}}
@@ -172,9 +182,11 @@
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 60px;">{{ __('S/N') }}</th>
                         <th style="padding: 10px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 130px;">{{ __('Student ID') }}</th>
                         <th style="padding: 10px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Student Name') }}</th>
-                        <th style="padding: 10px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Class') }}</th>
+                        <th style="padding: 10px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Class Section') }}</th>
+                        @unless($nurseryClass ?? false)
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 80px;">{{ __('Average') }}</th>
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 60px;">{{ __('Rank') }}</th>
+                        @endunless
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 80px;">{{ __('Status') }}</th>
                         <th style="padding: 10px 16px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; width: 160px;">{{ __('Action') }}</th>
                     </tr>
@@ -193,6 +205,7 @@
                         <td style="padding: 10px 16px; font-size: 0.875rem; color: #111827; font-weight: 500;">{{ $result->enrollment->student->student_id }}</td>
                         <td style="padding: 10px 16px; font-size: 0.875rem; color: #111827;">{{ $result->enrollment->student->last_name }} {{ $result->enrollment->student->first_name }}</td>
                         <td style="padding: 10px 16px; font-size: 0.875rem; color: #6b7280;">{{ $result->enrollment->classSection->name ?? '—' }}</td>
+                        @unless($nurseryClass ?? false)
                         <td style="padding: 10px 16px; text-align: center; font-size: 0.875rem; font-weight: 700; color: {{ $result->term_average >= 10 ? '#15803d' : '#dc2626' }};">
                             {{ number_format($result->term_average, 2) }}
                         </td>
@@ -202,6 +215,7 @@
                                 {{ $result->class_rank ?? '-' }}
                             </span>
                         </td>
+                        @endunless
                         <td style="padding: 10px 16px; text-align: center;">
                             @if($result->is_published)
                             <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 500; color: #16a34a;">
@@ -242,7 +256,7 @@
     <div style="background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; padding: 48px; text-align: center;">
         <svg style="width: 64px; height: 64px; color: #d1d5db; margin: 0 auto 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         <h3 style="font-size: 1.1rem; font-weight: 500; color: #111827; margin-bottom: 4px;">{{ __('No Report Cards Found') }}</h3>
-        <p style="color: #6b7280; font-size: 0.875rem;">{{ __('Click "Generate / Recalculate" to compute results for this class and term.') }}</p>
+        <p style="color: #6b7280; font-size: 0.875rem;">{{ ($nurseryClass ?? false) ? __('No sheet has been saved for this class and term yet. Reports appear here as the teacher assesses each pupil.') : __('Click "Generate / Recalculate" to compute results for this class and term.') }}</p>
     </div>
     @endif
 

@@ -38,7 +38,7 @@
                             <div style="font-size:0.78rem; color:#94a3b8; margin-top:2px;">{{ $m->meeting_date->format('d M Y') }}</div>
                         </div>
                         @if($m->minutes_path)
-                            <a href="{{ asset('storage/'.$m->minutes_path) }}" target="_blank" style="font-size:0.76rem; color:#14b8a6; font-weight:600; white-space:nowrap;">📄 {{ __('Minutes') }}</a>
+                            <a href="{{ route('parent.files.pta-minutes', $m) }}" target="_blank" style="font-size:0.76rem; color:#14b8a6; font-weight:600; white-space:nowrap;">📄 {{ __('Minutes') }}</a>
                         @endif
                     </div>
                 </div>

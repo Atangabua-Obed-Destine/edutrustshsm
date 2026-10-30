@@ -83,6 +83,13 @@ class ClassSectionController extends Controller implements HasMiddleware
 
     public function destroy(ClassSection $classSection)
     {
+        // Deleting a section cascades through its enrolments into fees,
+        // receipts, marks and attendance. A class that ever held a pupil is
+        // deactivated, never deleted.
+        if ($classSection->studentEnrollments()->exists()) {
+            return back()->with('error', __('This section has had pupils enrolled, so it cannot be deleted: their fees, receipts and marks hang off it. Deactivate it instead.'));
+        }
+
         $classSection->delete();
 
         return redirect()->route('admin.class-sections.index')
