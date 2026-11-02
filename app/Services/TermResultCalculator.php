@@ -179,11 +179,25 @@ class TermResultCalculator
     /** @return array<int, string> subject_id => teacher name */
     private function teacherNames(ClassSection $classSection): array
     {
-        return $classSection->teacherAssignments()
+        $sessionId = \App\Models\AcademicSession::current()?->id;
+
+        $names = $classSection->teacherAssignments()
+            ->when($sessionId, fn ($q) => $q->where('academic_session_id', $sessionId))
             ->with('teacher:id,first_name,last_name')
             ->get()
             ->mapWithKeys(fn ($a) => [$a->subject_id => $a->teacher?->full_name])
             ->all();
+
+        // At nursery and primary the class teacher teaches every subject not
+        // given to someone else, so the card names them.
+        $classSection->loadMissing('form', 'classTeacher');
+        if ($classSection->form?->school_level === 'nursery_primary' && $classSection->classTeacher) {
+            foreach (DB::table('form_subject')->where('form_id', $classSection->form_id)->pluck('subject_id') as $subjectId) {
+                $names[$subjectId] ??= $classSection->classTeacher->full_name;
+            }
+        }
+
+        return $names;
     }
 
     /** @param array<int, string> $teachers */

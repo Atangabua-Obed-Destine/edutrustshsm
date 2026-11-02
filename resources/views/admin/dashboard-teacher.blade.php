@@ -44,6 +44,13 @@
                         </a>
                     @endif
 
+                    @if($c['class_teacher'] && $term)
+                        <a href="{{ route('admin.report-cards.remarks', ['class_section_id' => $section->id, 'term_id' => $term->id]) }}" class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+                            <span class="text-sm text-gray-700">{{ __('Report card remarks') }}</span>
+                            <span class="text-xs text-teal-700 font-medium">{{ __('Write') }} &rarr;</span>
+                        </a>
+                    @endif
+
                     @if($c['nursery'])
                         <a href="{{ route('admin.nursery.index', ['class_section_id' => $section->id, 'term_id' => $term?->id]) }}" class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                             <span class="text-sm text-gray-700">{{ __('Assessment sheets this term') }}</span>

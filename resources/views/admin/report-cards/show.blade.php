@@ -118,7 +118,7 @@
                 <div class="value">{{ $student->last_name }} {{ $student->first_name }} {{ $student->other_names ?? '' }}</div>
             </div>
             <div class="col">
-                <div class="label">{{ __('Student ID') }}</div>
+                <div class="label">{{ __('Matricule') }}</div>
                 <div class="value">{{ $student->student_id }}</div>
             </div>
             <div class="col">
@@ -322,13 +322,14 @@
             </div>
             <div class="remark-box">
                 <div class="remark-title">{{ __('Conduct & Discipline') }}</div>
-                <div class="remark-text">{{ $termResult->conduct ?? '_______________________________________________' }}</div>
+                @php($conductLabels = ['excellent' => __('Excellent'), 'very_good' => __('Very good'), 'good' => __('Good'), 'fair' => __('Fair'), 'poor' => __('Poor')])
+                <div class="remark-text">{{ $termResult->conduct ? ($conductLabels[$termResult->conduct] ?? $termResult->conduct) : '_______________________________________________' }}</div>
             </div>
         </div>
 
         <div class="remark-section" style="margin-top:8px;">
             <div class="remark-box" style="grid-column: 1 / -1;">
-                <div class="remark-title">{{ __("Principal's Remark") }}</div>
+                <div class="remark-title">{{ $classSection->form->school_level === 'nursery_primary' ? __("Head Teacher's Remark") : __("Principal's Remark") }}</div>
                 <div class="remark-text">{{ $termResult->principal_remark ?? '___________________________________________________________________________________________' }}</div>
             </div>
         </div>
@@ -339,7 +340,7 @@
                 <div class="sig-line">{{ __("Class Teacher's Signature & Date") }}</div>
             </div>
             <div class="sig-block">
-                <div class="sig-line">{{ __("Principal's Signature & Stamp") }}</div>
+                <div class="sig-line">{{ $classSection->form->school_level === 'nursery_primary' ? __("Head Teacher's Signature & Stamp") : __("Principal's Signature & Stamp") }}</div>
             </div>
         </div>
     </div>

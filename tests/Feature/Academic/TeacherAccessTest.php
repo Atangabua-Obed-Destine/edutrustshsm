@@ -194,6 +194,44 @@ class TeacherAccessTest extends TestCase
         $this->post(route('admin.report-cards.publish'), ['class_section_id' => $this->p3->id, 'term_id' => $this->term->id])->assertForbidden();
     }
 
+    public function test_the_class_teacher_writes_remarks_and_the_head_writes_theirs(): void
+    {
+        $this->actingAs($this->teacher);
+        $this->get(route('admin.report-cards.remarks', ['class_section_id' => $this->p3->id, 'term_id' => $this->term->id]))
+            ->assertSuccessful()->assertSee('Primary 3 Pupil');
+
+        $this->post(route('admin.report-cards.remarks.save'), [
+            'class_section_id' => $this->p3->id, 'term_id' => $this->term->id,
+            'remarks' => [$this->p3Pupil->id => ['class_teacher_remark' => 'Good work, can do better.', 'conduct' => 'very_good', 'principal_remark' => 'Sneaked in']],
+        ])->assertSessionHas('success');
+
+        $result = \App\Models\TermResult::where('student_enrollment_id', $this->p3Pupil->id)->firstOrFail();
+        $this->assertSame('Good work, can do better.', $result->class_teacher_remark);
+        $this->assertSame('very_good', $result->conduct);
+        $this->assertNull($result->principal_remark, 'a teacher does not write the head remark');
+
+        // Not the class teacher of P4: refused.
+        $this->post(route('admin.report-cards.remarks.save'), ['class_section_id' => $this->p4->id, 'term_id' => $this->term->id, 'remarks' => []])->assertForbidden();
+
+        $this->actingAs($this->admin);
+        $this->post(route('admin.report-cards.remarks.save'), [
+            'class_section_id' => $this->p3->id, 'term_id' => $this->term->id,
+            'remarks' => [$this->p3Pupil->id => ['class_teacher_remark' => 'Good work, can do better.', 'conduct' => 'very_good', 'principal_remark' => 'Promoted with encouragement.']],
+        ])->assertSessionHas('success');
+
+        // Generating the cards afterwards keeps every remark.
+        Mark::create(['branch_id' => $this->branch->id, 'student_enrollment_id' => $this->p3Pupil->id, 'subject_id' => $this->maths->id, 'sequence_id' => $this->seq->id, 'score' => 14, 'status' => 'approved']);
+        app(\App\Services\TermResultCalculator::class)->persist($this->p3, $this->term, $this->session->id);
+
+        $this->get(route('admin.report-cards.show', $result->fresh()))
+            ->assertSuccessful()
+            ->assertSee('Good work, can do better.')
+            ->assertSee(__('Very good'))
+            ->assertSee('Promoted with encouragement.')
+            ->assertSee(__("Head Teacher's Remark"))
+            ->assertSee('Tom Teacher');
+    }
+
     public function test_the_head_assigns_who_teaches_what(): void
     {
         $this->actingAs($this->admin);

@@ -223,13 +223,23 @@ class FeeCollectionController extends Controller implements HasMiddleware
             ->orderBy('id')
             ->get();
 
+        // What has been paid against the fees, receipt by receipt up to this
+        // one. Summing whole receipts counted money held as credit as if it
+        // paid fees: a receipt could read "paid 180,000" on 125,000 of fees.
         $totalFees = $allFees->sum('net_amount');
-        $totalPaidToDate = $allPayments->sum('amount');
+        $totalPaidToDate = (float) \App\Models\PaymentAllocation::whereIn('payment_id', $allPayments->pluck('id'))
+            ->whereIn('student_fee_id', $allFees->pluck('id'))
+            ->sum('amount');
         $overallBalance = $totalFees - $totalPaidToDate;
+
+        // The part of this receipt that settled no fee is held as credit.
+        $heldAsCredit = $payment->payment_method === 'student_credit'
+            ? 0.0
+            : max(0.0, round((float) $payment->amount - (float) $payment->allocations->sum('amount'), 2));
 
         return view('admin.fees.collect.receipt', compact(
             'payment', 'school', 'allFees', 'allPayments',
-            'totalFees', 'totalPaidToDate', 'overallBalance'
+            'totalFees', 'totalPaidToDate', 'overallBalance', 'heldAsCredit'
         ));
     }
 }

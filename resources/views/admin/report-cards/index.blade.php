@@ -121,6 +121,11 @@
         </form>
         @endif
 
+        <a href="{{ route('admin.report-cards.remarks', ['class_section_id' => $classSectionId, 'term_id' => $termId]) }}"
+           style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; background: #fff; color: #334155; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.875rem; font-weight: 600; text-decoration: none;">
+            {{ __('Remarks') }}
+        </a>
+
         @if(session('incomplete'))
         <form method="POST" action="{{ route('admin.report-cards.publish') }}" onsubmit="return confirm('{{ __('Publish with these subjects missing from every average?') }}')">
             @csrf

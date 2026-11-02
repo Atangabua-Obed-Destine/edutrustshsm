@@ -247,6 +247,8 @@ Route::middleware('auth')->group(function () {
 
         Route::get('report-cards', [ReportCardController::class, 'index'])->name('report-cards.index');
         Route::get('report-cards/sections-by-form/{form}', [ReportCardController::class, 'sectionsByForm'])->name('report-cards.sections-by-form');
+        Route::get('report-cards/remarks', [ReportCardController::class, 'remarks'])->name('report-cards.remarks');
+        Route::post('report-cards/remarks', [ReportCardController::class, 'saveRemarks'])->name('report-cards.remarks.save');
         Route::get('report-cards/{termResult}', [ReportCardController::class, 'show'])->name('report-cards.show')->whereNumber('termResult');
     });
 

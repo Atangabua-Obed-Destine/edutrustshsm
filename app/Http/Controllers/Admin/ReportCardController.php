@@ -29,7 +29,7 @@ class ReportCardController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
-            static::can('report-card.view', ['index', 'sectionsByForm', 'show', 'generate', 'publish']),
+            static::can('report-card.view', ['index', 'sectionsByForm', 'show', 'generate', 'publish', 'remarks', 'saveRemarks']),
             static::can('report-card.print', ['bulkDownload']),
         ];
     }
@@ -316,6 +316,94 @@ class ReportCardController extends Controller implements HasMiddleware
     /**
      * Slugify a string for safe filenames.
      */
+    /**
+     * The remark boxes of every card in a class: the class teacher's remark
+     * and conduct, and the head's remark. Nothing wrote them before, so every
+     * card printed blank lines. A term result row is created for each pupil
+     * if the cards are not generated yet; generating later keeps the remarks.
+     */
+    public function remarks(Request $request)
+    {
+        [$section, $term, $session] = $this->remarksContext($request);
+        $scope = app(\App\Services\TeachingScope::class);
+
+        $enrollments = \App\Models\StudentEnrollment::with('student')
+            ->where('class_section_id', $section->id)->where('academic_session_id', $session->id)
+            ->where('status', 'active')->get()
+            ->sortBy(fn ($e) => $e->student->last_name.' '.$e->student->first_name)->values();
+
+        $results = TermResult::whereIn('student_enrollment_id', $enrollments->pluck('id'))->where('term_id', $term->id)->get()->keyBy('student_enrollment_id');
+
+        return view('admin.report-cards.remarks', [
+            'section' => $section, 'term' => $term, 'session' => $session,
+            'rows' => $enrollments->map(fn ($e) => ['enrollment' => $e, 'result' => $results->get($e->id)]),
+            'canClassTeacher' => ! $scope->restricted(auth()->user()) || in_array($section->id, $scope->classTeacherOf(auth()->user()), true),
+            'canHead' => ! $scope->restricted(auth()->user()),
+            'passMark' => (float) (SchoolSetting::current()?->pass_mark ?? 10),
+            'suggestions' => [
+                __('Excellent work, keep it up.'), __('Very good work.'), __('Good work, can do better.'),
+                __('Fair, needs to work harder.'), __('Weak, must work much harder.'),
+                __('Promoted.'), __('Promoted with encouragement.'), __('Must repeat the class.'),
+            ],
+        ]);
+    }
+
+    public function saveRemarks(Request $request)
+    {
+        [$section, $term, $session] = $this->remarksContext($request);
+        $scope = app(\App\Services\TeachingScope::class);
+        $user = auth()->user();
+        $isHead = ! $scope->restricted($user);
+        $isClassTeacher = $isHead || in_array($section->id, $scope->classTeacherOf($user), true);
+        abort_unless($isClassTeacher, 403, __('Only the class teacher of :class writes its remarks.', ['class' => $section->name]));
+
+        $data = $request->validate([
+            'remarks' => ['array'],
+            'remarks.*.class_teacher_remark' => ['nullable', 'string', 'max:500'],
+            'remarks.*.conduct' => ['nullable', 'in:excellent,very_good,good,fair,poor'],
+            'remarks.*.principal_remark' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $enrollmentIds = \App\Models\StudentEnrollment::where('class_section_id', $section->id)
+            ->where('academic_session_id', $session->id)->pluck('id')->flip();
+
+        $saved = 0;
+        DB::transaction(function () use ($data, $enrollmentIds, $term, $isHead, &$saved) {
+            foreach ($data['remarks'] ?? [] as $enrollmentId => $row) {
+                if (! $enrollmentIds->has((int) $enrollmentId)) {
+                    continue;
+                }
+                $result = TermResult::firstOrNew(['student_enrollment_id' => (int) $enrollmentId, 'term_id' => $term->id]);
+                $result->class_teacher_remark = $row['class_teacher_remark'] ?? null;
+                $result->conduct = $row['conduct'] ?? null;
+                // Only the head writes the head's remark; a teacher's form
+                // shows it read-only and it is never taken from them.
+                if ($isHead) {
+                    $result->principal_remark = $row['principal_remark'] ?? null;
+                }
+                $result->save();
+                $saved++;
+            }
+        });
+
+        return back()->with('success', trans_choice('{0} Nothing to save.|{1} Remarks saved for :count pupil.|[2,*] Remarks saved for :count pupils.', $saved, ['count' => $saved]));
+    }
+
+    /** @return array{0: ClassSection, 1: Term, 2: AcademicSession} */
+    private function remarksContext(Request $request): array
+    {
+        $request->validate([
+            'class_section_id' => ['required', 'exists:class_sections,id'],
+            'term_id' => ['required', 'exists:terms,id'],
+        ]);
+        $section = ClassSection::with('form')->findOrFail($request->integer('class_section_id'));
+        abort_unless(app(\App\Services\TeachingScope::class)->canUseSection(auth()->user(), $section->id), 403);
+        $session = AcademicSession::current();
+        abort_unless($session, 422, __('No current academic year is set.'));
+
+        return [$section, Term::findOrFail($request->integer('term_id')), $session];
+    }
+
     /**
      * Subjects of this class with a sequence this term whose marks are not
      * approved or published this year. Nursery classes have no marks.

@@ -562,7 +562,7 @@
         <div class="info-title">Student Information</div>
         <div class="info-grid">
             <div class="info-row">
-                <span class="label">Student ID:</span>
+                <span class="label">{{ __('Matricule') }}:</span>
                 <span class="value">{{ $student->student_id ?? '—' }}</span>
             </div>
             <div class="info-row">
@@ -609,10 +609,17 @@
                     <td class="right">{{ number_format($alloc->amount) }}</td>
                 </tr>
                 @endforeach
+                @if(($heldAsCredit ?? 0) > 0)
+                <tr>
+                    <td style="text-align: center;">{{ $payment->allocations->count() + 1 }}</td>
+                    <td>{{ __('Held as credit (advance on future fees)') }}</td>
+                    <td class="right">{{ number_format($heldAsCredit) }}</td>
+                </tr>
+                @endif
             </tbody>
             <tfoot>
                 <tr style="background: #f1f5f9;">
-                    <td colspan="2" style="text-align: right; text-transform: uppercase; font-size: 9.5px;">Total Received</td>
+                    <td colspan="2" style="text-align: right; text-transform: uppercase; font-size: 9.5px;">{{ __('Total Received') }}</td>
                     <td class="right" style="font-size: 12px; color: #15803d;">{{ number_format($payment->amount) }}</td>
                 </tr>
             </tfoot>
@@ -657,21 +664,21 @@
 
     {{-- Account Summary --}}
     <div class="account-summary">
-        <div class="section-title">Account Summary (as of this payment)</div>
+        <div class="section-title">{{ __('Account Summary (as of this payment)') }}</div>
         <div class="summary-grid">
             <div class="summary-box" style="border-color: #bfdbfe;">
-                <div class="box-label" style="color: #2563eb;">Total Fees</div>
+                <div class="box-label" style="color: #2563eb;">{{ __('Total Fees') }}</div>
                 <div class="box-value" style="color: #1e40af;">{{ number_format($totalFees) }}</div>
                 <div style="font-size: 7px; color: #94a3b8;">{{ $currency }}</div>
             </div>
             <div class="summary-box" style="border-color: #bbf7d0; background: #f0fdf4;">
-                <div class="box-label" style="color: #16a34a;">Paid to Date</div>
+                <div class="box-label" style="color: #16a34a;">{{ __('Paid on fees') }}</div>
                 <div class="box-value" style="color: #15803d;">{{ number_format($totalPaidToDate) }}</div>
                 <div style="font-size: 7px; color: #94a3b8;">{{ $currency }}</div>
             </div>
             <div class="summary-box" style="border-color: {{ $overallBalance > 0 ? '#fecaca' : '#bbf7d0' }}; background: {{ $overallBalance > 0 ? '#fef2f2' : '#f0fdf4' }};">
-                <div class="box-label" style="color: {{ $overallBalance > 0 ? '#dc2626' : '#16a34a' }};">{{ $overallBalance > 0 ? 'Balance Due' : 'Cleared' }}</div>
-                <div class="box-value" style="color: {{ $overallBalance > 0 ? '#dc2626' : '#15803d' }};">{{ number_format(abs($overallBalance)) }}</div>
+                <div class="box-label" style="color: {{ $overallBalance > 0 ? '#dc2626' : '#16a34a' }};">{{ $overallBalance > 0 ? __('Balance Due') : __('Fully paid') }}</div>
+                <div class="box-value" style="color: {{ $overallBalance > 0 ? '#dc2626' : '#15803d' }};">{{ number_format(max(0, $overallBalance)) }}</div>
                 <div style="font-size: 7px; color: #94a3b8;">{{ $currency }}</div>
             </div>
         </div>
@@ -714,8 +721,8 @@
         <div class="signature-row">
             <div class="signature-block">
                 <div class="sig-line">
-                    <div class="sig-label">Received By (Cashier)</div>
-                    <div class="sig-name">{{ $receivedBy->name ?? '—' }}</div>
+                    <div class="sig-label">{{ __('Received By (Cashier)') }}</div>
+                    <div class="sig-name">{{ $receivedBy?->full_name ?: '—' }}</div>
                 </div>
             </div>
             <div class="signature-block">
@@ -796,7 +803,7 @@
         <div class="info-title">Student Information</div>
         <div class="info-grid">
             <div class="info-row">
-                <span class="label">Student ID:</span>
+                <span class="label">{{ __('Matricule') }}:</span>
                 <span class="value">{{ $student->student_id ?? '—' }}</span>
             </div>
             <div class="info-row">
@@ -842,10 +849,17 @@
                     <td class="right">{{ number_format($alloc->amount) }}</td>
                 </tr>
                 @endforeach
+                @if(($heldAsCredit ?? 0) > 0)
+                <tr>
+                    <td style="text-align: center;">{{ $payment->allocations->count() + 1 }}</td>
+                    <td>{{ __('Held as credit (advance on future fees)') }}</td>
+                    <td class="right">{{ number_format($heldAsCredit) }}</td>
+                </tr>
+                @endif
             </tbody>
             <tfoot>
                 <tr style="background: #f1f5f9;">
-                    <td colspan="2" style="text-align: right; text-transform: uppercase; font-size: 9.5px;">Total Received</td>
+                    <td colspan="2" style="text-align: right; text-transform: uppercase; font-size: 9.5px;">{{ __('Total Received') }}</td>
                     <td class="right" style="font-size: 12px; color: #15803d;">{{ number_format($payment->amount) }}</td>
                 </tr>
             </tfoot>
@@ -886,21 +900,21 @@
     @endif
 
     <div class="account-summary">
-        <div class="section-title">Account Summary (as of this payment)</div>
+        <div class="section-title">{{ __('Account Summary (as of this payment)') }}</div>
         <div class="summary-grid">
             <div class="summary-box" style="border-color: #bfdbfe;">
-                <div class="box-label" style="color: #2563eb;">Total Fees</div>
+                <div class="box-label" style="color: #2563eb;">{{ __('Total Fees') }}</div>
                 <div class="box-value" style="color: #1e40af;">{{ number_format($totalFees) }}</div>
                 <div style="font-size: 7px; color: #94a3b8;">{{ $currency }}</div>
             </div>
             <div class="summary-box" style="border-color: #bbf7d0; background: #f0fdf4;">
-                <div class="box-label" style="color: #16a34a;">Paid to Date</div>
+                <div class="box-label" style="color: #16a34a;">{{ __('Paid on fees') }}</div>
                 <div class="box-value" style="color: #15803d;">{{ number_format($totalPaidToDate) }}</div>
                 <div style="font-size: 7px; color: #94a3b8;">{{ $currency }}</div>
             </div>
             <div class="summary-box" style="border-color: {{ $overallBalance > 0 ? '#fecaca' : '#bbf7d0' }}; background: {{ $overallBalance > 0 ? '#fef2f2' : '#f0fdf4' }};">
-                <div class="box-label" style="color: {{ $overallBalance > 0 ? '#dc2626' : '#16a34a' }};">{{ $overallBalance > 0 ? 'Balance Due' : 'Cleared' }}</div>
-                <div class="box-value" style="color: {{ $overallBalance > 0 ? '#dc2626' : '#15803d' }};">{{ number_format(abs($overallBalance)) }}</div>
+                <div class="box-label" style="color: {{ $overallBalance > 0 ? '#dc2626' : '#16a34a' }};">{{ $overallBalance > 0 ? __('Balance Due') : __('Fully paid') }}</div>
+                <div class="box-value" style="color: {{ $overallBalance > 0 ? '#dc2626' : '#15803d' }};">{{ number_format(max(0, $overallBalance)) }}</div>
                 <div style="font-size: 7px; color: #94a3b8;">{{ $currency }}</div>
             </div>
         </div>
@@ -940,8 +954,8 @@
         <div class="signature-row">
             <div class="signature-block">
                 <div class="sig-line">
-                    <div class="sig-label">Received By (Cashier)</div>
-                    <div class="sig-name">{{ $receivedBy->name ?? '—' }}</div>
+                    <div class="sig-label">{{ __('Received By (Cashier)') }}</div>
+                    <div class="sig-name">{{ $receivedBy?->full_name ?: '—' }}</div>
                 </div>
             </div>
             <div class="signature-block">
