@@ -17,7 +17,7 @@
             @elseif($g['registers']['classes'] > 0)
                 {{ __('Every class has its register.') }} · {{ __(':n absent', ['n' => $g['registers']['absent']]) }}
             @else
-                {{ __('No class yet.') }}
+                {{ __('No pupils are enrolled yet.') }}
             @endif
         </p>
     </a>
@@ -26,18 +26,28 @@
     @can('marks-entry.view')
     <a href="{{ $g['marks']['term'] ? route('admin.analytics.readiness', ['term_id' => $g['marks']['term']->id]) : route('admin.marks.index') }}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-teal-300 transition">
         <p class="text-xs text-gray-500 uppercase tracking-wide">{{ __('Marks this term') }}</p>
-        <p class="text-2xl font-bold text-gray-800 mt-1">{{ $g['marks']['percent'] }}%</p>
-        <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-1.5 rounded-full {{ $g['marks']['percent'] >= 100 ? 'bg-emerald-500' : 'bg-sky-500' }}" style="width: {{ min(100, $g['marks']['percent']) }}%"></div></div>
-        <p class="text-xs text-gray-500 mt-1">{{ __(':done of :total subject-sequences approved', ['done' => $g['marks']['done'], 'total' => $g['marks']['expected']]) }}{{ $g['marks']['term'] ? ' · '.$g['marks']['term']->name : '' }}</p>
+        @if($g['marks']['expected'] > 0)
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $g['marks']['percent'] }}%</p>
+            <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-1.5 rounded-full {{ $g['marks']['percent'] >= 100 ? 'bg-emerald-500' : 'bg-sky-500' }}" style="width: {{ min(100, $g['marks']['percent']) }}%"></div></div>
+            <p class="text-xs text-gray-500 mt-1">{{ __(':done of :total subject-sequences approved', ['done' => $g['marks']['done'], 'total' => $g['marks']['expected']]) }}{{ $g['marks']['term'] ? ' · '.$g['marks']['term']->name : '' }}</p>
+        @else
+            <p class="text-2xl font-bold text-gray-300 mt-1">—</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('Nothing to mark yet: no primary class has pupils, subjects and sequences for this term.') }}</p>
+        @endif
     </a>
     @endcan
 
     @can('fee-report.view')
     <a href="{{ route('admin.fee-reports.index') }}" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-teal-300 transition">
         <p class="text-xs text-gray-500 uppercase tracking-wide">{{ __('Fees collected this year') }}</p>
-        <p class="text-2xl font-bold text-gray-800 mt-1">{{ $g['fees']['rate'] }}%</p>
-        <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-1.5 rounded-full bg-emerald-500" style="width: {{ min(100, $g['fees']['rate']) }}%"></div></div>
-        <p class="text-xs text-gray-500 mt-1">{{ __(':paid of :billed · :today today', ['paid' => number_format($g['fees']['paid']), 'billed' => number_format($g['fees']['billed']), 'today' => number_format($g['fees']['today'])]) }}</p>
+        @if($g['fees']['billed'] > 0)
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $g['fees']['rate'] }}%</p>
+            <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-1.5 rounded-full bg-emerald-500" style="width: {{ min(100, $g['fees']['rate']) }}%"></div></div>
+            <p class="text-xs text-gray-500 mt-1">{{ __(':paid of :billed · :today today', ['paid' => number_format($g['fees']['paid']), 'billed' => number_format($g['fees']['billed']), 'today' => number_format($g['fees']['today'])]) }}</p>
+        @else
+            <p class="text-2xl font-bold text-gray-300 mt-1">—</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('Nothing billed yet this year.') }}</p>
+        @endif
     </a>
     @endcan
 

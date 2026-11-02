@@ -200,7 +200,9 @@ class DashboardController extends Controller implements HasMiddleware
             }
         }
 
-        $fees = \App\Models\StudentFee::whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $session->id))
+        // Only the levels this school runs, like every other figure on the page.
+        $fees = \App\Models\StudentFee::whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $session->id)
+                ->whereHas('classSection.form', fn ($f) => $f->forCurrentLevel()))
             ->selectRaw('COALESCE(SUM(net_amount),0) as billed, COALESCE(SUM(paid_amount),0) as paid')->first();
         $today = (float) \App\Models\Payment::where('verification_status', 'verified')->where('payment_method', '!=', 'student_credit')
             ->whereDate('payment_date', today())->sum('amount');

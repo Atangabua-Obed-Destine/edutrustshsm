@@ -61,7 +61,14 @@
             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">{{ $selectedClass->name ?? 'Class' }}</h2>
-                    <p class="text-sm text-gray-500">{{ \Carbon\Carbon::parse($date)->format('l, F j, Y') }} &middot; {{ $enrollments->count() }} {{ __('students') }}</p>
+                    <p class="text-sm text-gray-500">{{ \Carbon\Carbon::parse($date)->translatedFormat('l j F Y') }} &middot; {{ trans_choice('{0} no pupils|{1} :count pupil|[2,*] :count pupils', $enrollments->count(), ['count' => $enrollments->count()]) }}</p>
+                    {{-- A saved register and an untaken one used to look the same: both show everyone present. --}}
+                    @if($existingAttendance->isNotEmpty())
+                        @php $last = $existingAttendance->sortByDesc('updated_at')->first(); @endphp
+                        <p class="text-xs font-medium text-emerald-700 mt-1">{{ __('Register saved :time by :name', ['time' => $last->updated_at?->format('H:i'), 'name' => $last->recordedBy?->first_name ?? '—']) }}</p>
+                    @else
+                        <p class="text-xs font-medium text-amber-700 mt-1">{{ __('Not taken yet for this day. Everyone starts as present: tap only the exceptions, then save.') }}</p>
+                    @endif
                 </div>
                 <div class="flex items-center gap-2">
                     <button type="button" onclick="markAll('present')" class="px-3 py-1.5 text-xs font-medium rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition">{{ __('All Present') }}</button>
@@ -124,7 +131,7 @@
                                         <input type="radio"
                                                name="attendance[{{ $enrollment->id }}][status]"
                                                value="{{ $status }}"
-                                               class="hidden status-radio"
+                                               class="sr-only peer status-radio"
                                                data-status="{{ $status }}"
                                                {{ ($existing?->status ?? 'present') === $status ? 'checked' : '' }}
                                                onchange="updateStats()">
@@ -134,8 +141,8 @@
                                             @elseif($status === 'late') border-yellow-300 text-yellow-700
                                             @else border-blue-300 text-blue-700
                                             @endif
-                                            status-btn status-{{ $status }}"
-                                            data-status="{{ $status }}">
+                                            status-btn status-{{ $status }} peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-gray-500"
+                                            data-status="{{ $status }}" title="{{ ['present' => __('Present'), 'absent' => __('Absent'), 'late' => __('Late'), 'excused' => __('Excused')][$status] }}">
                                             {{ $label }}
                                         </span>
                                     </label>
@@ -184,10 +191,12 @@
         document.querySelectorAll('.status-radio:checked').forEach(radio => {
             counts[radio.dataset.status]++;
         });
-        document.getElementById('countPresent').textContent = counts.present;
-        document.getElementById('countAbsent').textContent = counts.absent;
-        document.getElementById('countLate').textContent = counts.late;
-        document.getElementById('countExcused').textContent = counts.excused;
+        // The counters exist only once a class is open.
+        const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+        set('countPresent', counts.present);
+        set('countAbsent', counts.absent);
+        set('countLate', counts.late);
+        set('countExcused', counts.excused);
 
         // Update button visual states
         document.querySelectorAll('.status-label').forEach(label => {

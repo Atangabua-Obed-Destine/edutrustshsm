@@ -112,6 +112,19 @@ class TeacherAccessTest extends TestCase
             ->assertSee('Mathematics');
     }
 
+    public function test_a_teacher_created_on_the_hr_screen_without_a_branch_link_still_sees_their_class(): void
+    {
+        // No screen links new staff to a branch; in a one-branch school that
+        // must not leave them looking at an empty school.
+        $this->teacher->branches()->detach();
+
+        $this->actingAs($this->teacher)->get(route('admin.dashboard'))
+            ->assertSuccessful()->assertSee('P3A');
+        $r = $this->post(route('admin.attendance.store'), ['class_section_id' => $this->p3->id, 'date' => now()->toDateString(), 'attendance' => [$this->p3Pupil->id => ['status' => 'present']]]);
+        $r->assertSessionMissing('error')->assertRedirect();
+        $this->assertDatabaseHas('attendances', ['student_enrollment_id' => $this->p3Pupil->id, 'status' => 'present']);
+    }
+
     public function test_the_teacher_menu_holds_their_work_and_nothing_else(): void
     {
         $html = $this->actingAs($this->teacher)->get(route('admin.dashboard'))->assertSuccessful()->getContent();
@@ -166,7 +179,9 @@ class TeacherAccessTest extends TestCase
         // One class: the register opens on it.
         $this->get(route('admin.attendance.index'))->assertSuccessful()->assertSee('P3A')->assertDontSee('P4A');
 
-        $this->post(route('admin.attendance.store'), ['class_section_id' => $this->p3->id, 'date' => now()->toDateString(), 'attendance' => [$this->p3Pupil->id => ['status' => 'present']]])->assertSessionMissing('error');
+        $this->post(route('admin.attendance.store'), ['class_section_id' => $this->p3->id, 'date' => now()->toDateString(), 'attendance' => [$this->p3Pupil->id => ['status' => 'present']]])
+            ->assertRedirect()->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', ['student_enrollment_id' => $this->p3Pupil->id]);
         $this->post(route('admin.attendance.store'), ['class_section_id' => $this->p4->id, 'date' => now()->toDateString(), 'attendance' => [$this->p4Pupil->id => ['status' => 'present']]])->assertForbidden();
     }
 

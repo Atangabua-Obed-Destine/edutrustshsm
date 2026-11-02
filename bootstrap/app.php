@@ -4,6 +4,13 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
+// Two Laravel apps served by one Apache (XAMPP runs PHP in-process, threaded)
+// share one process environment. Loading .env with putenv() let the other
+// app's DB_DATABASE win, and an edutrust request queried paxhitestbed's
+// database. Keep this app's settings out of the shared environment so every
+// request reads its own .env.
+\Illuminate\Support\Env::disablePutenv();
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',

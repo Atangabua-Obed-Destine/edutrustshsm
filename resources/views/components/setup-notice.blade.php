@@ -15,6 +15,9 @@
             <p class="text-sm font-semibold {{ $broken > 0 ? 'text-red-900' : 'text-amber-900' }}">
                 @if($broken > 0)
                     {{ trans_choice('{1} :count setting is missing, so part of the school cannot work yet.|[2,*] :count settings are missing, so parts of the school cannot work yet.', $broken, ['count' => $broken]) }}
+                    @if(count($items) > $broken)
+                        <span class="font-normal">{{ trans_choice('{1} :count more needs attention.|[2,*] :count more need attention.', count($items) - $broken, ['count' => count($items) - $broken]) }}</span>
+                    @endif
                 @else
                     {{ trans_choice('{1} :count setting needs attention.|[2,*] :count settings need attention.', count($items), ['count' => count($items)]) }}
                 @endif

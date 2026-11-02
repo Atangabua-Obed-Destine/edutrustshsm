@@ -454,21 +454,21 @@
         <div id="main-content" class="flex-1 lg:ml-64 transition-all duration-300" style="min-width: 0;">
             <!-- Top Bar -->
             <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-20">
-                <div class="flex items-center justify-between px-4 lg:px-6 py-3">
-                    <div class="flex items-center">
+                <div class="flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 py-3">
+                    <div class="flex items-center min-w-0">
                         <!-- Sidebar toggle -->
                         <button id="sidebar-toggle" class="mr-3 p-2 rounded-lg hover:bg-gray-100">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                         </button>
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-800">@yield('title', 'Dashboard')</h2>
+                        <div class="min-w-0">
+                            <h2 class="text-base sm:text-lg font-semibold text-gray-800 truncate">@yield('title', 'Dashboard')</h2>
                             @hasSection('breadcrumb')
-                                <div class="text-sm text-gray-500">@yield('breadcrumb')</div>
+                                <div class="hidden sm:block text-sm text-gray-500 truncate">@yield('breadcrumb')</div>
                             @endif
                         </div>
                     </div>
 
-                    <div class="flex items-center space-x-4">
+                    <div class="flex items-center gap-2 sm:gap-4 shrink-0">
                         @can('student.view')
                         <form method="GET" action="{{ route('admin.students.index') }}" class="hidden sm:block" role="search">
                             <label for="global-pupil-search" class="sr-only">{{ __('Find a pupil') }}</label>
@@ -514,7 +514,7 @@
                              every screen is still filtered by it. Without this
                              the filter is invisible, and a school whose mode is
                              set wrongly looks like a school with no pupils. --}}
-                        <span class="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-gray-50"
+                        <span class="hidden md:inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-gray-50"
                               title="{{ __('This school runs one level. Every list is filtered to it.') }}">
                             <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                             {{ \App\Support\LevelContext::currentLabel() }}
@@ -531,9 +531,9 @@
 
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="text-sm text-gray-600 hover:text-red-600 transition flex items-center">
+                            <button type="submit" class="text-sm text-gray-600 hover:text-red-600 transition flex items-center p-1" title="{{ __('Logout') }}" aria-label="{{ __('Logout') }}">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                                {{ __('Logout') }}
+                                <span class="hidden sm:inline">{{ __('Logout') }}</span>
                             </button>
                         </form>
                     </div>

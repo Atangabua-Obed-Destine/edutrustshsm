@@ -50,10 +50,14 @@ class StaffController extends Controller implements HasMiddleware
     {
         $data = $this->validateStaff($request);
 
-        $user = DB::transaction(function () use ($data, $request) {
+        // Every account left without a password used to open with the word
+        // "password". Generate a temporary one instead and show it once.
+        $temporary = $request->filled('password') ? null : \Illuminate\Support\Str::password(10, symbols: false);
+
+        $user = DB::transaction(function () use ($data, $request, $temporary) {
             $user = new User($data);
-            $user->staff_id = $data['staff_id'] ?: $this->generateStaffId();
-            $user->password = Hash::make($request->input('password') ?: 'password');
+            $user->staff_id = ($data['staff_id'] ?? null) ?: $this->generateStaffId();
+            $user->password = Hash::make($request->input('password') ?: $temporary);
             if ($request->hasFile('profile_photo')) {
                 $user->profile_photo = $request->file('profile_photo')->store('staff/photos', 'public');
             }
@@ -63,7 +67,11 @@ class StaffController extends Controller implements HasMiddleware
         });
 
 
-        return redirect()->route('admin.staff.index')->with('success', __('Staff member created.'));
+        $message = $temporary
+            ? __('Staff member created. Their temporary password is :password — give it to them privately; it is not shown again.', ['password' => $temporary])
+            : __('Staff member created.');
+
+        return redirect()->route('admin.staff.index')->with('success', $message);
     }
 
     public function show(User $staff)

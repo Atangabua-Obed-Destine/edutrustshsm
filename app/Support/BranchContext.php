@@ -68,7 +68,21 @@ class BranchContext
             return Branch::where('is_active', true)->pluck('id')->all();
         }
 
-        return $user->branches()->pluck('branches.id')->all();
+        $linked = $user->branches()->pluck('branches.id')->all();
+
+        // No screen links new staff to a branch: a teacher created on the HR
+        // screen logged in to an empty school — no classes, no pupils, every
+        // register refused. A school with one branch has nothing to choose,
+        // so an unlinked account works in that branch. With several branches
+        // an explicit link is still required.
+        if ($linked === []) {
+            $active = Branch::where('is_active', true)->pluck('id')->all();
+            if (count($active) === 1) {
+                return $active;
+            }
+        }
+
+        return $linked;
     }
 
     /**
@@ -134,6 +148,17 @@ class BranchContext
             session([self::SESSION_KEY => (int) $value]);
             self::flush();
         }
+    }
+
+    /**
+     * The branch, when the installation has exactly one active branch;
+     * otherwise null, because there is a choice nobody has made.
+     */
+    public static function onlyBranch(): ?int
+    {
+        $active = Branch::where('is_active', true)->limit(2)->pluck('id');
+
+        return $active->count() === 1 ? (int) $active->first() : null;
     }
 
     /**
