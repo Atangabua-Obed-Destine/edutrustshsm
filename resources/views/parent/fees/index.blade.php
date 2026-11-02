@@ -44,6 +44,13 @@
             <div style="font-size:0.72rem; color:#64748b; text-transform:uppercase;">{{ __('Balance') }}</div>
             <div style="font-size:1.25rem; font-weight:700; color:{{ $totals['balance'] > 0 ? '#dc2626' : '#16a34a' }}; margin-top:4px;">{{ number_format($totals['balance'], 0) }} <span style="font-size:0.75rem; color:#94a3b8;">{{ $currency }}</span></div>
         </div>
+        @if(($credit ?? 0) > 0)
+        <div class="pp-card" style="padding:18px; border:1px solid #bfdbfe;">
+            <div style="font-size:0.72rem; color:#2563eb; text-transform:uppercase;">{{ __('Credit held') }}</div>
+            <div style="font-size:1.25rem; font-weight:700; color:#1d4ed8; margin-top:4px;">{{ number_format($credit, 0) }} <span style="font-size:0.75rem; color:#94a3b8;">{{ $currency }}</span></div>
+            <div style="font-size:0.72rem; color:#64748b; margin-top:4px;">{{ __('Paid beyond the fees. It will be used for the next fees, or refunded on request.') }}</div>
+        </div>
+        @endif
     </div>
 
     {{-- Fee breakdown --}}

@@ -49,6 +49,7 @@ class TermMoveFeesTest extends TestCase
         $first = StudentEnrollment::create(['branch_id' => $branch->id, 'student_id' => $student->id, 'academic_session_id' => $session->id, 'term_id' => $t1->id, 'class_section_id' => $section->id, 'residence_type' => 'day', 'enrollment_date' => '2025-09-05', 'status' => 'active']);
 
         $fee = StudentFee::where('student_enrollment_id', $first->id)->firstOrFail();
+        $credit = \App\Models\StudentCredit::create(['student_enrollment_id' => $first->id, 'amount' => 20000, 'used_amount' => 0, 'refunded_amount' => 0, 'balance' => 20000, 'source' => 'overpayment']);
         $fee->update(['paid_amount' => 60000]);
         $fee->recalculate()->save();
 
@@ -62,5 +63,6 @@ class TermMoveFeesTest extends TestCase
         $this->assertSame(1, StudentFee::count(), 'the year is billed once');
         $this->assertSame($second->id, $fee->fresh()->student_enrollment_id, 'the year\'s fees follow the pupil into the new term');
         $this->assertEquals(90000, (float) $fee->fresh()->balance, 'the unpaid balance is still there to collect');
+        $this->assertSame($second->id, $credit->fresh()->student_enrollment_id, 'the family advance follows the pupil too');
     }
 }

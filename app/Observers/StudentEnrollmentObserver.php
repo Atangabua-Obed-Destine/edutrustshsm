@@ -32,6 +32,9 @@ class StudentEnrollmentObserver
         if ($earlier->isNotEmpty()) {
             \App\Models\StudentFee::whereIn('student_enrollment_id', $earlier)->update(['student_enrollment_id' => $enrollment->id]);
             \App\Models\FeeDiscount::whereIn('student_enrollment_id', $earlier)->update(['student_enrollment_id' => $enrollment->id]);
+            // A family's advance moves too, or it sits on a past term where
+            // nothing can apply it to this term's fees.
+            \App\Models\StudentCredit::whereIn('student_enrollment_id', $earlier)->update(['student_enrollment_id' => $enrollment->id]);
         }
 
         try {

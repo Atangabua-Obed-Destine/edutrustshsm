@@ -39,8 +39,12 @@ class ParentFeesController extends Controller
                 ->get()
             : collect();
 
+        // Money paid beyond the fees is held as credit. Without it on this
+        // page a parent who paid 180,000 saw 125,000 and nothing else.
+        $credit = $enrollment ? \App\Models\StudentCredit::availableFor($enrollment->id) : 0.0;
+
         return view('parent.fees.index', compact(
-            'studentModel', 'enrollment', 'fees', 'totals', 'payments'
+            'studentModel', 'enrollment', 'fees', 'totals', 'payments', 'credit'
         ));
     }
 }
