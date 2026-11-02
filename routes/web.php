@@ -581,6 +581,8 @@ Route::middleware('auth')->group(function () {
         // Fee Reports
         Route::get('fee-reports', [FeeReportController::class, 'index'])->name('fee-reports.index');
         Route::get('fee-reports/partial-payments', [FeeReportController::class, 'partial'])->name('fee-reports.partial');
+        Route::get('fee-reports/defaulters', [FeeReportController::class, 'defaulters'])->name('fee-reports.defaulters');
+        Route::get('fee-reports/defaulters/export', [FeeReportController::class, 'defaultersCsv'])->name('fee-reports.defaulters.csv');
         Route::get('fee-reports/partial-payments/export', [FeeReportController::class, 'partialCsv'])->name('fee-reports.partial.csv');
 
         // Payment Plans

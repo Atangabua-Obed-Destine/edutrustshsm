@@ -180,6 +180,7 @@
                         <a href="{{ route('admin.student-credits.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.student-credits.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student Credits') }}</a>
                         @endcan
                         <a href="{{ route('admin.fee-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Reports') }}</a>
+                        <a href="{{ route('admin.fee-reports.defaulters') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.defaulters*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Defaulters') }}</a>
                     </div>
                 </div>
 

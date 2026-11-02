@@ -179,17 +179,22 @@
             @php $maxMonth = $monthlyTrend->max('total') ?: 1; @endphp
             <div class="flex items-end gap-2 h-40">
                 @foreach($monthlyTrend as $m)
-                @php $height = ($m->total / $maxMonth) * 100; @endphp
-                <div class="flex-1 flex flex-col items-center gap-1">
+                {{-- Pixels, not percent: a percentage of a box with no set height is zero, and the bars never showed. --}}
+                @php $height = max(2, round(($m->total / $maxMonth) * 120)); @endphp
+                <div class="flex-1 flex flex-col items-center justify-end gap-1 h-full">
                     <span class="text-xs text-gray-500 font-medium">{{ number_format($m->total / 1000) }}K</span>
-                    <div class="w-full bg-blue-500 rounded-t" style="height: {{ $height }}%"></div>
-                    <span class="text-xs text-gray-400">{{ \Carbon\Carbon::parse($m->month . '-01')->format('M') }}</span>
+                    <div class="w-full max-w-16 bg-blue-500 rounded-t" style="height: {{ $height }}px"></div>
+                    <span class="text-xs text-gray-400">{{ \Carbon\Carbon::parse($m->month . '-01')->translatedFormat('M') }}</span>
                 </div>
                 @endforeach
             </div>
         </div>
     </div>
     @endif
+
+    <div class="flex justify-end">
+        <a href="{{ route('admin.fee-reports.defaulters') }}" class="text-sm font-medium text-teal-700 hover:text-teal-900">{{ __('Full defaulters list, by class, to print') }} &rarr;</a>
+    </div>
 
     {{-- Top Defaulters --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">

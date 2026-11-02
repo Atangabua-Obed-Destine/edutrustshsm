@@ -169,6 +169,22 @@ class QaRegressionTest extends TestCase
         $this->assertSame(0.0, fmod((float) $fee->fresh()->net_amount, 1.0), 'no half francs');
     }
 
+    public function test_the_defaulters_list_shows_every_pupil_who_owes_with_a_number_to_call(): void
+    {
+        $e = $this->pupil($this->year1, 'A1');
+        $tuition = FeeCategory::create(['branch_id' => $this->branch->id, 'name' => 'Tuition', 'code' => 'TUI', 'is_tuition' => true, 'is_active' => true, 'is_mandatory' => true]);
+        StudentFee::create(['branch_id' => $this->branch->id, 'student_enrollment_id' => $e->id, 'fee_category_id' => $tuition->id, 'original_amount' => 100000, 'net_amount' => 100000, 'paid_amount' => 40000, 'balance' => 60000, 'status' => 'partial']);
+        $guardian = \App\Models\Guardian::create(['branch_id' => $this->branch->id, 'mother_name' => 'Mami A1', 'mother_phone' => '677123456', 'emergency_contact_name' => 'Mami A1', 'emergency_contact_phone' => '677123456']);
+        $e->student->update(['guardian_id' => $guardian->id]);
+
+        $this->get(route('admin.fee-reports.defaulters'))->assertSuccessful()
+            ->assertSee('Form 1A')->assertSee('Mami A1')->assertSee('677123456')->assertSee('60,000');
+
+        $csv = $this->get(route('admin.fee-reports.defaulters.csv'))->assertSuccessful()->streamedContent();
+        $this->assertStringContainsString('677123456', $csv);
+        $this->assertStringContainsString('60000', $csv);
+    }
+
     public function test_journal_numbers_keep_counting_past_9999(): void
     {
         $year = now()->year;
