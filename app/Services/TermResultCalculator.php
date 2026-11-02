@@ -401,12 +401,11 @@ class TermResultCalculator
 
     private function gradeFor(float $score, Collection $grades): string
     {
-        foreach ($grades as $grade) {
-            if ($score >= (float) $grade->min_mark && $score <= (float) $grade->max_mark) {
-                return $grade->grade;
-            }
-        }
+        // The highest band whose minimum the score reaches. Bands are stored
+        // to one decimal (15.0–15.9, 16.0–17.9), so testing the maximum left
+        // 15.95 in no band at all and printed "-" on the card.
+        $band = $grades->filter(fn ($g) => $score >= (float) $g->min_mark)->sortByDesc(fn ($g) => (float) $g->min_mark)->first();
 
-        return '-';
+        return $band?->grade ?? '-';
     }
 }

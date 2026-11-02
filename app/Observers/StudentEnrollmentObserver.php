@@ -17,6 +17,23 @@ class StudentEnrollmentObserver
             return;
         }
 
+        // Fees are billed for the year; a pupil gets a new enrolment row
+        // each term. When this is a later term of the same year, the year's
+        // fees and discounts move with the pupil. Otherwise the new row was
+        // billed the year's tuition again, and last term's unpaid balance sat
+        // on an enrolment the collection screen no longer shows. Payments
+        // keep pointing at the enrolment they were taken on; their
+        // allocations point at the fees, which is what moves.
+        $earlier = StudentEnrollment::where('student_id', $enrollment->student_id)
+            ->where('academic_session_id', $enrollment->academic_session_id)
+            ->where('id', '!=', $enrollment->id)
+            ->pluck('id');
+
+        if ($earlier->isNotEmpty()) {
+            \App\Models\StudentFee::whereIn('student_enrollment_id', $earlier)->update(['student_enrollment_id' => $enrollment->id]);
+            \App\Models\FeeDiscount::whereIn('student_enrollment_id', $earlier)->update(['student_enrollment_id' => $enrollment->id]);
+        }
+
         try {
             $result = $enrollment->syncFees();
 

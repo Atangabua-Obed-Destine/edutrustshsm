@@ -43,7 +43,7 @@ class NurseryAssessmentController extends Controller implements HasMiddleware
         $session = AcademicSession::current();
         $terms = Term::orderBy('term_number')->get();
 
-        $sections = ClassSection::query()
+        $sections = app(\App\Services\TeachingScope::class)->scopeSections(ClassSection::query(), auth()->user())
             ->where('is_active', true)
             ->whereHas('form', fn ($q) => $q->forCurrentLevel()->where('level', 'nursery')->where('is_active', true))
             ->with('form')
@@ -51,7 +51,7 @@ class NurseryAssessmentController extends Controller implements HasMiddleware
             ->sortBy(fn ($s) => [$s->form->display_order, $s->name])
             ->values();
 
-        $sectionId = $request->integer('class_section_id') ?: null;
+        $sectionId = $request->integer('class_section_id') ?: ($sections->count() === 1 ? $sections->first()->id : null);
         $termId = $request->integer('term_id') ?: (Term::current()?->id ?? $terms->first()?->id);
 
         $section = $sectionId ? $sections->firstWhere('id', $sectionId) : null;
@@ -76,6 +76,7 @@ class NurseryAssessmentController extends Controller implements HasMiddleware
     {
         $enrollment->load('student', 'classSection.form', 'classSection.classTeacher');
         abort_unless(NurseryAssessmentService::isNursery($enrollment->classSection->form), 404);
+        abort_unless(app(\App\Services\TeachingScope::class)->canUseSection(auth()->user(), (int) $enrollment->class_section_id), 403);
 
         $sheet = $this->nursery->sheet($enrollment, $term);
 
@@ -91,6 +92,7 @@ class NurseryAssessmentController extends Controller implements HasMiddleware
     {
         $enrollment->load('classSection.form');
         abort_unless(NurseryAssessmentService::isNursery($enrollment->classSection->form), 404);
+        abort_unless(app(\App\Services\TeachingScope::class)->canUseSection(auth()->user(), (int) $enrollment->class_section_id), 403);
 
         $data = $request->validate([
             'ratings' => ['nullable', 'array'],

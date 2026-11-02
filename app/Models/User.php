@@ -186,7 +186,7 @@ class User extends Authenticatable
     public function homeRoute(): ?string
     {
         return match ($this->role) {
-            'super_admin', 'admin' => 'admin.dashboard',
+            'super_admin', 'admin', 'teacher' => 'admin.dashboard',
             'accountant' => 'admin.account.income.index',
             'staff' => 'admin.students.index',
             default => null,
@@ -245,9 +245,15 @@ class User extends Authenticatable
      */
     public function permissionNames(): array
     {
+        // A staff member created on the HR screen carries the role name but
+        // was never attached to the role record, so had no permissions at
+        // all. The role named on the account counts as one of its roles.
         return $this->permissionNames ??= $this->roles()
             ->with('permissions:id,name')
             ->get()
+            ->pipe(fn ($roles) => $this->role && ! $roles->contains('name', $this->role)
+                ? $roles->merge(Role::where('name', $this->role)->whereNotIn('id', $roles->pluck('id'))->with('permissions:id,name')->get())
+                : $roles)
             ->pluck('permissions')
             ->flatten()
             ->pluck('name')

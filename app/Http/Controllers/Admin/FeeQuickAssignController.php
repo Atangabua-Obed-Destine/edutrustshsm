@@ -57,11 +57,17 @@ class FeeQuickAssignController extends Controller implements HasMiddleware
         }
 
         if ($existing && $request->boolean('override')) {
-            // Update existing fee — preserve paid_amount, recalculate balance
+            // An override below what was already paid left a negative balance
+            // that shrank the school's outstanding totals.
+            if ((float) $validated['amount'] - (float) $existing->discount_amount - (float) $existing->waiver_amount < (float) $existing->paid_amount - 0.5) {
+                return back()->withInput()->with('error', __(':paid has already been paid on this fee, more than the new amount. Record the refund or credit for the difference first.', ['paid' => number_format((float) $existing->paid_amount)]));
+            }
+
+            // Update existing fee — preserve paid_amount and fines, recalculate balance
             $existing->update([
                 'original_amount' => $validated['amount'],
-                'net_amount' => $validated['amount'] - $existing->discount_amount - $existing->waiver_amount,
-                'balance' => ($validated['amount'] - $existing->discount_amount - $existing->waiver_amount) - $existing->paid_amount,
+                'net_amount' => $validated['amount'] - $existing->discount_amount - $existing->waiver_amount + (float) $existing->fine_amount,
+                'balance' => ($validated['amount'] - $existing->discount_amount - $existing->waiver_amount + (float) $existing->fine_amount) - $existing->paid_amount,
                 'due_date' => $validated['due_date'],
                 'notes' => $validated['notes'],
                 'status' => $this->calculateStatus(

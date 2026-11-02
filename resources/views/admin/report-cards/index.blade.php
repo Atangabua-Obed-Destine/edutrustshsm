@@ -121,6 +121,17 @@
         </form>
         @endif
 
+        @if(session('incomplete'))
+        <form method="POST" action="{{ route('admin.report-cards.publish') }}" onsubmit="return confirm('{{ __('Publish with these subjects missing from every average?') }}')">
+            @csrf
+            <input type="hidden" name="class_section_id" value="{{ $classSectionId }}">
+            <input type="hidden" name="term_id" value="{{ $termId }}">
+            <input type="hidden" name="academic_session_id" value="{{ $sessionId }}">
+            <input type="hidden" name="publish_anyway" value="1">
+            <button type="submit" style="padding: 9px 16px; background: #fff; color: #b45309; border: 1px solid #f59e0b; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">{{ __('Publish anyway') }}</button>
+        </form>
+        @endif
+
         @if($results->count() > 0)
         {{-- Publish All --}}
         <form method="POST" action="{{ route('admin.report-cards.publish') }}">

@@ -32,16 +32,23 @@ class AttendanceController extends Controller implements HasMiddleware
     public function index(Request $request)
     {
         $currentSession = AcademicSession::current();
-        $classSections = ClassSection::where('is_active', true)->whereHas('form', fn($q) => $q->forCurrentLevel())->with('form')->orderBy('name')->get();
+        $scope = app(\App\Services\TeachingScope::class);
+        $classSections = $scope->scopeSections(ClassSection::where('is_active', true)->whereHas('form', fn($q) => $q->forCurrentLevel()), auth()->user())->with('form')->orderBy('name')->get();
 
         $date = $request->input('date', now()->format('Y-m-d'));
         $classSectionId = $request->input('class_section_id');
+
+        // A teacher with one class lands straight on its register.
+        if (! $classSectionId && $scope->restricted(auth()->user()) && $classSections->count() === 1) {
+            $classSectionId = $classSections->first()->id;
+        }
 
         $enrollments = collect();
         $existingAttendance = collect();
         $selectedClass = null;
 
         if ($classSectionId) {
+            abort_unless($scope->canUseSection(auth()->user(), (int) $classSectionId), 403);
             $selectedClass = ClassSection::with('form')->find($classSectionId);
             $enrollments = StudentEnrollment::where('class_section_id', $classSectionId)
                 ->where('status', 'active')
@@ -70,6 +77,15 @@ class AttendanceController extends Controller implements HasMiddleware
             'attendance.*.status' => 'required|in:present,absent,late,excused',
             'attendance.*.reason' => 'nullable|string|max:255',
         ]);
+
+        abort_unless(app(\App\Services\TeachingScope::class)->canUseSection(auth()->user(), (int) $request->input('class_section_id')), 403);
+
+        // The register is for one class: every pupil in it must be in that class.
+        $foreign = StudentEnrollment::whereIn('id', array_keys($request->input('attendance')))
+            ->where('class_section_id', '!=', $request->input('class_section_id'))->exists();
+        if ($foreign) {
+            return back()->with('error', __('Some of these pupils are not in this class. Reload the page and try again.'));
+        }
 
         DB::transaction(function () use ($request) {
             foreach ($request->input('attendance') as $enrollmentId => $data) {

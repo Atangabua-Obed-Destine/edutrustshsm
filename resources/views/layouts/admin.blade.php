@@ -7,7 +7,6 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') - {{ $__school->school_name ?? 'EduTrustSchool' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         .sidebar-link.active, .sidebar-link:hover { background-color: rgba(255,255,255,0.1); }
         .sidebar-submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
@@ -38,8 +37,18 @@
                     {{ __('Dashboard') }}
                 </a>
 
-                @if(auth()->user()->canAny(['academic-session.view', 'term.view', 'exam-sequence.view', 'form.view', 'stream.view', 'subject.view', 'class-section.view', 'classroom.view', 'batch.view', 'subject-enrollment.view', 'sequence-enrollment.view']))
+                @if(auth()->user()->role === 'teacher')
+                {{-- A teacher's menu: their own work, nothing else. --}}
+                <a href="{{ route('admin.marks.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.marks.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Marks Entry') }}</a>
+                @if(\App\Support\LevelContext::runsNurseryPrimary())
+                <a href="{{ route('admin.nursery.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.nursery.index', 'admin.nursery.edit') ? 'active text-white' : 'text-gray-300' }}">{{ __('Nursery Assessment') }}</a>
+                @endif
+                <a href="{{ route('admin.attendance.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.attendance.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Attendance') }}</a>
+                <a href="{{ route('admin.report-cards.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.report-cards.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Report Cards') }}</a>
+                <a href="{{ route('admin.timetable.teacher-schedule', ['teacher_id' => auth()->id()]) }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.timetable.teacher-schedule') ? 'active text-white' : 'text-gray-300' }}">{{ __('My Timetable') }}</a>
+                @else
                 <!-- Academic Config -->
+                @if(auth()->user()->canAny(['academic-session.view', 'term.view', 'exam-sequence.view', 'form.view', 'stream.view', 'subject.view', 'class-section.view', 'classroom.view', 'batch.view', 'subject-enrollment.view', 'sequence-enrollment.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('academic-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -60,6 +69,7 @@
                         <a href="{{ route('admin.subject-enrollments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.subject-enrollments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Enroll Subjects') }}</a>
                         <a href="{{ route('admin.sequence-enrollments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.sequence-enrollments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Enrol Sequences') }}</a>
                         <a href="{{ route('admin.class-sections.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.class-sections.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class Sections') }}</a>
+                        <a href="{{ route('admin.teaching-assignments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.teaching-assignments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Who Teaches What') }}</a>
                         <a href="{{ route('admin.rooms.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.rooms.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Classrooms') }}</a>
                         <a href="{{ route('admin.batches.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.batches.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Batches') }}</a>
                     </div>
@@ -386,6 +396,7 @@
                     </div>
                 </div>
                 @endif
+                            @endif
             </nav>
 
             <!-- System Settings -->
@@ -440,7 +451,7 @@
         </aside>
 
         <!-- Main Content -->
-        <div id="main-content" class="flex-1 lg:ml-64 transition-all duration-300" style="min-width: 0; overflow-x: hidden;">
+        <div id="main-content" class="flex-1 lg:ml-64 transition-all duration-300" style="min-width: 0;">
             <!-- Top Bar -->
             <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-20">
                 <div class="flex items-center justify-between px-4 lg:px-6 py-3">
@@ -458,7 +469,15 @@
                     </div>
 
                     <div class="flex items-center space-x-4">
-                        <span class="hidden md:block text-sm text-gray-500">{{ now()->format('l, F j, Y') }}</span>
+                        @can('student.view')
+                        <form method="GET" action="{{ route('admin.students.index') }}" class="hidden sm:block" role="search">
+                            <label for="global-pupil-search" class="sr-only">{{ __('Find a pupil') }}</label>
+                            <input id="global-pupil-search" type="search" name="search" value="{{ request()->routeIs('admin.students.index') ? request('search') : '' }}"
+                                   placeholder="{{ __('Find a pupil — name or matricule') }}"
+                                   class="w-56 lg:w-72 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none">
+                        </form>
+                        @endcan
+                        <span class="hidden xl:block text-sm text-gray-500">{{ now()->translatedFormat('l j F Y') }}</span>
 
                         {{-- Branch Switcher — only when the user can access more than one branch --}}
                         @if(\App\Support\BranchContext::showSwitcher())
@@ -522,7 +541,8 @@
             </header>
 
             <!-- Page Content -->
-            <main class="p-4 lg:p-6">
+            {{-- Wide tables scroll inside the page instead of being cut off on a phone. --}}
+            <main class="p-4 lg:p-6 overflow-x-auto">
                 <!-- Flash Messages -->
                 @if(session('success'))
                     <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 flex items-center justify-between" id="flash-success">

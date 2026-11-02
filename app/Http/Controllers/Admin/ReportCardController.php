@@ -41,7 +41,8 @@ class ReportCardController extends Controller implements HasMiddleware
     {
         $currentSession = AcademicSession::current();
         $sessions = AcademicSession::orderByDesc('start_date')->get();
-        $forms = Form::active()->forCurrentLevel()->ordered()->get();
+        $scope = app(\App\Services\TeachingScope::class);
+        $forms = $scope->scopeForms(Form::active()->forCurrentLevel(), auth()->user())->ordered()->get();
         $terms = Term::orderBy('term_number')->get();
 
         $sessionId = $request->input('academic_session_id', $currentSession?->id);
@@ -51,8 +52,12 @@ class ReportCardController extends Controller implements HasMiddleware
 
         // Load sections for selected form (for re-rendering after submit)
         $classSections = collect();
+        if ($classSectionId) {
+            abort_unless($scope->canUseSection(auth()->user(), (int) $classSectionId), 403);
+        }
+
         if ($formId) {
-            $classSections = ClassSection::where('form_id', $formId)
+            $classSections = $scope->scopeSections(ClassSection::where('form_id', $formId), auth()->user())
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']);
@@ -144,6 +149,8 @@ class ReportCardController extends Controller implements HasMiddleware
      */
     public function show(TermResult $termResult)
     {
+        abort_unless(app(\App\Services\TeachingScope::class)->canUseSection(auth()->user(), (int) $termResult->enrollment?->class_section_id), 403);
+
         $termResult->load([
             'enrollment.student',
             'enrollment.classSection.form',
@@ -185,8 +192,19 @@ class ReportCardController extends Controller implements HasMiddleware
             'term_id' => 'required|exists:terms,id',
         ]);
 
+        // A subject whose marks are not approved simply drops out of every
+        // pupil's average, and the card still looks finished. Say which ones
+        // before anything reaches a parent; publishing anyway is a choice.
+        if (! $request->boolean('publish_anyway')) {
+            $missing = $this->unapprovedSubjects((int) $request->class_section_id, (int) $request->term_id);
+            if ($missing !== []) {
+                return back()->with('incomplete', $missing)->with('error', __('Not published: marks for :list are not approved for this term yet, so they are missing from every average.', ['list' => implode(', ', $missing)]));
+            }
+        }
+
         $count = TermResult::where('term_id', $request->term_id)
-            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $request->class_section_id))
+            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $request->class_section_id)
+                ->where('academic_session_id', $request->integer('academic_session_id') ?: AcademicSession::current()?->id))
             ->update(['is_published' => true]);
 
         return back()->with('success', $count . ' report card(s) published.');
@@ -298,6 +316,39 @@ class ReportCardController extends Controller implements HasMiddleware
     /**
      * Slugify a string for safe filenames.
      */
+    /**
+     * Subjects of this class with a sequence this term whose marks are not
+     * approved or published this year. Nursery classes have no marks.
+     *
+     * @return array<int, string>
+     */
+    private function unapprovedSubjects(int $sectionId, int $termId): array
+    {
+        $section = ClassSection::with('form')->find($sectionId);
+        if (! $section || \App\Services\NurseryAssessmentService::isNursery($section->form)) {
+            return [];
+        }
+
+        $sequenceIds = DB::table('form_sequence')->where('form_id', $section->form_id)->where('term_id', $termId)->pluck('sequence_id');
+        if ($sequenceIds->isEmpty()) {
+            return [];
+        }
+
+        $subjects = DB::table('form_subject')->join('subjects', 'subjects.id', '=', 'form_subject.subject_id')
+            ->where('form_subject.form_id', $section->form_id)->where('subjects.is_active', true)
+            ->pluck('subjects.name', 'subjects.id');
+
+        $done = \App\Models\MarksSubmission::forSession()
+            ->where('class_section_id', $sectionId)
+            ->whereIn('sequence_id', $sequenceIds)
+            ->whereIn('status', ['approved', 'published'])
+            ->get()
+            ->groupBy('subject_id')
+            ->map->count();
+
+        return $subjects->filter(fn ($name, $id) => (int) ($done[$id] ?? 0) < $sequenceIds->count())->values()->all();
+    }
+
     private function slugify(string $value): string
     {
         $value = preg_replace('/[^A-Za-z0-9\-_ ]/', '', $value);

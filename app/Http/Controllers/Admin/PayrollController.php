@@ -114,6 +114,14 @@ class PayrollController extends Controller implements HasMiddleware
             'deductions.*.amount' => ['required_with:deductions', 'numeric', 'min:0'],
         ]);
 
+        // A paid payslip is a fact: its cash has left and its entry is in the
+        // ledger. Re-saving it used to reset it to unpaid with new figures
+        // while the cash and the entry stayed, so paying again took the
+        // money twice. Un-pay it first.
+        if (Payroll::where('user_id', $staff->id)->where('salary_month', $validated['salary_month'])->where('status', Payroll::STATUS_PAID)->exists()) {
+            return back()->with('error', __('This payslip has already been paid. Un-pay it first if it needs correcting.'));
+        }
+
         $payDate = Carbon::parse($validated['salary_month'] . '-01')->endOfMonth()->toDateString();
         $basic = (float) $staff->basic_salary;
         $bonus = (float) ($validated['bonus'] ?? 0);
@@ -177,7 +185,9 @@ class PayrollController extends Controller implements HasMiddleware
         ]);
 
         try {
-            DB::transaction(function () use ($payroll, $validated) {
+            DB::transaction(function () use (&$payroll, $validated) {
+                // Re-read under a lock: a double-click must not pay twice.
+                $payroll = Payroll::lockForUpdate()->findOrFail($payroll->id);
                 if ($payroll->isPaid()) {
                     throw new RuntimeException(__('This payroll has already been paid.'));
                 }
@@ -213,7 +223,8 @@ class PayrollController extends Controller implements HasMiddleware
     public function unpay(Payroll $payroll)
     {
         try {
-            DB::transaction(function () use ($payroll) {
+            DB::transaction(function () use (&$payroll) {
+                $payroll = Payroll::lockForUpdate()->findOrFail($payroll->id);
                 if (! $payroll->isPaid()) {
                     throw new RuntimeException(__('This payroll is not marked as paid.'));
                 }

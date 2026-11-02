@@ -103,7 +103,8 @@ class RoleAccessTest extends TestCase
             ['admin', 'admin.dashboard'],
             ['accountant', 'admin.account.income.index'],
             ['staff', 'admin.students.index'],
-            ['teacher', null],
+            ['teacher', 'admin.dashboard'],
+            ['librarian', null],
         ];
     }
 
@@ -115,10 +116,10 @@ class RoleAccessTest extends TestCase
 
     public function test_role_without_a_portal_is_not_logged_into_a_403(): void
     {
-        $this->user('teacher');
+        $this->user('librarian');
 
         $response = $this->post('/login', [
-            'email' => 'teacher@example.test',
+            'email' => 'librarian@example.test',
             'password' => 'password',
         ]);
 

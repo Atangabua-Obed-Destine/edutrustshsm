@@ -129,8 +129,8 @@ class ExamPublishingController extends Controller implements HasMiddleware
                     ->where('status', 'active')
                     ->pluck('id');
 
-                $subjectRows = $formSubjects->map(function ($fs) use ($classSectionId, $sequenceId, $enrollmentIds) {
-                    $submission = MarksSubmission::where('class_section_id', $classSectionId)
+                $subjectRows = $formSubjects->map(function ($fs) use ($classSectionId, $sequenceId, $enrollmentIds, $sessionId) {
+                    $submission = MarksSubmission::forSession((int) $sessionId)->where('class_section_id', $classSectionId)
                         ->where('subject_id', $fs->subject_id)
                         ->where('sequence_id', $sequenceId)
                         ->first();
@@ -143,7 +143,7 @@ class ExamPublishingController extends Controller implements HasMiddleware
                     // Count marks for this subject+section+sequence
                     $marksQuery = Mark::where('subject_id', $fs->subject_id)
                         ->where('sequence_id', $sequenceId)
-                        ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $classSectionId));
+                        ->whereIn('student_enrollment_id', $enrollmentIds);
 
                     $withMarks = (clone $marksQuery)->whereNotNull('score')->count();
                     $passCount = (clone $marksQuery)->where('score', '>=', 10)->count();

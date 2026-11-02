@@ -131,7 +131,12 @@ class PaymentAccountReportController extends Controller implements HasMiddleware
         $expenses = Expense::whereNull('payment_account_id')->get()->map(fn ($r) => $this->row(
             PaymentAccountTransaction::REF_EXPENSE, $r->id, $r->date, $r->amount, $r->title, 'debit', $r->payment_method, $r->reference
         ));
-        $fees = Payment::whereNull('payment_account_id')->get()->map(fn ($r) => $this->row(
+        // Only receipts that brought cash: not reversed, not pending, not
+        // paid from a pupil's existing credit.
+        $fees = Payment::whereNull('payment_account_id')
+            ->where('verification_status', 'verified')
+            ->where('payment_method', '!=', 'student_credit')
+            ->get()->map(fn ($r) => $this->row(
             PaymentAccountTransaction::REF_FEE_PAYMENT, $r->id, $r->payment_date, $r->amount,
             'Fee Receipt ' . $r->receipt_number, 'credit', $r->payment_method, $r->transaction_ref
         ));
@@ -211,15 +216,18 @@ class PaymentAccountReportController extends Controller implements HasMiddleware
     {
         return match ($type) {
             PaymentAccountTransaction::REF_INCOME => (function () use ($id) {
-                $r = Income::findOrFail($id);
+                $r = Income::lockForUpdate()->findOrFail($id);
                 return [$r, $r->amount, $r->date, 'Income - ' . $r->title, 'credit', $r->payment_method, $r->reference];
             })(),
             PaymentAccountTransaction::REF_EXPENSE => (function () use ($id) {
-                $r = Expense::findOrFail($id);
+                $r = Expense::lockForUpdate()->findOrFail($id);
                 return [$r, $r->amount, $r->date, 'Expense - ' . $r->title, 'debit', $r->payment_method, $r->reference];
             })(),
             PaymentAccountTransaction::REF_FEE_PAYMENT => (function () use ($id) {
-                $r = Payment::findOrFail($id);
+                $r = Payment::lockForUpdate()->findOrFail($id);
+                if ($r->verification_status !== 'verified' || $r->payment_method === 'student_credit') {
+                    throw new RuntimeException(__('Only a standing cash receipt can be linked to an account: this one was reversed, is pending, or was paid from credit.'));
+                }
                 return [$r, $r->amount, $r->payment_date, 'Fee Receipt ' . $r->receipt_number, 'credit', $r->payment_method, $r->transaction_ref];
             })(),
         };

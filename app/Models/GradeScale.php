@@ -25,9 +25,10 @@ class GradeScale extends Model
     /** Resolve the grade letter for a score within the active branch's scale. */
     public static function gradeFor(float $score): ?self
     {
+        // The highest band whose minimum the score reaches: bands are stored
+        // to one decimal, so a maximum test leaves 15.95 in no band.
         return static::where('min_mark', '<=', $score)
-            ->where('max_mark', '>=', $score)
-            ->orderBy('display_order')
+            ->orderByDesc('min_mark')
             ->first();
     }
 

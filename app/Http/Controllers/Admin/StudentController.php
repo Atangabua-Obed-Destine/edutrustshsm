@@ -39,12 +39,17 @@ class StudentController extends Controller implements HasMiddleware
         $query = Student::with(['guardian', 'currentEnrollment.classSection.form']);
 
         // Search
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('student_id', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
-            });
+        if ($search = trim((string) $request->input('search'))) {
+            // Every word must match somewhere, so "Marie Ngono" and
+            // "Ngono Marie" both find her, as does part of a matricule.
+            foreach (preg_split('/\s+/', $search) as $word) {
+                $query->where(function ($q) use ($word) {
+                    $q->where('student_id', 'like', "%{$word}%")
+                      ->orWhere('first_name', 'like', "%{$word}%")
+                      ->orWhere('last_name', 'like', "%{$word}%")
+                      ->orWhere('other_names', 'like', "%{$word}%");
+                });
+            }
         }
 
         // Filter by status

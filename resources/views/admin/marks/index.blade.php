@@ -234,7 +234,7 @@
                             <th class="px-4 py-3 text-left w-12 font-medium">{{ __('S/N') }}</th>
                             <th class="px-4 py-3 text-left font-medium">{{ __('Student ID') }}</th>
                             <th class="px-4 py-3 text-left font-medium">{{ __('Student Name') }}</th>
-                            <th class="px-4 py-3 text-center w-36 font-medium">{{ __('Marks') }} (/20)</th>
+                            <th class="px-4 py-3 text-center w-36 font-medium">{{ __('Marks') }} (/{{ number_format($maxMark, 0) }})</th>
                             <th class="px-4 py-3 text-center w-20 font-medium">{{ __('Absent') }}</th>
                             <th class="px-4 py-3 text-center w-20 font-medium">{{ __('Grade') }}</th>
                             <th class="px-4 py-3 text-center w-24 font-medium">{{ __('Note') }}</th>
@@ -260,7 +260,7 @@
                                        name="marks[{{ $i }}][score]"
                                        id="score-{{ $enrollment->id }}"
                                        value="{{ $score }}"
-                                       min="0" max="20" step="0.5"
+                                       min="0" max="{{ $maxMark }}" step="0.25" inputmode="decimal"
                                        class="w-24 px-2 py-1.5 border border-gray-300 rounded text-center text-sm focus:ring-2 focus:ring-blue-500 outline-none score-input"
                                        data-row="{{ $enrollment->id }}"
                                        placeholder="0 - 20"
@@ -287,7 +287,7 @@
                             </td>
                             <td class="px-4 py-2.5 text-center" id="note-{{ $enrollment->id }}">
                                 @if($mark && $mark->score !== null && !$mark->is_absent)
-                                    @if($mark->score >= 10)
+                                    @if($mark->score >= $passMark)
                                     <span class="text-xs font-medium" style="color: #15803d;">{{ __('Pass') }}</span>
                                     @else
                                     <span class="text-xs font-medium" style="color: #b91c1c;">{{ __('Fail') }}</span>
@@ -465,6 +465,8 @@
                             <a href="{{ route('admin.marks.index', [
                                 'academic_session_id' => $sessionId,
                                 'form_id' => $subFormId,
+                                'term_id' => $sub->sequence?->term_id,
+                                'education_system' => $sub->classSection?->form?->education_system ?? 'english',
                                 'class_section_id' => $sub->class_section_id,
                                 'subject_id' => $sub->subject_id,
                                 'sequence_id' => $sub->sequence_id,
@@ -593,7 +595,7 @@
         if (isAbsent) {
             noteTd.innerHTML = '<span class="text-xs font-medium" style="color: #d97706;">{{ __("Absent") }}</span>';
         } else if (score !== null && !isNaN(score)) {
-            noteTd.innerHTML = score >= 10
+            noteTd.innerHTML = score >= {{ $passMark }}
                 ? '<span class="text-xs font-medium" style="color: #15803d;">{{ __("Pass") }}</span>'
                 : '<span class="text-xs font-medium" style="color: #b91c1c;">{{ __("Fail") }}</span>';
         } else {

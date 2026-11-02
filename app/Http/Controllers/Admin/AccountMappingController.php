@@ -109,7 +109,7 @@ class AccountMappingController extends Controller implements HasMiddleware
         $skipped = 0;
 
         foreach ($this->unmappedFacts() as $fact) {
-            $ok = $this->mapper->autoMap($fact->type, $fact->id, $fact->category_id, [
+            $ok = $this->mapper->autoMap($fact->posting_type ?? $fact->type, $fact->id, $fact->category_id, [
                 'amount' => $fact->amount,
                 'date' => $fact->date ? Carbon::parse($fact->date)->toDateString() : now()->toDateString(),
                 'description' => $fact->label,
@@ -138,8 +138,11 @@ class AccountMappingController extends Controller implements HasMiddleware
      */
     private function unmappedFacts()
     {
-        $mappedIds = fn (string $type) => TransactionMapping::where('transaction_type', $type)
-            ->where('status', 'active')->pluck('transaction_id');
+        // A fact whose posting was reversed was undone on purpose (a reversed
+        // receipt, a deleted expense) and must not be posted again; only
+        // facts that never reached the ledger are unmapped.
+        $mappedIds = fn (string ...$types) => TransactionMapping::whereIn('transaction_type', $types)
+            ->whereIn('status', ['active', 'reversed'])->pluck('transaction_id');
 
         $rows = collect();
 
@@ -161,13 +164,19 @@ class AccountMappingController extends Controller implements HasMiddleware
         }
 
         // Fee revenue is posted per allocation, so that is the unit here too.
+        // Only allocations of receipts that still stand: a reversed or
+        // unverified receipt brought no money. One paid from a pupil's credit
+        // brought no new cash either, so it posts as credit applied
+        // (DR 419 → CR revenue), as the live observer does.
         PaymentAllocation::with(['payment', 'studentFee.feeCategory'])
-            ->whereNotIn('id', $mappedIds('fee_payment'))
+            ->whereNotIn('id', $mappedIds('fee_payment', 'credit_applied'))
+            ->whereHas('payment', fn ($q) => $q->where('verification_status', 'verified'))
             ->orderBy('id')
             ->get()
             ->each(function (PaymentAllocation $a) use (&$rows) {
                 $rows->push((object) [
                     'type' => 'fee_payment',
+                    'posting_type' => $a->payment?->payment_method === 'student_credit' ? 'credit_applied' : 'fee_payment',
                     'id' => $a->id,
                     'label' => trim(($a->studentFee?->feeCategory?->name ?? __('Fee'))
                         .' - '.($a->payment?->receipt_number ?? ''), ' -'),
