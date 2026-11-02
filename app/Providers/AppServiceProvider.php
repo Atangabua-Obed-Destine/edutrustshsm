@@ -32,6 +32,13 @@ class AppServiceProvider extends ServiceProvider
         // request; one instance means one count.
         $this->app->scoped(\App\Services\OutOfScopeService::class);
         $this->app->scoped(\App\Services\TeachingScope::class);
+
+        // Lets a school level's word list sit on top of lang/{locale}.json.
+        // (extend, not singleton: the translation provider is deferred and
+        // would replace a plain binding when it loads.)
+        $this->app->extend('translation.loader', fn ($loader, $app) => new \App\Support\LevelFileLoader(
+            $app['files'], [base_path('vendor/laravel/framework/src/Illuminate/Translation/lang'), $app['path.lang']]
+        ));
     }
 
     /**

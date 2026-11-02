@@ -17,12 +17,14 @@ class SetLocale
             App::setLocale($locale);
         }
 
-        // A nursery and primary school has pupils, not students. When the
-        // school runs only that level, its English word list applies on top
-        // of the usual one; a secondary school keeps "student".
+        // A nursery and primary school has pupils and a head teacher, not
+        // students and a principal. When the school runs only that level,
+        // its word list applies on top of the usual one, in either language;
+        // a secondary school keeps its own words.
         try {
-            if (\App\Support\LevelContext::options() === ['nursery_primary']) {
-                app('translator')->addJsonPath(lang_path('nursery-primary'));
+            $loader = app('translator')->getLoader();
+            if ($loader instanceof \App\Support\LevelFileLoader && \App\Support\LevelContext::options() === ['nursery_primary']) {
+                $loader->addOverridePath(lang_path('nursery-primary'));
             }
         } catch (\Throwable) {
             // No settings table yet (a fresh install): nothing to adjust.

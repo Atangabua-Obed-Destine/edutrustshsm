@@ -10,21 +10,22 @@
     $receivedBy = $payment->receivedBy ?? null;
 
     $paymentMethodLabels = [
-        'cash' => 'Cash',
-        'bank_transfer' => 'Bank Transfer',
+        'cash' => __('Cash'),
+        'bank_transfer' => __('Bank Transfer'),
         'mtn_momo' => 'MTN Mobile Money',
         'orange_money' => 'Orange Money',
         'edutrustpay' => 'EduTrustPay',
+        'student_credit' => __('Student Credit'),
     ];
-    $methodLabel = $paymentMethodLabels[$payment->payment_method] ?? ucfirst($payment->payment_method);
+    $methodLabel = $paymentMethodLabels[$payment->payment_method] ?? ucfirst(str_replace('_', ' ', $payment->payment_method));
     $currency = $school->currency ?? 'XAF';
 @endphp
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Receipt {{ $payment->receipt_number }}</title>
+    <title>{{ __('Receipt') }} {{ $payment->receipt_number }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         @page {
@@ -487,25 +488,25 @@
 <div class="print-toolbar">
     <div class="toolbar-left">
         <div>
-            <div class="toolbar-title">Fee Receipt — {{ $payment->receipt_number }}</div>
-            <div class="toolbar-subtitle">{{ $student->full_name ?? 'Student' }} &bull; {{ $classSection->name ?? '' }}</div>
+            <div class="toolbar-title">{{ __('Fee Receipt') }} — {{ $payment->receipt_number }}</div>
+            <div class="toolbar-subtitle">{{ $student->full_name ?? __('Pupil') }} &bull; {{ $classSection->name ?? '' }}</div>
         </div>
     </div>
     <div style="display: flex; gap: 8px;">
         <button class="btn-print" onclick="window.print()">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-            Print Receipt
+            {{ __('Print Receipt') }}
         </button>
         <button class="btn-close" onclick="window.close()">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            Close
+            {{ __('Close') }}
         </button>
     </div>
 </div>
 
 {{-- ===== ORIGINAL COPY ===== --}}
 <div class="receipt-container receipt-copy">
-    <div class="watermark">ORIGINAL</div>
+    <div class="watermark">{{ __('ORIGINAL') }}</div>
     <div class="top-bar"></div>
 
     {{-- School Header --}}
@@ -516,12 +517,12 @@
                 <img src="{{ asset('storage/' . $school->logo) }}" alt="Logo">
             @endif
             <div class="school-info">
-                <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
+                <div class="school-name">{{ $school->school_name ?? '' }}</div>
                 <div class="school-details">
                     @if($school)
-                        @if($school->po_box)P.O. Box {{ $school->po_box }} &bull; @endif
+                        @if($school->po_box){{ __('P.O. Box') }} {{ $school->po_box }} &bull; @endif
                         {{ $school->city ?? '' }}{{ $school->region ? ', ' . $school->region : '' }}
-                        @if($school->phone)<br>Tel: {{ $school->phone }}@endif
+                        @if($school->phone)<br>{{ __('Tel') }}: {{ $school->phone }}@endif
                         @if($school->email) &bull; {{ $school->email }}@endif
                     @endif
                 </div>
@@ -537,53 +538,53 @@
 
     {{-- Receipt Title --}}
     <div class="receipt-title-band">
-        <h2>Fee Payment Receipt</h2>
+        <h2>{{ __('Fee Payment Receipt') }}</h2>
         <span class="receipt-no">{{ $payment->receipt_number }}</span>
     </div>
 
     {{-- Receipt No + Date --}}
     <div class="receipt-meta-strip">
         <div class="meta-item">
-            <span class="meta-label">Receipt No:</span>
+            <span class="meta-label">{{ __('Receipt No') }}:</span>
             <span class="meta-value">{{ $payment->receipt_number }}</span>
         </div>
         <div class="meta-item">
-            <span class="meta-label">Date:</span>
-            <span class="meta-value">{{ $payment->payment_date->format('d M Y') }}</span>
+            <span class="meta-label">{{ __('Date') }}:</span>
+            <span class="meta-value">{{ $payment->payment_date->translatedFormat('d M Y') }}</span>
         </div>
         <div class="meta-item">
-            <span class="meta-label">Session:</span>
+            <span class="meta-label">{{ __('Academic Year') }}:</span>
             <span class="meta-value">{{ $session->name ?? '—' }}</span>
         </div>
     </div>
 
     {{-- Student Information --}}
     <div class="student-info">
-        <div class="info-title">Student Information</div>
+        <div class="info-title">{{ __('Student Information') }}</div>
         <div class="info-grid">
             <div class="info-row">
                 <span class="label">{{ __('Matricule') }}:</span>
                 <span class="value">{{ $student->student_id ?? '—' }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Full Name:</span>
+                <span class="label">{{ __('Full Name') }}:</span>
                 <span class="value">{{ $student->full_name ?? '—' }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Class:</span>
+                <span class="label">{{ __('Class') }}:</span>
                 <span class="value">{{ $classSection->name ?? '—' }}{{ $stream ? ' — ' . $stream->name : '' }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Term:</span>
+                <span class="label">{{ __('Term') }}:</span>
                 <span class="value">{{ $term->name ?? '—' }}</span>
             </div>
             @if($guardian)
             <div class="info-row">
-                <span class="label">Parent/Gdn:</span>
+                <span class="label">{{ __('Parent / Guardian') }}:</span>
                 <span class="value">{{ $guardian->guardian_name ?: ($guardian->father_name ?: $guardian->mother_name) }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Phone:</span>
+                <span class="label">{{ __('Phone') }}:</span>
                 <span class="value">{{ $guardian->guardian_phone ?: ($guardian->father_phone ?: $guardian->mother_phone) }}</span>
             </div>
             @endif
@@ -592,13 +593,13 @@
 
     {{-- Payment Allocations --}}
     <div class="allocations-section">
-        <div class="section-title">Payment Breakdown</div>
+        <div class="section-title">{{ __('Payment Breakdown') }}</div>
         <table class="alloc-table">
             <thead>
                 <tr>
                     <th style="width: 30px;">#</th>
-                    <th>Fee Category</th>
-                    <th class="right">Amount Paid ({{ $currency }})</th>
+                    <th>{{ __('Fee Category') }}</th>
+                    <th class="right">{{ __('Amount Paid') }} ({{ $currency }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -632,14 +633,14 @@
     @endphp
     @if($planAllocations->isNotEmpty())
     <div class="allocations-section">
-        <div class="section-title">Payment Plan Instalment Status</div>
+        <div class="section-title">{{ __('Payment Plan Instalment Status') }}</div>
         <table class="alloc-table">
             <thead>
                 <tr>
-                    <th>Fee Category</th>
-                    <th class="right">Plan Total ({{ $currency }})</th>
-                    <th style="text-align: center;">Instalments</th>
-                    <th style="text-align: center;">Progress</th>
+                    <th>{{ __('Fee Category') }}</th>
+                    <th class="right">{{ __('Plan Total') }} ({{ $currency }})</th>
+                    <th style="text-align: center;">{{ __('Instalments') }}</th>
+                    <th style="text-align: center;">{{ __('Progress') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -687,24 +688,24 @@
     {{-- Payment Method Details --}}
     <div class="payment-details">
         <div class="detail-row">
-            <span class="detail-label">Payment Method:</span>
+            <span class="detail-label">{{ __('Payment Method') }}:</span>
             <span class="detail-value">{{ $methodLabel }}</span>
         </div>
         @if($payment->payer_name)
         <div class="detail-row">
-            <span class="detail-label">Paid By:</span>
+            <span class="detail-label">{{ __('Paid By') }}:</span>
             <span class="detail-value">{{ $payment->payer_name }}{{ $payment->payer_phone ? ' (' . $payment->payer_phone . ')' : '' }}</span>
         </div>
         @endif
         @if($payment->transaction_ref)
         <div class="detail-row">
-            <span class="detail-label">Transaction Ref:</span>
+            <span class="detail-label">{{ __('Transaction Ref') }}:</span>
             <span class="detail-value" style="font-family: 'Courier New', monospace;">{{ $payment->transaction_ref }}</span>
         </div>
         @endif
         @if($payment->notes)
         <div class="detail-row">
-            <span class="detail-label">Notes:</span>
+            <span class="detail-label">{{ __('Notes') }}:</span>
             <span class="detail-value" style="font-weight: 500; font-style: italic;">{{ $payment->notes }}</span>
         </div>
         @endif
@@ -712,7 +713,7 @@
 
     {{-- Amount in Words --}}
     <div class="amount-words">
-        <span class="label">Amount in figures:</span>
+        <span class="label">{{ __('Amount in figures') }}:</span>
         <span class="words">{{ number_format($payment->amount) }} {{ $currency }}</span>
     </div>
 
@@ -727,12 +728,12 @@
             </div>
             <div class="signature-block">
                 <div class="sig-line">
-                    <div class="sig-label">Parent/Guardian Signature</div>
+                    <div class="sig-label">{{ __('Parent/Guardian Signature') }}</div>
                 </div>
             </div>
             <div class="signature-block">
                 <div class="sig-line">
-                    <div class="sig-label">Bursar / Principal</div>
+                    <div class="sig-label">{{ ($form->school_level ?? null) === 'nursery_primary' ? __('Bursar / Head Teacher') : __('Bursar / Principal') }}</div>
                 </div>
             </div>
         </div>
@@ -740,9 +741,9 @@
 
     {{-- Footer Note --}}
     <div class="receipt-note">
-        This is a computer-generated receipt. &bull; Please keep this receipt for your records. &bull; Fees paid are non-refundable unless otherwise stated.<br>
+        {{ __('This is a computer-generated receipt.') }} &bull; {{ __('Please keep this receipt for your records.') }} &bull; {{ __('Fees paid are non-refundable unless otherwise stated.') }}<br>
         @if($school && $school->website){{ $school->website }} &bull; @endif
-        Printed on {{ now()->format('d M Y, h:i A') }}
+        {{ __('Printed on') }} {{ now()->translatedFormat('d M Y, H:i') }}
     </div>
 
     <div class="bottom-bar"></div>
@@ -750,7 +751,7 @@
 
 {{-- ===== DUPLICATE COPY ===== --}}
 <div class="receipt-container receipt-copy" style="margin-top: 30px;">
-    <div class="watermark">DUPLICATE</div>
+    <div class="watermark">{{ __('DUPLICATE') }}</div>
     <div class="top-bar"></div>
 
     <div class="receipt-header">
@@ -760,12 +761,12 @@
                 <img src="{{ asset('storage/' . $school->logo) }}" alt="Logo">
             @endif
             <div class="school-info">
-                <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
+                <div class="school-name">{{ $school->school_name ?? '' }}</div>
                 <div class="school-details">
                     @if($school)
-                        @if($school->po_box)P.O. Box {{ $school->po_box }} &bull; @endif
+                        @if($school->po_box){{ __('P.O. Box') }} {{ $school->po_box }} &bull; @endif
                         {{ $school->city ?? '' }}{{ $school->region ? ', ' . $school->region : '' }}
-                        @if($school->phone)<br>Tel: {{ $school->phone }}@endif
+                        @if($school->phone)<br>{{ __('Tel') }}: {{ $school->phone }}@endif
                         @if($school->email) &bull; {{ $school->email }}@endif
                     @endif
                 </div>
@@ -780,51 +781,51 @@
     </div>
 
     <div class="receipt-title-band">
-        <h2>Fee Payment Receipt</h2>
+        <h2>{{ __('Fee Payment Receipt') }}</h2>
         <span class="receipt-no">{{ $payment->receipt_number }}</span>
     </div>
 
     <div class="receipt-meta-strip">
         <div class="meta-item">
-            <span class="meta-label">Receipt No:</span>
+            <span class="meta-label">{{ __('Receipt No') }}:</span>
             <span class="meta-value">{{ $payment->receipt_number }}</span>
         </div>
         <div class="meta-item">
-            <span class="meta-label">Date:</span>
-            <span class="meta-value">{{ $payment->payment_date->format('d M Y') }}</span>
+            <span class="meta-label">{{ __('Date') }}:</span>
+            <span class="meta-value">{{ $payment->payment_date->translatedFormat('d M Y') }}</span>
         </div>
         <div class="meta-item">
-            <span class="meta-label">Session:</span>
+            <span class="meta-label">{{ __('Academic Year') }}:</span>
             <span class="meta-value">{{ $session->name ?? '—' }}</span>
         </div>
     </div>
 
     <div class="student-info">
-        <div class="info-title">Student Information</div>
+        <div class="info-title">{{ __('Student Information') }}</div>
         <div class="info-grid">
             <div class="info-row">
                 <span class="label">{{ __('Matricule') }}:</span>
                 <span class="value">{{ $student->student_id ?? '—' }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Full Name:</span>
+                <span class="label">{{ __('Full Name') }}:</span>
                 <span class="value">{{ $student->full_name ?? '—' }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Class:</span>
+                <span class="label">{{ __('Class') }}:</span>
                 <span class="value">{{ $classSection->name ?? '—' }}{{ $stream ? ' — ' . $stream->name : '' }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Term:</span>
+                <span class="label">{{ __('Term') }}:</span>
                 <span class="value">{{ $term->name ?? '—' }}</span>
             </div>
             @if($guardian)
             <div class="info-row">
-                <span class="label">Parent/Gdn:</span>
+                <span class="label">{{ __('Parent / Guardian') }}:</span>
                 <span class="value">{{ $guardian->guardian_name ?: ($guardian->father_name ?: $guardian->mother_name) }}</span>
             </div>
             <div class="info-row">
-                <span class="label">Phone:</span>
+                <span class="label">{{ __('Phone') }}:</span>
                 <span class="value">{{ $guardian->guardian_phone ?: ($guardian->father_phone ?: $guardian->mother_phone) }}</span>
             </div>
             @endif
@@ -832,13 +833,13 @@
     </div>
 
     <div class="allocations-section">
-        <div class="section-title">Payment Breakdown</div>
+        <div class="section-title">{{ __('Payment Breakdown') }}</div>
         <table class="alloc-table">
             <thead>
                 <tr>
                     <th style="width: 30px;">#</th>
-                    <th>Fee Category</th>
-                    <th class="right">Amount Paid ({{ $currency }})</th>
+                    <th>{{ __('Fee Category') }}</th>
+                    <th class="right">{{ __('Amount Paid') }} ({{ $currency }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -869,14 +870,14 @@
     {{-- Payment Plan Instalment Status (DUPLICATE) --}}
     @if($planAllocations->isNotEmpty())
     <div class="allocations-section">
-        <div class="section-title">Payment Plan Instalment Status</div>
+        <div class="section-title">{{ __('Payment Plan Instalment Status') }}</div>
         <table class="alloc-table">
             <thead>
                 <tr>
-                    <th>Fee Category</th>
-                    <th class="right">Plan Total ({{ $currency }})</th>
-                    <th style="text-align: center;">Instalments</th>
-                    <th style="text-align: center;">Progress</th>
+                    <th>{{ __('Fee Category') }}</th>
+                    <th class="right">{{ __('Plan Total') }} ({{ $currency }})</th>
+                    <th style="text-align: center;">{{ __('Instalments') }}</th>
+                    <th style="text-align: center;">{{ __('Progress') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -922,31 +923,31 @@
 
     <div class="payment-details">
         <div class="detail-row">
-            <span class="detail-label">Payment Method:</span>
+            <span class="detail-label">{{ __('Payment Method') }}:</span>
             <span class="detail-value">{{ $methodLabel }}</span>
         </div>
         @if($payment->payer_name)
         <div class="detail-row">
-            <span class="detail-label">Paid By:</span>
+            <span class="detail-label">{{ __('Paid By') }}:</span>
             <span class="detail-value">{{ $payment->payer_name }}{{ $payment->payer_phone ? ' (' . $payment->payer_phone . ')' : '' }}</span>
         </div>
         @endif
         @if($payment->transaction_ref)
         <div class="detail-row">
-            <span class="detail-label">Transaction Ref:</span>
+            <span class="detail-label">{{ __('Transaction Ref') }}:</span>
             <span class="detail-value" style="font-family: 'Courier New', monospace;">{{ $payment->transaction_ref }}</span>
         </div>
         @endif
         @if($payment->notes)
         <div class="detail-row">
-            <span class="detail-label">Notes:</span>
+            <span class="detail-label">{{ __('Notes') }}:</span>
             <span class="detail-value" style="font-weight: 500; font-style: italic;">{{ $payment->notes }}</span>
         </div>
         @endif
     </div>
 
     <div class="amount-words">
-        <span class="label">Amount in figures:</span>
+        <span class="label">{{ __('Amount in figures') }}:</span>
         <span class="words">{{ number_format($payment->amount) }} {{ $currency }}</span>
     </div>
 
@@ -960,21 +961,21 @@
             </div>
             <div class="signature-block">
                 <div class="sig-line">
-                    <div class="sig-label">Parent/Guardian Signature</div>
+                    <div class="sig-label">{{ __('Parent/Guardian Signature') }}</div>
                 </div>
             </div>
             <div class="signature-block">
                 <div class="sig-line">
-                    <div class="sig-label">Bursar / Principal</div>
+                    <div class="sig-label">{{ ($form->school_level ?? null) === 'nursery_primary' ? __('Bursar / Head Teacher') : __('Bursar / Principal') }}</div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="receipt-note">
-        This is a computer-generated receipt. &bull; Please keep this receipt for your records. &bull; Fees paid are non-refundable unless otherwise stated.<br>
+        {{ __('This is a computer-generated receipt.') }} &bull; {{ __('Please keep this receipt for your records.') }} &bull; {{ __('Fees paid are non-refundable unless otherwise stated.') }}<br>
         @if($school && $school->website){{ $school->website }} &bull; @endif
-        Printed on {{ now()->format('d M Y, h:i A') }} &bull; <strong>SCHOOL COPY</strong>
+        {{ __('Printed on') }} {{ now()->translatedFormat('d M Y, H:i') }} &bull; <strong>{{ __('SCHOOL COPY') }}</strong>
     </div>
 
     <div class="bottom-bar"></div>

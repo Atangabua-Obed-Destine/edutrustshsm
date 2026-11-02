@@ -35,7 +35,7 @@ class LoginController extends Controller
                 $request->session()->regenerateToken();
 
                 return back()->withErrors([
-                    'email' => 'Your account has been deactivated. Contact administration.',
+                    'email' => __('Your account has been deactivated. Contact administration.'),
                 ])->onlyInput('email');
             }
 
@@ -59,7 +59,7 @@ class LoginController extends Controller
         }
 
         return back()->withErrors([
-            'email' => 'The provided credentials do not match our records.',
+            'email' => __('auth.failed'),
         ])->onlyInput('email');
     }
 

@@ -172,5 +172,11 @@
     "student(s) selected": "pupil(s) selected",
     "students": "pupils",
     "students enrolled": "pupils enrolled",
-    "— Select Student —": "— Select Pupil —"
+    "— Select Student —": "— Select Pupil —",
+    "Student Information": "Pupil Information",
+    "The Principal": "The Head Teacher",
+    "Principal": "Head Teacher",
+    "Principal's Signature & Stamp": "Head Teacher's Signature & Stamp",
+    "Vice Principal": "Deputy Head Teacher",
+    "Bursar / Principal": "Bursar / Head Teacher"
 }

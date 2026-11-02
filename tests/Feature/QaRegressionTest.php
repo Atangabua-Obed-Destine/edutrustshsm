@@ -185,6 +185,29 @@ class QaRegressionTest extends TestCase
         $this->assertStringContainsString('60000', $csv);
     }
 
+    // ------------------------------------------------------------ words
+
+    public function test_a_primary_school_is_run_by_a_head_teacher_in_both_languages(): void
+    {
+        SchoolSetting::current()->update(['school_level_mode' => 'nursery_primary']);
+
+        $this->withSession(['locale' => 'fr'])->get(route('admin.terms.index'))->assertSuccessful();
+        $this->assertSame('Le Directeur', __('The Principal'));
+        $this->assertSame('Économe / Directeur', __('Bursar / Principal'));
+
+        app()->setLocale('en');
+        $this->assertSame('The Head Teacher', __('The Principal'));
+        $this->assertSame('Pupil Information', __('Student Information'));
+    }
+
+    public function test_a_secondary_school_keeps_its_principal(): void
+    {
+        SchoolSetting::current()->update(['school_level_mode' => 'secondary']);
+
+        $this->withSession(['locale' => 'fr'])->get(route('admin.terms.index'))->assertSuccessful();
+        $this->assertSame('Le Principal', __('The Principal'));
+    }
+
     public function test_journal_numbers_keep_counting_past_9999(): void
     {
         $year = now()->year;
