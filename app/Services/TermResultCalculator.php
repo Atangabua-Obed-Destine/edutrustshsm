@@ -214,26 +214,48 @@ class TermResultCalculator
 
             $scores = [];
             $weights = [];
+            $absent = [];
+            $sat = false;
             $weightedSum = 0.0;
             $totalWeight = 0.0;
 
+            // Absence follows paxhitestbed. Only approved or published marks
+            // reach here, so an absence has been finalised by the teacher and
+            // the head, never an empty default. A finalised absence counts as
+            // 0 for that sequence and prints "ABS". A mark nobody entered is
+            // not submitted and stays out. Absent from every sequence of the
+            // subject, the subject itself is ABS: no average, and it is left
+            // out of the term average, as pax leaves an ABS course out of
+            // the GPA.
             foreach ($sequences as $sequence) {
                 $mark = $marks->get($subject->id.':'.$sequence->id);
-                $score = ($mark && ! $mark->is_absent && $mark->score !== null)
-                    ? (float) $mark->score
-                    : null;
-
-                $scores[$sequence->id] = $score;
                 $weight = (float) ($sequence->weight ?: 1);
                 $weights[$sequence->id] = $weight;
 
+                if ($mark && $mark->is_absent) {
+                    $absent[] = $sequence->id;
+                    $scores[$sequence->id] = 0.0;
+                    $totalWeight += $weight;
+
+                    continue;
+                }
+
+                $score = ($mark && $mark->score !== null) ? (float) $mark->score : null;
+                $scores[$sequence->id] = $score;
+
                 if ($score !== null) {
+                    $sat = true;
                     $weightedSum += $score * $weight;
                     $totalWeight += $weight;
                 }
             }
 
-            $average = $totalWeight > 0 ? round($weightedSum / $totalWeight, 2) : null;
+            $absentThroughout = ! $sat && $absent !== [];
+            if ($absentThroughout) {
+                $scores = array_map(fn () => null, $scores);
+            }
+
+            $average = (! $absentThroughout && $totalWeight > 0) ? round($weightedSum / $totalWeight, 2) : null;
             $weightedScore = $average !== null ? round($average * $coefficient, 2) : null;
 
             if ($average !== null) {
@@ -247,9 +269,10 @@ class TermResultCalculator
                 'coefficient' => $coefficient,
                 'scores' => $scores,
                 'weights' => $weights,
+                'absent' => $absent,
                 'term_average' => $average,
                 'weighted_score' => $weightedScore,
-                'grade' => $average !== null ? $this->gradeFor($average, $grades) : '-',
+                'grade' => $absentThroughout ? 'ABS' : ($average !== null ? $this->gradeFor($average, $grades) : '-'),
                 'teacher_name' => $teachers[$subject->id] ?? null,
             ];
         }
@@ -337,6 +360,8 @@ class TermResultCalculator
             'resolved_weights' => [
                 'sequences' => $subject['weights'],
                 'coefficient' => $subject['coefficient'],
+                // Sequences the pupil was absent from, so the card prints ABS.
+                'absent' => $subject['absent'] ?? [],
             ],
             'term_average' => $subject['term_average'],
             'weighted_score' => $subject['weighted_score'],

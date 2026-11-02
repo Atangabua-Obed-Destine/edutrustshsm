@@ -175,10 +175,14 @@
                 @foreach($subjectResults->values() as $i => $sr)
                 @php
                     $avg = $sr->term_average;
-                    $isFail = $avg !== null && $avg < 10;
+                    $absentSeqs = $sr->resolved_weights['absent'] ?? [];
+                    $absentThroughout = $sr->grade === 'ABS';
+                    $isFail = $avg !== null && $avg < (float) ($school->pass_mark ?? 10);
                     // Get remark from GradeScale description
                     $remark = '-';
-                    if ($avg !== null) {
+                    if ($absentThroughout) {
+                        $remark = __('Absent');
+                    } elseif ($avg !== null) {
                         $gs = \App\Models\GradeScale::getGrade((float) $avg);
                         $remark = $gs ? $gs->description : '-';
                     }
@@ -191,9 +195,13 @@
                         $seqField = 'sequence_' . ($sIdx + 1) . '_score';
                         $seqVal = $sr->$seqField;
                     @endphp
-                    <td class="{{ $seqVal !== null && $seqVal < 10 ? 'fail' : '' }}">
+                    @if($absentThroughout || in_array($seq->id, $absentSeqs))
+                    <td class="fail" title="{{ __('Absent') }}">{{ __('ABS') }}</td>
+                    @else
+                    <td class="{{ $seqVal !== null && $seqVal < (float) ($school->pass_mark ?? 10) ? 'fail' : '' }}">
                         {{ $seqVal !== null ? number_format($seqVal, 1) : '-' }}
                     </td>
+                    @endif
                     @endforeach
                     @if($sequences->isEmpty())
                     <td>{{ $sr->sequence_1_score !== null ? number_format($sr->sequence_1_score, 1) : '-' }}</td>
@@ -203,8 +211,8 @@
                     <td>{{ number_format($sr->coefficient, 1) }}</td>
                     <td>{{ $sr->weighted_score !== null ? number_format($sr->weighted_score, 2) : '-' }}</td>
                     @endif
-                    <td class="avg-highlight {{ $isFail ? 'fail' : 'pass' }}">
-                        {{ $avg !== null ? number_format($avg, 2) : '-' }}
+                    <td class="avg-highlight {{ $isFail || $absentThroughout ? 'fail' : 'pass' }}">
+                        {{ $absentThroughout ? __('ABS') : ($avg !== null ? number_format($avg, 2) : '-') }}
                     </td>
                     <td class="rank-cell">
                         @if($sr->subject_rank)

@@ -199,8 +199,10 @@ class ExamPublishingController extends Controller implements HasMiddleware
                     foreach ($student->subjects as $subject) {
                         $subjects[$subject['subject_id']] = [
                             'is_registered' => true,
+                            // Absent only where the pupil was marked absent; a
+                            // mark not yet entered is a blank, not an absence.
                             'seq_scores' => collect($subject['scores'])
-                                ->map(fn ($score) => ['score' => $score, 'is_absent' => $score === null])
+                                ->map(fn ($score, $seqId) => ['score' => $score, 'is_absent' => in_array($seqId, $subject['absent'] ?? [], true)])
                                 ->all(),
                             'term_avg' => $subject['term_average'],
                             'weighted_score' => $subject['weighted_score'],

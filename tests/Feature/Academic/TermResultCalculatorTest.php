@@ -220,7 +220,7 @@ class TermResultCalculatorTest extends TestCase
         $this->assertNull($this->compute()['students']->first()->average);
     }
 
-    public function test_an_absence_is_excluded_rather_than_scored_zero(): void
+    public function test_an_absence_counts_as_zero_as_in_paxhitestbed(): void
     {
         $s1 = $this->sequence('Seq 1', 1);
         $s2 = $this->sequence('Seq 2', 1);
@@ -231,8 +231,9 @@ class TermResultCalculatorTest extends TestCase
         $this->mark($enrollment, $maths, $s1, 16);
         $this->mark($enrollment, $maths, $s2, null);   // absent
 
-        // 16, not 8 — an absence is not a zero.
-        $this->assertEquals(16, $this->compute()['students']->first()->subjects[0]['term_average']);
+        // 8, not 16: a finalised absence is a zero, as in paxhitestbed.
+        // Skipping a weak sequence must not raise the average.
+        $this->assertEquals(8, $this->compute()['students']->first()->subjects[0]['term_average']);
     }
 
     public function test_a_subject_the_student_is_not_registered_for_is_ignored(): void
