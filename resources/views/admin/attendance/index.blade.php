@@ -77,8 +77,8 @@
             </div>
 
             {{-- Quick Stats Bar --}}
-            <div class="px-6 py-3 border-b border-gray-100 bg-white" id="statsBar">
-                <div class="flex items-center gap-6 text-sm">
+            <div class="px-3 sm:px-6 py-3 border-b border-gray-100 bg-white" id="statsBar">
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
                     <span class="flex items-center gap-1.5">
                         <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
                         {{ __('Present:') }} <strong id="countPresent">0</strong>
@@ -102,20 +102,20 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-10">#</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Student') }}</th>
-                            <th class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Status') }}</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Reason / Note') }}</th>
+                            <th class="hidden sm:table-cell px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-10">#</th>
+                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Pupil') }}</th>
+                            <th class="px-2 sm:px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Status') }}</th>
+                            <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Reason / Note') }}</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         @foreach($enrollments->values() as $i => $enrollment)
                         @php $existing = $existingAttendance->get($enrollment->id); @endphp
                         <tr class="hover:bg-gray-50 transition attendance-row" data-enrollment="{{ $enrollment->id }}">
-                            <td class="px-6 py-3 text-sm text-gray-500">{{ $i + 1 }}</td>
-                            <td class="px-6 py-3">
+                            <td class="hidden sm:table-cell px-6 py-3 text-sm text-gray-500">{{ $i + 1 }}</td>
+                            <td class="px-3 sm:px-6 py-3">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                                    <div class="hidden sm:flex w-8 h-8 rounded-full bg-slate-800 text-white items-center justify-center text-xs font-bold shrink-0">
                                         {{ strtoupper(substr($enrollment->student->first_name, 0, 1) . substr($enrollment->student->last_name, 0, 1)) }}
                                     </div>
                                     <div>
@@ -124,7 +124,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-3">
+                            <td class="px-2 sm:px-6 py-3">
                                 <div class="flex items-center justify-center gap-1">
                                     @foreach(['present' => 'P', 'absent' => 'A', 'late' => 'L', 'excused' => 'E'] as $status => $label)
                                     <label class="status-label cursor-pointer">
@@ -149,7 +149,7 @@
                                     @endforeach
                                 </div>
                             </td>
-                            <td class="px-6 py-3">
+                            <td class="hidden md:table-cell px-6 py-3">
                                 <input type="text" name="attendance[{{ $enrollment->id }}][reason]"
                                        value="{{ $existing?->reason }}"
                                        placeholder="{{ __('Optional note...') }}"

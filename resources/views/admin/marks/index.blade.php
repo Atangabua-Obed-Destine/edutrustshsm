@@ -45,9 +45,16 @@
     </div>
     @endif
 
-    {{-- Filter Bar --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <form method="GET" action="{{ route('admin.marks.index') }}" id="filterForm">
+    {{-- Filter Bar: folds to one line once a grid is open, so a teacher on a
+         phone lands on the pupils, not on seven dropdowns. --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6" x-data="{ open: {{ ($filtered && $classSection && $subject && $sequence) ? 'false' : 'true' }} }">
+        @if($filtered && $classSection && $subject && $sequence)
+        <div x-show="!open" class="flex items-center justify-between gap-3">
+            <p class="text-sm text-gray-700 min-w-0 truncate"><span class="font-semibold">{{ $classSection->name }}</span> · {{ $subject->name }} · {{ $sequence->name }}</p>
+            <button type="button" @click="open = true" class="shrink-0 text-sm font-medium text-teal-700 hover:text-teal-900">{{ __('Change') }}</button>
+        </div>
+        @endif
+        <form method="GET" action="{{ route('admin.marks.index') }}" id="filterForm" x-show="open" x-cloak>
             {{-- Row 1: Session, Educational System, Form, Section --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 {{-- Session --}}
@@ -65,8 +72,8 @@
                     </select>
                 </div>
 
-                {{-- Educational System --}}
-                <div>
+                {{-- Educational System: only when the school has classes in both --}}
+                <div class="{{ $forms->pluck('education_system')->unique()->count() <= 1 ? 'hidden' : '' }}">
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Educational System') }} <span class="text-red-500">*</span></label>
                     <select name="education_system" id="eduSystemSelect" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
@@ -183,7 +190,9 @@
                     <p class="text-sm text-gray-500 mt-0.5">
                         {{ $sessions->firstWhere('id', $sessionId)->name ?? '' }} &bull;
                         {{ $sequence->name }} &bull;
+                        @if((float) $coefficient !== 1.0)
                         {{ __('Coefficient') }}: <strong>{{ $coefficient }}</strong> &bull;
+                        @endif
                         {{ $enrollments->count() }} {{ __('student(s)') }}
                     </p>
                 </div>
@@ -232,12 +241,12 @@
                     <thead>
                         <tr style="background-color: #1e293b; color: #fff;">
                             <th class="px-4 py-3 text-left w-12 font-medium">{{ __('S/N') }}</th>
-                            <th class="px-4 py-3 text-left font-medium">{{ __('Student ID') }}</th>
+                            <th class="hidden sm:table-cell px-4 py-3 text-left font-medium">{{ __('Matricule') }}</th>
                             <th class="px-4 py-3 text-left font-medium">{{ __('Student Name') }}</th>
                             <th class="px-4 py-3 text-center w-36 font-medium">{{ __('Marks') }} (/{{ number_format($maxMark, 0) }})</th>
                             <th class="px-4 py-3 text-center w-20 font-medium">{{ __('Absent') }}</th>
-                            <th class="px-4 py-3 text-center w-20 font-medium">{{ __('Grade') }}</th>
-                            <th class="px-4 py-3 text-center w-24 font-medium">{{ __('Note') }}</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center w-20 font-medium">{{ __('Grade') }}</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center w-24 font-medium">{{ __('Note') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -250,7 +259,7 @@
                         @endphp
                         <tr style="{{ $rowBg }}" id="row-{{ $enrollment->id }}">
                             <td class="px-4 py-2.5 text-gray-400 font-medium">{{ $i + 1 }}</td>
-                            <td class="px-4 py-2.5 text-gray-500 font-mono text-xs">{{ $enrollment->student->student_id }}</td>
+                            <td class="hidden sm:table-cell px-4 py-2.5 text-gray-500 font-mono text-xs">{{ $enrollment->student->student_id }}</td>
                             <td class="px-4 py-2.5 font-medium text-gray-800">
                                 {{ $enrollment->student->last_name }} {{ $enrollment->student->first_name }}
                             </td>
@@ -263,7 +272,8 @@
                                        min="0" max="{{ $maxMark }}" step="0.25" inputmode="decimal"
                                        class="w-24 px-2 py-1.5 border border-gray-300 rounded text-center text-sm focus:ring-2 focus:ring-blue-500 outline-none score-input"
                                        data-row="{{ $enrollment->id }}"
-                                       placeholder="0 - 20"
+                                       placeholder="0 - {{ number_format($maxMark, 0) }}"
+                                       aria-label="{{ __('Mark for :name', ['name' => $enrollment->student->last_name.' '.$enrollment->student->first_name]) }}"
                                        {{ $isLocked ? 'disabled' : '' }}
                                        {{ $mark && $mark->is_absent ? 'disabled' : '' }}>
                             </td>
@@ -272,20 +282,21 @@
                                        name="marks[{{ $i }}][is_absent]"
                                        value="1"
                                        id="absent-{{ $enrollment->id }}"
-                                       class="w-4 h-4 border-gray-300 rounded absent-checkbox"
+                                       class="w-5 h-5 border-gray-300 rounded absent-checkbox"
+                                       aria-label="{{ __('Absent') }}"
                                        style="accent-color: #dc2626;"
                                        data-row="{{ $enrollment->id }}"
                                        {{ $mark && $mark->is_absent ? 'checked' : '' }}
                                        {{ $isLocked ? 'disabled' : '' }}>
                             </td>
-                            <td class="px-4 py-2.5 text-center">
+                            <td class="hidden md:table-cell px-4 py-2.5 text-center">
                                 <span id="grade-{{ $enrollment->id }}"
                                       class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full"
                                       style="{{ $mark && $mark->is_absent ? 'background-color: #fee2e2; color: #b91c1c;' : ($mark && $mark->grade ? 'background-color: #dbeafe; color: #1d4ed8;' : 'color: #9ca3af;') }}">
                                     {{ $mark && $mark->is_absent ? 'ABS' : ($mark->grade ?? '—') }}
                                 </span>
                             </td>
-                            <td class="px-4 py-2.5 text-center" id="note-{{ $enrollment->id }}">
+                            <td class="hidden md:table-cell px-4 py-2.5 text-center" id="note-{{ $enrollment->id }}">
                                 @if($mark && $mark->score !== null && !$mark->is_absent)
                                     @if($mark->score >= $passMark)
                                     <span class="text-xs font-medium" style="color: #15803d;">{{ __('Pass') }}</span>
@@ -644,6 +655,34 @@
         });
     });
     @endif
+</script>
+@endpush
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('marksForm');
+    if (!form) return;
+    const inputs = [...form.querySelectorAll('.score-input')];
+    let dirty = false;
+
+    inputs.forEach((input, i) => {
+        // Enter goes down the column like on paper, instead of submitting
+        // a half-entered class.
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const next = inputs.slice(i + 1).find((el) => !el.disabled);
+                if (next) { next.focus(); next.select(); }
+            }
+        });
+        // A French keyboard types 12,5; the field wants 12.5.
+        input.addEventListener('change', () => { input.value = input.value.replace(',', '.'); });
+        input.addEventListener('input', () => { dirty = true; });
+    });
+    form.querySelectorAll('.absent-checkbox').forEach((c) => c.addEventListener('change', () => { dirty = true; }));
+    form.addEventListener('submit', () => { dirty = false; });
+    window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+});
 </script>
 @endpush
 @endsection

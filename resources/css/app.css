@@ -9,3 +9,7 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Alpine: elements marked x-cloak stay hidden until Alpine has started,
+   instead of flashing open on a slow connection. */
+[x-cloak] { display: none !important; }
