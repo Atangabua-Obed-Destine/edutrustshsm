@@ -15,24 +15,6 @@
         </a>
     </div>
 
-    @if(session('success'))
-    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-        <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p class="text-sm text-emerald-700 font-medium">{{ session('success') }}</p>
-        </div>
-    </div>
-    @endif
-
-    @if(session('error'))
-    <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-        <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p class="text-sm text-red-700 font-medium">{{ session('error') }}</p>
-        </div>
-    </div>
-    @endif
-
     @if(session('upload_errors'))
     <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
         <div class="flex items-start gap-3">
@@ -99,7 +81,7 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Target Class') }} <span class="text-red-500">*</span></label>
-                    <select name="class_section_id" required class="w-full rounded-lg border-gray-300 shadow-sm text-sm">
+                    <select name="class_section_id" required class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm text-sm" style="appearance:auto;">
                         <option value="">{{ __('Select class to enroll students into...') }}</option>
                         @foreach($classSections as $cs)
                             <option value="{{ $cs->id }}" @selected(old('class_section_id') == $cs->id)>{{ $cs->name }} ({{ $cs->form->name }})</option>
@@ -112,7 +94,7 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Batch') }} <span class="text-red-500">*</span></label>
-                    <select name="batch_id" required class="w-full rounded-lg border-gray-300 shadow-sm text-sm">
+                    <select name="batch_id" required class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm text-sm" style="appearance:auto;">
                         @foreach($batches as $b)
                             <option value="{{ $b->id }}" @selected(old('batch_id', $batches->first()?->id) == $b->id)>{{ $b->name }}</option>
                         @endforeach
@@ -127,7 +109,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('CSV File') }} <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input type="file" name="csv_file" accept=".csv,.txt" required
-                               class="w-full rounded-lg border-gray-300 shadow-sm text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200">
+                               class="w-full rounded-lg border border-gray-300 bg-white shadow-sm text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200">
                     </div>
                     <p class="text-xs text-gray-400 mt-1">{{ __('Max file size: 5MB. Only .csv files.') }}</p>
                     @error('csv_file')

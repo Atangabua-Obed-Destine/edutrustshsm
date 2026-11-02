@@ -294,7 +294,7 @@ class PaymentRecorder
     {
         // Applying an existing credit must not create a new one from its own
         // rounding, and a credit is drawn down elsewhere.
-        if ($payment->payment_method === 'student_credit') {
+        if (in_array($payment->payment_method, Payment::NON_CASH_METHODS, true)) {
             return;
         }
 

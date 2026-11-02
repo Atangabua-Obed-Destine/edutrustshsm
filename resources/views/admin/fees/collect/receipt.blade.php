@@ -9,15 +9,7 @@
     $guardian = $student->guardian ?? null;
     $receivedBy = $payment->receivedBy ?? null;
 
-    $paymentMethodLabels = [
-        'cash' => __('Cash'),
-        'bank_transfer' => __('Bank Transfer'),
-        'mtn_momo' => 'MTN Mobile Money',
-        'orange_money' => 'Orange Money',
-        'edutrustpay' => 'EduTrustPay',
-        'student_credit' => __('Student Credit'),
-    ];
-    $methodLabel = $paymentMethodLabels[$payment->payment_method] ?? ucfirst(str_replace('_', ' ', $payment->payment_method));
+    $methodLabel = \App\Models\Payment::methodLabel($payment->payment_method);
     $currency = $school->currency ?? 'XAF';
 @endphp
 <!DOCTYPE html>

@@ -144,7 +144,7 @@ class YearEndChecklistService
         $allocations = PaymentAllocation::whereHas('payment', fn ($q) => $q
             ->where('verification_status', 'verified')
             ->whereBetween('payment_date', [$from, $to])
-            ->where('payment_method', '!=', 'student_credit'))
+            ->whereNotIn('payment_method', \App\Models\Payment::NON_CASH_METHODS))
             ->whereNotIn('id', $mapped('fee_payment'))
             ->count();
 

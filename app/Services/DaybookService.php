@@ -38,7 +38,7 @@ class DaybookService
     public const OUT = 'out';
 
     /** Receipts paid from a pupil's credit balance move no cash. */
-    private const NON_CASH_METHODS = ['student_credit'];
+    private const NON_CASH_METHODS = \App\Models\Payment::NON_CASH_METHODS;
 
     /**
      * Every cash movement between two dates, in date order.

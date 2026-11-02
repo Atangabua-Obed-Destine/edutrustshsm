@@ -219,7 +219,7 @@
                         <td class="px-6 py-3 text-center">
                             @php $methodColors = ['cash' => 'emerald', 'bank_transfer' => 'blue', 'mtn_momo' => 'yellow', 'orange_money' => 'orange']; @endphp
                             <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-{{ $methodColors[$p->payment_method] ?? 'gray' }}-100 text-{{ $methodColors[$p->payment_method] ?? 'gray' }}-700">
-                                {{ str_replace('_', ' ', ucfirst($p->payment_method)) }}
+                                {{ \App\Models\Payment::methodLabel($p->payment_method) }}
                             </span>
                         </td>
                         <td class="px-6 py-3 text-gray-500">{{ \Carbon\Carbon::parse($p->payment_date)->format('M d, Y') }}</td>

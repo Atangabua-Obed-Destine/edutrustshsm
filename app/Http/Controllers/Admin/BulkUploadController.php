@@ -10,10 +10,10 @@ use App\Models\ClassSection;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
+use App\Support\SchoolCsv;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class BulkUploadController extends Controller implements HasMiddleware
@@ -114,7 +114,7 @@ class BulkUploadController extends Controller implements HasMiddleware
         $classSection = ClassSection::with('form')->findOrFail($request->class_section_id);
         $batch = Batch::findOrFail($request->batch_id);
 
-        [$headers, $rows] = $this->readCsv($request->file('csv_file')->getRealPath());
+        [$headers, $rows] = SchoolCsv::read($request->file('csv_file')->getRealPath(), self::ALIASES);
 
         $missing = array_diff(['last_name', 'first_name', 'date_of_birth', 'gender'], $headers);
         if ($missing) {
@@ -130,11 +130,10 @@ class BulkUploadController extends Controller implements HasMiddleware
 
         try {
             foreach ($rows as $lineNum => $row) {
-                $values = array_map(fn ($v) => trim((string) $v), array_slice(array_pad($row, count($headers), ''), 0, count($headers)));
-                $data = array_combine($headers, $values);
+                $data = SchoolCsv::combine($headers, $row);
                 $get = fn (string $key) => $data[$key] ?? '';
 
-                if (implode('', $values) === '') {
+                if (implode('', $data) === '') {
                     continue; // a blank line Excel left at the end
                 }
 
@@ -144,7 +143,7 @@ class BulkUploadController extends Controller implements HasMiddleware
                 if ($get('last_name') === '' || $get('first_name') === '') {
                     $problems[] = __('a first and a last name are needed');
                 }
-                $dob = $this->parseDate($get('date_of_birth'));
+                $dob = SchoolCsv::date($get('date_of_birth'));
                 if (! $dob || $dob->isFuture() || $dob->year < 1950) {
                     $problems[] = __('date of birth ":value" is not a date (use DD/MM/YYYY)', ['value' => $get('date_of_birth')]);
                 }
@@ -152,7 +151,7 @@ class BulkUploadController extends Controller implements HasMiddleware
                 if (! $gender) {
                     $problems[] = __('sex ":value" should be M or F', ['value' => $get('gender')]);
                 }
-                $admitted = $get('admission_date') !== '' ? $this->parseDate($get('admission_date')) : now();
+                $admitted = $get('admission_date') !== '' ? SchoolCsv::date($get('admission_date')) : now();
                 if (! $admitted) {
                     $problems[] = __('admission date ":value" is not a date (use DD/MM/YYYY)', ['value' => $get('admission_date')]);
                 }
@@ -255,78 +254,6 @@ class BulkUploadController extends Controller implements HasMiddleware
         return redirect()->route('admin.bulk-upload.index')
             ->with($imported > 0 ? 'success' : 'error', $message)
             ->with('upload_errors', array_merge($errors, $skipped));
-    }
-
-    /**
-     * Read a CSV the way schools produce them: Excel in French saves with
-     * semicolons and in the old Windows encoding; Excel in English with
-     * commas and sometimes a byte-order mark; either may keep "sep=".
-     *
-     * @return array{0: list<string>, 1: array<int, list<string>>} headers, and rows keyed by line number
-     */
-    private function readCsv(string $path): array
-    {
-        $text = (string) file_get_contents($path);
-        $text = (string) preg_replace('/^\xEF\xBB\xBF/', '', $text);
-        if (! mb_check_encoding($text, 'UTF-8')) {
-            $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
-        }
-
-        $line = 0;
-        if (preg_match('/^"?sep=(.)"?\r?\n/i', $text, $m)) {
-            $delimiter = $m[1];
-            $text = substr($text, strlen($m[0]));
-            $line = 1;
-        } else {
-            $head = strtok($text, "\r\n") ?: '';
-            $delimiter = substr_count($head, ';') > substr_count($head, ',') ? ';' : ',';
-        }
-
-        // Parsed as a stream, so a quoted value holding a comma or a line
-        // break stays one value.
-        $handle = fopen('php://temp', 'w+');
-        fwrite($handle, $text);
-        rewind($handle);
-
-        $headers = [];
-        $rows = [];
-        while (($row = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
-            $line++;
-            if ($headers === []) {
-                $headers = array_map(function ($h) {
-                    $key = str_replace([' ', '-', '.'], '_', mb_strtolower(trim((string) $h)));
-                    $key = rtrim($key, '*_');
-
-                    return self::ALIASES[$key] ?? $key;
-                }, $row);
-
-                continue;
-            }
-            $rows[$line] = $row;
-        }
-        fclose($handle);
-
-        return [$headers, $rows];
-    }
-
-    /** 15/05/2018, 15-05-2018, 15.05.2018, 15/05/18 or 2018-05-15. Day first: this is Cameroon. */
-    private function parseDate(string $value): ?Carbon
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return null;
-        }
-
-        // Two-digit years first: "Y" would read 15/05/18 as the year 18.
-        foreach (['Y-m-d', 'd/m/y', 'd/m/Y', 'd-m-y', 'd-m-Y', 'd.m.Y', 'Y/m/d'] as $format) {
-            $date = \DateTime::createFromFormat('!'.$format, $value);
-            $problems = \DateTime::getLastErrors();
-            if ($date && ($problems === false || ($problems['warning_count'] === 0 && $problems['error_count'] === 0))) {
-                return Carbon::instance($date);
-            }
-        }
-
-        return null;
     }
 
     private function parseGender(string $value): ?string

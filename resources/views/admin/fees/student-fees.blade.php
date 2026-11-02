@@ -95,7 +95,7 @@
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-2 font-mono text-xs text-blue-600">{{ $p->receipt_number }}</td>
                     <td class="px-4 py-2 text-right font-mono font-semibold text-green-700">{{ number_format($p->amount) }}</td>
-                    <td class="px-4 py-2 capitalize text-xs">{{ str_replace('_', ' ', $p->payment_method) }}</td>
+                    <td class="px-4 py-2 text-xs">{{ $p->method_label }}</td>
                     <td class="px-4 py-2">{{ $p->payment_date->format('d M Y') }}</td>
                     <td class="px-4 py-2 text-center">
                         <a href="{{ route('admin.payments.show', $p) }}" class="text-blue-600 hover:text-blue-800 text-xs font-medium">{{ __('View') }}</a>

@@ -168,7 +168,7 @@
                         </span>
                         <svg id="fees-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="fees-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.fee-structures.*', 'admin.payments.*', 'admin.student-fees', 'admin.fee-categories.*', 'admin.fee-discounts.*', 'admin.fee-reports.*', 'admin.collect-fees.*', 'admin.quick-assign.*', 'admin.assignment-history.*', 'admin.payment-plans.*') ? 'open' : '' }}">
+                    <div id="fees-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.fee-structures.*', 'admin.payments.*', 'admin.student-fees', 'admin.fee-categories.*', 'admin.fee-discounts.*', 'admin.fee-reports.*', 'admin.collect-fees.*', 'admin.quick-assign.*', 'admin.assignment-history.*', 'admin.payment-plans.*', 'admin.prior-payments.*', 'admin.student-credits.*', 'admin.fee-fines.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.collect-fees.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.collect-fees.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Collect Fees') }}</a>
                         <a href="{{ route('admin.payment-plans.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payment-plans.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payment Plans') }}</a>
                         <a href="{{ route('admin.quick-assign.create') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.quick-assign.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Quick Assign') }}</a>
@@ -183,8 +183,11 @@
                         @can('student-credit.view')
                         <a href="{{ route('admin.student-credits.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.student-credits.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student Credits') }}</a>
                         @endcan
-                        <a href="{{ route('admin.fee-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Reports') }}</a>
+                        <a href="{{ route('admin.fee-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.index', 'admin.fee-reports.partial*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Reports') }}</a>
                         <a href="{{ route('admin.fee-reports.defaulters') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.defaulters*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Defaulters') }}</a>
+                        @can('fee-collection.view')
+                        <a href="{{ route('admin.prior-payments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.prior-payments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Paid Before the Switch') }}</a>
+                        @endcan
                     </div>
                 </div>
 

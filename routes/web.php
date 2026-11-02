@@ -567,6 +567,9 @@ Route::middleware('auth')->group(function () {
         Route::get('collect-fees', [FeeCollectionController::class, 'index'])->name('collect-fees.index');
         Route::post('collect-fees/store-payment', [FeeCollectionController::class, 'storePayment'])->name('collect-fees.store-payment');
         Route::get('collect-fees/receipt/{payment}', [FeeCollectionController::class, 'receipt'])->name('collect-fees.receipt');
+        Route::get('prior-payments', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'index'])->name('prior-payments.index');
+        Route::get('prior-payments/template', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'template'])->name('prior-payments.template');
+        Route::post('prior-payments', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'upload'])->name('prior-payments.upload');
         Route::get('collect-fees/streams-by-form/{form}', [FeeCollectionController::class, 'streamsByForm'])->name('collect-fees.streams-by-form');
         Route::get('collect-fees/sections-by-form/{form}', [FeeCollectionController::class, 'sectionsByForm'])->name('collect-fees.sections-by-form');
 

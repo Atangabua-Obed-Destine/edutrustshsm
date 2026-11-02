@@ -110,7 +110,7 @@
                         <tr style="border-bottom:1px solid #f8fafc;">
                             <td style="padding:13px 20px; font-family:monospace; color:#0f172a;">{{ $p->receipt_number }}</td>
                             <td style="padding:13px 20px; color:#475569;">{{ $p->payment_date?->format('d M Y') }}</td>
-                            <td style="padding:13px 20px; color:#475569; text-transform:capitalize;">{{ str_replace('_', ' ', $p->payment_method) }}</td>
+                            <td style="padding:13px 20px; color:#475569;">{{ $p->method_label }}</td>
                             <td style="padding:13px 20px; text-align:right; font-weight:600; color:#16a34a;">{{ number_format($p->amount, 0) }} {{ $currency }}</td>
                         </tr>
                     @empty

@@ -168,6 +168,34 @@ class FeeRevenuePostingTest extends TestCase
         $this->assertEquals(15000, (float) JournalEntryLine::where('account_id', $this->cash->id)->sum('debit'));
     }
 
+    public function test_fees_paid_before_the_switch_settle_the_balance_but_post_nothing(): void
+    {
+        // The cash was received and booked in the old system; the opening
+        // entry carries it. Posting it here would count it twice.
+        $this->map(null, $this->tuitionRevenue);
+        $fee = $this->fee($this->tuition, 10000);
+
+        app(PaymentRecorder::class)->record([
+            'student_enrollment_id' => $this->enrollment->id,
+            'amount' => 6000,
+            'payment_method' => 'prior_system',
+            'payment_date' => '2026-01-10',
+        ]);
+
+        $this->assertEquals(4000, (float) $fee->fresh()->balance);
+        $this->assertSame(0, JournalEntry::count());
+
+        app(PaymentRecorder::class)->record([
+            'student_enrollment_id' => $this->enrollment->id,
+            'amount' => 4000,
+            'payment_method' => 'cash',
+            'payment_date' => '2026-01-15',
+        ]);
+
+        $this->assertEquals(0, (float) $fee->fresh()->balance);
+        $this->assertEquals(4000, $this->creditedTo($this->tuitionRevenue), 'only the cash taken here reaches the ledger');
+    }
+
     public function test_a_category_without_its_own_rule_falls_back_to_the_catch_all(): void
     {
         $this->map(null, $this->tuitionRevenue);          // catch-all

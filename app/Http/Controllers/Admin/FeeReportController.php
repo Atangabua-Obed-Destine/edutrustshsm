@@ -106,7 +106,7 @@ class FeeReportController extends Controller implements HasMiddleware
         // collections by every overpayment later used.
         $received = fn () => Payment::whereHas('enrollment', $inScope)
             ->where('verification_status', 'verified')
-            ->where('payment_method', '!=', 'student_credit');
+            ->whereNotIn('payment_method', Payment::NON_CASH_METHODS);
 
         $byMethod = $received()
             ->select('payment_method', DB::raw('SUM(amount) as total'), DB::raw('COUNT(*) as count'))

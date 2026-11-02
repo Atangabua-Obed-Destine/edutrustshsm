@@ -10,6 +10,14 @@ class Payment extends Model
 {
     use Auditable, BelongsToBranch;
 
+    /**
+     * Methods that bring no new money in. A receipt paid from a pupil's
+     * credit spends cash that arrived earlier; a payment from before the
+     * switch was received and booked in the old system. Both settle fees,
+     * neither belongs in a cash total or the ledger as a receipt.
+     */
+    public const NON_CASH_METHODS = ['student_credit', 'prior_system'];
+
     protected $fillable = [
         'branch_id',
         'receipt_number', 'student_enrollment_id', 'amount', 'payment_method',
@@ -18,6 +26,27 @@ class Payment extends Model
         'received_by', 'notes', 'payment_account_id',
         'reversed_at', 'reversed_by', 'reversal_reason',
     ];
+
+    /** What a payment method is called, in the reader's language. */
+    public static function methodLabel(?string $method): string
+    {
+        return match ($method) {
+            'cash' => __('Cash'),
+            'bank_transfer' => __('Bank Transfer'),
+            'mtn_momo' => 'MTN Mobile Money',
+            'orange_money' => 'Orange Money',
+            'edutrustpay' => 'EduTrustPay',
+            'student_credit' => __('Student Credit'),
+            'prior_system' => __('Paid before the switch'),
+            null, '' => '—',
+            default => ucfirst(str_replace('_', ' ', $method)),
+        };
+    }
+
+    public function getMethodLabelAttribute(): string
+    {
+        return static::methodLabel($this->payment_method);
+    }
 
     protected function casts(): array
     {

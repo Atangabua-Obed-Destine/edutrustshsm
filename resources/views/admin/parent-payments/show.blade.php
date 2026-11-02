@@ -44,7 +44,7 @@
                             __('Class') => $submission->enrollment->classSection->name ?? '—',
                             __('Paying For') => $submission->studentFee ? ($submission->studentFee->feeCategory->name ?? __('Specific fee')) : __('Any outstanding fee (FIFO)'),
                             __('Amount') => number_format($submission->amount, 0) . ' ' . $currency,
-                            __('Method') => ucfirst(str_replace('_', ' ', $submission->payment_method)),
+                            __('Method') => \App\Models\Payment::methodLabel($submission->payment_method),
                             __('Payment Date') => $submission->payment_date?->format('d M Y'),
                             __('Reference') => $submission->transaction_ref ?: '—',
                             __('Bank') => $submission->bank_name ?: '—',

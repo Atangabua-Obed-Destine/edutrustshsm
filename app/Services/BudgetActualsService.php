@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\DB;
 class BudgetActualsService
 {
     /** Receipts paid from a pupil's credit balance move no cash. */
-    private const NON_CASH_METHODS = ['student_credit'];
+    private const NON_CASH_METHODS = \App\Models\Payment::NON_CASH_METHODS;
 
     /**
      * Actual amounts keyed by budget line id, for a date range.

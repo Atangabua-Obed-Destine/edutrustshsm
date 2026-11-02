@@ -135,7 +135,7 @@ class PaymentAccountReportController extends Controller implements HasMiddleware
         // paid from a pupil's existing credit.
         $fees = Payment::whereNull('payment_account_id')
             ->where('verification_status', 'verified')
-            ->where('payment_method', '!=', 'student_credit')
+            ->whereNotIn('payment_method', \App\Models\Payment::NON_CASH_METHODS)
             ->get()->map(fn ($r) => $this->row(
             PaymentAccountTransaction::REF_FEE_PAYMENT, $r->id, $r->payment_date, $r->amount,
             'Fee Receipt ' . $r->receipt_number, 'credit', $r->payment_method, $r->transaction_ref
@@ -225,7 +225,7 @@ class PaymentAccountReportController extends Controller implements HasMiddleware
             })(),
             PaymentAccountTransaction::REF_FEE_PAYMENT => (function () use ($id) {
                 $r = Payment::lockForUpdate()->findOrFail($id);
-                if ($r->verification_status !== 'verified' || $r->payment_method === 'student_credit') {
+                if ($r->verification_status !== 'verified' || in_array($r->payment_method, \App\Models\Payment::NON_CASH_METHODS, true)) {
                     throw new RuntimeException(__('Only a standing cash receipt can be linked to an account: this one was reversed, is pending, or was paid from credit.'));
                 }
                 return [$r, $r->amount, $r->payment_date, 'Fee Receipt ' . $r->receipt_number, 'credit', $r->payment_method, $r->transaction_ref];

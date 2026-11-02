@@ -52,7 +52,7 @@
             $rows = [
                 __('Child') => ($submission->enrollment->student->full_name ?? '—'),
                 __('For Fee') => $submission->studentFee ? ($submission->studentFee->feeCategory->name ?? __('Specific fee')) : __('General payment'),
-                __('Payment Method') => ucfirst(str_replace('_', ' ', $submission->payment_method)),
+                __('Payment Method') => \App\Models\Payment::methodLabel($submission->payment_method),
                 __('Payment Date') => $submission->payment_date?->format('d M Y'),
                 __('Reference') => $submission->transaction_ref ?: '—',
                 __('Bank') => $submission->bank_name ?: '—',

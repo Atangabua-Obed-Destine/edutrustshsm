@@ -29,6 +29,10 @@ class PaymentAllocationObserver
 
     public function created(PaymentAllocation $allocation): void
     {
+        if ($this->fromOldSystem($allocation)) {
+            return;
+        }
+
         $this->mapper->autoMap(
             $this->mappingType($allocation),
             $allocation->id,
@@ -39,7 +43,7 @@ class PaymentAllocationObserver
 
     public function updated(PaymentAllocation $allocation): void
     {
-        if ($allocation->wasChanged('amount')) {
+        if ($allocation->wasChanged('amount') && ! $this->fromOldSystem($allocation)) {
             $this->mapper->remap(
                 $this->mappingType($allocation),
                 $allocation->id,
@@ -51,7 +55,21 @@ class PaymentAllocationObserver
 
     public function deleted(PaymentAllocation $allocation): void
     {
+        if ($this->fromOldSystem($allocation)) {
+            return;
+        }
+
         $this->mapper->reverse($this->mappingType($allocation), $allocation->id);
+    }
+
+    /**
+     * Paid before the school moved to this system: the cash was received,
+     * banked and booked there. The year's opening entry carries it, so a
+     * posting here would count it twice.
+     */
+    private function fromOldSystem(PaymentAllocation $allocation): bool
+    {
+        return $allocation->payment?->payment_method === 'prior_system';
     }
 
     /**
