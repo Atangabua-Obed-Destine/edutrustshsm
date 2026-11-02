@@ -45,6 +45,9 @@
                 @endif
                 <a href="{{ route('admin.attendance.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.attendance.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Attendance') }}</a>
                 <a href="{{ route('admin.report-cards.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.report-cards.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Report Cards') }}</a>
+                @can('student.view')
+                <a href="{{ route('admin.class-list.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.class-list.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Class List') }}</a>
+                @endcan
                 <a href="{{ route('admin.timetable.teacher-schedule', ['teacher_id' => auth()->id()]) }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.timetable.teacher-schedule') ? 'active text-white' : 'text-gray-300' }}">{{ __('My Timetable') }}</a>
                 @else
                 <!-- Academic Config -->
@@ -103,9 +106,10 @@
                         </span>
                         <svg id="admissions-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="admissions-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.students.*', 'admin.bulk-upload.*', 'admin.subject-add-drop.*', 'admin.group-enrol.*') ? 'open' : '' }}">
+                    <div id="admissions-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.students.*', 'admin.class-list.*', 'admin.bulk-upload.*', 'admin.subject-add-drop.*', 'admin.group-enrol.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.students.create') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.create') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('New Registration') }}</a>
                         <a href="{{ route('admin.students.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.index') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student List') }}</a>
+                        <a href="{{ route('admin.class-list.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.class-list.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class List') }}</a>
                         @if(app(\App\Services\OutOfScopeService::class)->hasAny())
                         <a href="{{ route('admin.students.out-of-scope') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.out-of-scope') ? 'text-white bg-white/10' : 'text-amber-300 hover:text-white' }}">{{ __('Outside this level') }}</a>
                         @endif

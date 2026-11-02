@@ -242,6 +242,9 @@ Route::middleware('auth')->group(function () {
         Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::post('attendance', [AttendanceController::class, 'store'])->name('attendance.store');
 
+        Route::get('class-list', [\App\Http\Controllers\Admin\ClassListController::class, 'index'])->name('class-list.index');
+        Route::get('class-list/export', [\App\Http\Controllers\Admin\ClassListController::class, 'csv'])->name('class-list.csv');
+
         Route::get('timetable/class-schedule', [TimetableController::class, 'classSchedule'])->name('timetable.class-schedule');
         Route::get('timetable/teacher-schedule', [TimetableController::class, 'teacherSchedule'])->name('timetable.teacher-schedule');
 

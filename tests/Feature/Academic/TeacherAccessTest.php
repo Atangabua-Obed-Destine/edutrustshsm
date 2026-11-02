@@ -112,6 +112,29 @@ class TeacherAccessTest extends TestCase
             ->assertSee('Mathematics');
     }
 
+    public function test_a_class_teacher_prints_their_own_class_list_and_no_other(): void
+    {
+        // Last year this pupil sat Primary 3 too: a repeater.
+        $old = AcademicSession::create(['branch_id' => $this->branch->id, 'name' => '2024/2025', 'start_date' => '2024-09-01', 'end_date' => '2025-07-31', 'status' => 'closed', 'is_current' => false]);
+        StudentEnrollment::create(['branch_id' => $this->branch->id, 'student_id' => $this->p3Pupil->student_id, 'academic_session_id' => $old->id, 'term_id' => $this->term->id, 'class_section_id' => $this->p3->id, 'residence_type' => 'day', 'enrollment_date' => '2024-09-05', 'status' => 'promoted']);
+
+        $this->actingAs($this->teacher);
+
+        // One class: it opens straight on it.
+        $this->get(route('admin.class-list.index'))->assertSuccessful()
+            ->assertSee('TS3')->assertSee('01/01/2017')->assertDontSee('TS4')
+            ->assertSeeInOrder([__('Girls'), '1', __('Total'), '1', __('Repeaters'), '1']);
+
+        $this->get(route('admin.class-list.index', ['class_section_id' => $this->p4->id]))->assertDontSee('TS4');
+        $this->get(route('admin.class-list.csv', ['class_section_id' => $this->p4->id]))->assertNotFound();
+
+        $csv = $this->get(route('admin.class-list.csv', ['class_section_id' => $this->p3->id]))->assertSuccessful()->streamedContent();
+        $this->assertStringContainsString('TS3', $csv);
+
+        $this->actingAs($this->admin);
+        $this->get(route('admin.class-list.index', ['class_section_id' => $this->p4->id]))->assertSuccessful()->assertSee('TS4');
+    }
+
     public function test_a_teacher_created_on_the_hr_screen_without_a_branch_link_still_sees_their_class(): void
     {
         // No screen links new staff to a branch; in a one-branch school that
