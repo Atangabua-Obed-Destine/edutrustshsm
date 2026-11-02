@@ -308,7 +308,7 @@
                                     ]) : 'null';
                                 @endphp
                                 <button type="button"
-                                   onclick="openPaymentModal({{ $fee->id }}, '{{ addslashes($student->full_name ?? '') }}', '{{ $student->student_id ?? '' }}', '{{ addslashes($classSection->name ?? '') }}', '{{ addslashes($fee->feeCategory->name ?? '') }}', {{ $fee->net_amount }}, {{ $fee->paid_amount }}, {{ $fee->balance }}, {{ $planJson }})"
+                                   onclick="openPaymentModal({{ $fee->id }}, '{{ addslashes($student->full_name ?? '') }}', '{{ $student->student_id ?? '' }}', '{{ addslashes($classSection->name ?? '') }}', '{{ addslashes($fee->feeCategory->name ?? '') }}', {{ $fee->net_amount }}, {{ $fee->paid_amount }}, {{ $fee->balance }}, {{ $planJson }}, {{ (float) ($outstandingByEnrollment[$fee->student_enrollment_id] ?? $fee->balance) }})"
                                    title="{{ __('Collect Payment') }}"
                                    style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #0ea5e9; color: #fff; border-radius: 8px; border: none; cursor: pointer; transition: all .15s;"
                                    onmouseover="this.style.backgroundColor='#0284c7'" onmouseout="this.style.backgroundColor='#0ea5e9'">
@@ -669,8 +669,43 @@ const storePaymentUrl = @json(route('admin.collect-fees.store-payment'));
 const receiptBaseUrl = @json(url('admin/collect-fees/receipt'));
 let currentFeeRowId = null;
 
-function openPaymentModal(feeId, studentName, studentId, className, feeCategory, netAmount, paidAmount, balance, planData) {
+let currentLineBalance = 0, currentPupilOwes = 0;
+const fmtXaf = (n) => Math.round(n).toLocaleString() + ' XAF';
+// Translations go in as JSON: French is full of apostrophes.
+@php
+    $payT = [
+        'thisFee' => __('This fee'),
+        'allOwed' => __('All this pupil owes'),
+        'instalment' => __('Instalment'),
+        'onThisFee' => __('on this fee'),
+        'onOthers' => __('on the other fees of this pupil, oldest first.'),
+        'credit' => __('is more than the pupil owes and will be kept as credit.'),
+    ];
+@endphp
+const PAY_T = {!! json_encode($payT, JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
+
+/** Say, as the bursar types, where the money will go. */
+function explainAmount(planData) {
+    const amount = Number(document.getElementById('modalAmount').value || 0);
+    const hint = document.getElementById('amountHint');
+    const parts = [PAY_T.thisFee + ': ' + fmtXaf(currentLineBalance) + ' · ' + PAY_T.allOwed + ': ' + fmtXaf(currentPupilOwes)];
+    if (planData && planData.nextNum) {
+        parts.push(PAY_T.instalment + ' #' + planData.nextNum + ': ' + fmtXaf(planData.nextAmount));
+    }
+    let where = '';
+    if (amount > currentLineBalance && amount <= currentPupilOwes) {
+        where = fmtXaf(currentLineBalance) + ' ' + PAY_T.onThisFee + ', ' + fmtXaf(amount - currentLineBalance) + ' ' + PAY_T.onOthers;
+    } else if (amount > currentPupilOwes) {
+        where = fmtXaf(amount - currentPupilOwes) + ' ' + PAY_T.credit;
+    }
+    hint.textContent = parts.join(' · ') + (where ? ' — ' + where : '');
+    hint.style.color = amount > currentPupilOwes ? '#b45309' : '#94a3b8';
+}
+
+function openPaymentModal(feeId, studentName, studentId, className, feeCategory, netAmount, paidAmount, balance, planData, pupilOwes) {
     currentFeeRowId = feeId;
+    currentLineBalance = Number(balance);
+    currentPupilOwes = Number(pupilOwes ?? balance);
 
     document.getElementById('modalFeeId').value = feeId;
     document.getElementById('modalStudentName').textContent = studentName + ' (' + studentId + ')';
@@ -697,9 +732,12 @@ function openPaymentModal(feeId, studentName, studentId, className, feeCategory,
 
     const amountInput = document.getElementById('modalAmount');
     amountInput.value = suggestedAmount;
-    amountInput.max = Math.ceil(balance);
-    document.getElementById('amountHint').textContent = '{{ __("Outstanding balance") }}: ' + Number(balance).toLocaleString() + ' XAF' +
-        (planData && planData.nextNum ? ' · {{ __("Instalment") }} #' + planData.nextNum + ': ' + Number(planData.nextAmount).toLocaleString() + ' XAF' : '');
+    // No cap at this fee's balance: a parent often pays one lump sum for
+    // several fees. The server settles this fee first, then the pupil's
+    // other fees oldest first, and keeps anything beyond as credit.
+    amountInput.removeAttribute('max');
+    amountInput.oninput = () => explainAmount(planData);
+    explainAmount(planData);
 
     // Set today's date
     const today = new Date().toISOString().split('T')[0];

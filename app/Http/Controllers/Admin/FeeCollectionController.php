@@ -107,11 +107,19 @@ class FeeCollectionController extends Controller implements HasMiddleware
         $totalPaid = $studentFees->sum('paid_amount');
         $totalBalance = $studentFees->sum('balance');
 
+        // Everything each pupil owes, whatever the filters show, so a parent
+        // paying one lump sum for several fees is taken in one receipt.
+        $outstandingByEnrollment = $studentFees->isEmpty() ? collect() : StudentFee::query()
+            ->whereIn('student_enrollment_id', $studentFees->pluck('student_enrollment_id')->unique())
+            ->selectRaw('student_enrollment_id, SUM(balance) as owed')
+            ->groupBy('student_enrollment_id')
+            ->pluck('owed', 'student_enrollment_id');
+
         return view('admin.fees.collect.index', compact(
             'sessions', 'forms', 'categories', 'streams', 'sections',
             'sessionId', 'formId', 'streamId', 'sectionId', 'categoryId', 'status',
             'studentFees', 'loaded',
-            'totalExpected', 'totalPaid', 'totalBalance'
+            'totalExpected', 'totalPaid', 'totalBalance', 'outstandingByEnrollment'
         ));
     }
 
