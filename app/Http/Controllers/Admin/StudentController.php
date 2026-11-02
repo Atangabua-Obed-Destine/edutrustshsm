@@ -203,21 +203,7 @@ class StudentController extends Controller implements HasMiddleware
             ]);
 
             // 2. Generate student ID: SchoolCode + BatchShortcode + Sequential(0001)
-            $settings = SchoolSetting::current();
-            $schoolCode = $settings->school_code ?? 'SCH';
-            $batch = Batch::findOrFail($validated['batch_id']);
-            $prefix = $schoolCode . $batch->shortcode;
-
-            $lastStudent = Student::where('student_id', 'like', $prefix . '%')
-                ->orderByDesc('student_id')
-                ->first();
-
-            $nextNumber = 1;
-            if ($lastStudent) {
-                $numericPart = substr($lastStudent->student_id, strlen($prefix));
-                $nextNumber = ((int) $numericPart) + 1;
-            }
-            $studentId = $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $studentId = Student::nextMatricule(Batch::findOrFail($validated['batch_id']));
 
             // 3. Handle file uploads
             $photoPath = $request->hasFile('photo_file')

@@ -5,23 +5,44 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
+use App\Models\Batch;
 use App\Models\ClassSection;
-use App\Models\Guardian;
-use App\Models\SchoolSetting;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 
 class BulkUploadController extends Controller implements HasMiddleware
 {
     use AuthorizesModule;
 
     protected static string $access = 'bulk-upload';
+
+    /** Columns of the template, in order. Starred ones are required. */
+    public const COLUMNS = [
+        'matricule', 'last_name*', 'first_name*', 'other_names', 'date_of_birth*', 'gender*',
+        'place_of_birth', 'nationality', 'religion', 'residence_type', 'admission_date',
+        'father_name', 'father_phone', 'mother_name', 'mother_phone',
+        'guardian_name', 'guardian_phone',
+        'emergency_contact_name', 'emergency_contact_phone',
+        'home_address', 'previous_school', 'previous_class',
+    ];
+
+    /** Headings people actually write, mapped to ours. */
+    private const ALIASES = [
+        'student_id' => 'matricule', 'matricule_no' => 'matricule', 'mat' => 'matricule',
+        'surname' => 'last_name', 'nom' => 'last_name', 'family_name' => 'last_name',
+        'given_name' => 'first_name', 'given_names' => 'first_name', 'prenom' => 'first_name', 'prénom' => 'first_name', 'prenoms' => 'first_name', 'prénoms' => 'first_name',
+        'dob' => 'date_of_birth', 'birth_date' => 'date_of_birth', 'date_de_naissance' => 'date_of_birth', 'born_on' => 'date_of_birth',
+        'sex' => 'gender', 'sexe' => 'gender',
+        'lieu_de_naissance' => 'place_of_birth', 'pob' => 'place_of_birth',
+        'parent_name' => 'guardian_name', 'parent_phone' => 'guardian_phone',
+        'phone' => 'guardian_phone', 'telephone' => 'guardian_phone', 'téléphone' => 'guardian_phone',
+    ];
 
     /** @return array<int, Middleware> */
     protected static function extraMiddleware(): array
@@ -40,37 +61,35 @@ class BulkUploadController extends Controller implements HasMiddleware
         $classSections = ClassSection::with('form')
             ->where('is_active', true)
             ->whereHas('form', fn ($q) => $q->forCurrentLevel())
-            ->orderBy('name')
-            ->get();
+            ->get()
+            ->sortBy(fn ($s) => [$s->form->display_order, $s->name])->values();
+        $batches = Batch::where('is_active', true)->orderByDesc('id')->get();
 
-        return view('admin.students.bulk-upload', compact('classSections', 'currentSession'));
+        return view('admin.students.bulk-upload', compact('classSections', 'currentSession', 'batches'));
     }
 
     public function template()
     {
-        $headers = [
-            'first_name', 'last_name', 'other_names', 'date_of_birth', 'gender',
-            'nationality', 'place_of_birth', 'religion', 'residence_type',
-            'phone', 'email', 'home_address',
-            'father_name', 'father_phone', 'mother_name', 'mother_phone',
-            'emergency_contact_name', 'emergency_contact_phone',
-            'previous_school', 'previous_class',
-        ];
-
+        // "sep=," makes Excel open the columns correctly whatever the
+        // computer's language; a French Excel otherwise expects semicolons.
         $example = [
-            'John', 'Doe', 'Eric', '2008-05-15', 'male',
-            'Cameroonian', 'Bamenda', 'Christian', 'day',
-            '677123456', 'john@example.com', 'Mile 3 Nkwen',
-            'Mr. Doe', '677000001', 'Mrs. Doe', '677000002',
-            'Mr. Doe', '677000001',
-            'GBHS Bamenda', 'Class 6',
+            '', 'NGWA', 'Bih Mary', '', '15/05/2018', 'F',
+            'Bamenda', 'Cameroonian', 'Christian', 'day', '',
+            'Ngwa Peter', '677000001', 'Ngwa Grace', '677000002',
+            '', '',
+            '', '',
+            'Mile 3 Nkwen', 'Little Angels Nursery', 'Nursery 2',
         ];
 
-        $csv = implode(',', $headers) . "\n" . implode(',', $example) . "\n";
+        $out = fopen('php://temp', 'w+');
+        fwrite($out, "sep=,\n");
+        fputcsv($out, array_map(fn ($c) => rtrim($c, '*'), self::COLUMNS), ',', '"', '');
+        fputcsv($out, $example, ',', '"', '');
+        rewind($out);
 
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="student_upload_template.csv"',
+        return response(stream_get_contents($out), 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="pupils_template.csv"',
         ]);
     }
 
@@ -79,113 +98,133 @@ class BulkUploadController extends Controller implements HasMiddleware
         $request->validate([
             'csv_file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
             'class_section_id' => ['required', 'exists:class_sections,id'],
+            'batch_id' => ['required', 'exists:batches,id'],
         ]);
 
         $currentSession = AcademicSession::current();
-        if (!$currentSession) {
-            return back()->with('error', 'No active academic session found.');
+        if (! $currentSession) {
+            return back()->with('error', __('No active academic session found.'));
         }
 
         $currentTerm = Term::where('is_current', true)->first();
-        if (!$currentTerm) {
+        if (! $currentTerm) {
             return back()->with('error', __('No current term is set. Set one before importing students.'));
         }
 
-        $classSection = ClassSection::with('form')->find($request->class_section_id);
-        $settings = SchoolSetting::current();
-        $prefix = $settings?->student_id_prefix ?? 'LCC';
-        $year = date('Y');
+        $classSection = ClassSection::with('form')->findOrFail($request->class_section_id);
+        $batch = Batch::findOrFail($request->batch_id);
 
-        $file = $request->file('csv_file');
-        $rows = array_map('str_getcsv', file($file->getRealPath()));
-        $headers = array_map('trim', array_shift($rows));
+        [$headers, $rows] = $this->readCsv($request->file('csv_file')->getRealPath());
 
-        $successCount = 0;
+        $missing = array_diff(['last_name', 'first_name', 'date_of_birth', 'gender'], $headers);
+        if ($missing) {
+            return back()->with('error', __('The file has no column for: :columns. Start from the template.', ['columns' => implode(', ', $missing)]));
+        }
+
+        $imported = 0;
+        $skipped = [];
         $errors = [];
-        $lineNum = 1;
+        $lineNum = null;
 
         DB::beginTransaction();
 
         try {
-            foreach ($rows as $row) {
-                $lineNum++;
+            foreach ($rows as $lineNum => $row) {
+                $values = array_map(fn ($v) => trim((string) $v), array_slice(array_pad($row, count($headers), ''), 0, count($headers)));
+                $data = array_combine($headers, $values);
+                $get = fn (string $key) => $data[$key] ?? '';
 
-                if (count($row) < count($headers)) {
-                    $row = array_pad($row, count($headers), '');
+                if (implode('', $values) === '') {
+                    continue; // a blank line Excel left at the end
                 }
 
-                $data = array_combine($headers, array_map('trim', array_slice($row, 0, count($headers))));
+                $name = trim($get('last_name').' '.$get('first_name'));
+                $problems = [];
 
-                $rowValidator = Validator::make($data, [
-                    'first_name' => ['required', 'string', 'max:100'],
-                    'last_name' => ['required', 'string', 'max:100'],
-                    'date_of_birth' => ['required', 'date'],
-                    'gender' => ['required', 'in:male,female'],
-                    'emergency_contact_name' => ['required', 'string'],
-                    'emergency_contact_phone' => ['required', 'string'],
-                ]);
+                if ($get('last_name') === '' || $get('first_name') === '') {
+                    $problems[] = __('a first and a last name are needed');
+                }
+                $dob = $this->parseDate($get('date_of_birth'));
+                if (! $dob || $dob->isFuture() || $dob->year < 1950) {
+                    $problems[] = __('date of birth ":value" is not a date (use DD/MM/YYYY)', ['value' => $get('date_of_birth')]);
+                }
+                $gender = $this->parseGender($get('gender'));
+                if (! $gender) {
+                    $problems[] = __('sex ":value" should be M or F', ['value' => $get('gender')]);
+                }
+                $admitted = $get('admission_date') !== '' ? $this->parseDate($get('admission_date')) : now();
+                if (! $admitted) {
+                    $problems[] = __('admission date ":value" is not a date (use DD/MM/YYYY)', ['value' => $get('admission_date')]);
+                }
 
-                if ($rowValidator->fails()) {
-                    $errors[] = "Row {$lineNum}: " . implode(', ', $rowValidator->errors()->all());
+                // Someone to call: the emergency contact, else a parent.
+                $contactName = collect([$get('emergency_contact_name'), $get('guardian_name'), $get('father_name'), $get('mother_name')])->first(fn ($v) => $v !== '');
+                $contactPhone = collect([$get('emergency_contact_phone'), $get('guardian_phone'), $get('father_phone'), $get('mother_phone')])->first(fn ($v) => $v !== '');
+                if (! $contactPhone) {
+                    $problems[] = __('no phone number for a parent or guardian');
+                }
+
+                $matricule = $get('matricule');
+                if (mb_strlen($matricule) > 20) {
+                    $problems[] = __('matricule ":value" is longer than 20 characters', ['value' => $matricule]);
+                }
+
+                if ($problems) {
+                    $errors[] = __('Line :line (:name): :problems', ['line' => $lineNum, 'name' => $name ?: '—', 'problems' => implode('; ', $problems)]);
                     continue;
                 }
 
-                // Generate student ID
-                $lastStudent = Student::where('student_id', 'like', "{$prefix}/{$year}/%")
-                    ->orderByDesc('student_id')
-                    ->first();
-                $nextNum = 1;
-                if ($lastStudent) {
-                    $parts = explode('/', $lastStudent->student_id);
-                    $nextNum = (int) end($parts) + 1;
+                // Already here? Uploading the same file twice must not
+                // register the same children twice.
+                $existing = $matricule !== ''
+                    ? Student::where('student_id', $matricule)->first()
+                    : Student::where('last_name', $get('last_name'))->where('first_name', $get('first_name'))
+                        ->whereDate('date_of_birth', $dob->toDateString())->first();
+                if ($existing) {
+                    $skipped[] = __('Line :line (:name): already registered as :matricule', ['line' => $lineNum, 'name' => $name, 'matricule' => $existing->student_id]);
+                    continue;
                 }
-                $studentId = sprintf('%s/%s/%03d', $prefix, $year, $nextNum);
 
-                // Resolve guardian (reuse by email when present; bulk rows usually
-                // have no parent email so this typically creates a fresh record).
                 $guardian = app(\App\Services\GuardianResolver::class)->resolve([
-                    'father_name' => $data['father_name'] ?? null,
-                    'father_phone' => $data['father_phone'] ?? null,
-                    'father_email' => $data['father_email'] ?? null,
-                    'mother_name' => $data['mother_name'] ?? null,
-                    'mother_phone' => $data['mother_phone'] ?? null,
-                    'mother_email' => $data['mother_email'] ?? null,
-                    'guardian_email' => $data['guardian_email'] ?? null,
-                    'emergency_contact_name' => $data['emergency_contact_name'],
-                    'emergency_contact_phone' => $data['emergency_contact_phone'],
+                    'father_name' => $get('father_name') ?: null,
+                    'father_phone' => $get('father_phone') ?: null,
+                    'mother_name' => $get('mother_name') ?: null,
+                    'mother_phone' => $get('mother_phone') ?: null,
+                    'guardian_name' => $get('guardian_name') ?: null,
+                    'guardian_phone' => $get('guardian_phone') ?: null,
+                    'emergency_contact_name' => $contactName ?: $name,
+                    'emergency_contact_phone' => $contactPhone,
                 ]);
 
-                // Create student
                 $student = Student::create([
-                    'student_id' => $studentId,
-                    'first_name' => $data['first_name'],
-                    'last_name' => $data['last_name'],
-                    'other_names' => $data['other_names'] ?? null,
-                    'date_of_birth' => $data['date_of_birth'],
-                    'gender' => $data['gender'],
-                    'nationality' => $data['nationality'] ?? 'Cameroonian',
-                    'place_of_birth' => $data['place_of_birth'] ?? null,
-                    'religion' => $data['religion'] ?? null,
-                    'phone' => $data['phone'] ?? null,
-                    'email' => $data['email'] ?? null,
-                    'home_address' => $data['home_address'] ?? null,
+                    'student_id' => $matricule !== '' ? $matricule : Student::nextMatricule($batch),
+                    'batch_id' => $batch->id,
+                    'first_name' => $get('first_name'),
+                    'last_name' => $get('last_name'),
+                    'other_names' => $get('other_names') ?: null,
+                    'date_of_birth' => $dob->toDateString(),
+                    'gender' => $gender,
+                    'nationality' => $get('nationality') ?: 'Cameroonian',
+                    'place_of_birth' => $get('place_of_birth') ?: null,
+                    'religion' => $get('religion') ?: null,
+                    'home_address' => $get('home_address') ?: null,
                     'guardian_id' => $guardian->id,
-                    'previous_school' => $data['previous_school'] ?? null,
-                    'previous_class' => $data['previous_class'] ?? null,
+                    'previous_school' => $get('previous_school') ?: null,
+                    'previous_class' => $get('previous_class') ?: null,
                     'status' => 'active',
-                    'admission_date' => now()->toDateString(),
+                    'admission_date' => $admitted->toDateString(),
                 ]);
 
-                // Create enrollment
                 // term_id is REQUIRED: marks entry, report cards and the report-card
                 // listing all filter on it, so an enrollment without one is invisible
-                // to the entire assessment pipeline.
+                // to the entire assessment pipeline. Creating it also prices the
+                // pupil's fees (StudentEnrollmentObserver).
                 $enrollment = StudentEnrollment::create([
                     'student_id' => $student->id,
                     'academic_session_id' => $currentSession->id,
-                    'term_id' => $currentTerm?->id,
+                    'term_id' => $currentTerm->id,
                     'class_section_id' => $classSection->id,
-                    'residence_type' => in_array($data['residence_type'] ?? '', ['day', 'boarding', 'half_boarding']) ? $data['residence_type'] : 'day',
+                    'residence_type' => in_array($get('residence_type'), ['day', 'boarding', 'half_boarding'], true) ? $get('residence_type') : 'day',
                     'enrollment_date' => now()->toDateString(),
                     'status' => 'active',
                 ]);
@@ -194,22 +233,110 @@ class BulkUploadController extends Controller implements HasMiddleware
                 // enrolled in a class but studying nothing.
                 $enrollment->syncCoreSubjects();
 
-                $successCount++;
+                $imported++;
             }
 
             DB::commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', "Upload failed at row {$lineNum}: " . $e->getMessage());
+            report($e);
+
+            return back()->with('error', __('Nothing was imported: line :line could not be saved (:reason).', ['line' => $lineNum ?? '?', 'reason' => $e->getMessage()]));
         }
 
-        $message = "{$successCount} students imported successfully to {$classSection->name}.";
-        if (!empty($errors)) {
-            $message .= ' ' . count($errors) . ' rows had errors.';
+        $message = trans_choice('{0} No new pupils were added to :class.|{1} 1 pupil added to :class.|[2,*] :count pupils added to :class.', $imported, ['count' => $imported, 'class' => $classSection->name]);
+        if ($skipped) {
+            $message .= ' '.trans_choice('{1} 1 was already registered and was left as it was.|[2,*] :count were already registered and were left as they were.', count($skipped), ['count' => count($skipped)]);
+        }
+        if ($errors) {
+            $message .= ' '.trans_choice('{1} 1 line needs correcting: fix it and upload the file again.|[2,*] :count lines need correcting: fix them and upload the file again.', count($errors), ['count' => count($errors)]);
         }
 
         return redirect()->route('admin.bulk-upload.index')
-            ->with('success', $message)
-            ->with('upload_errors', $errors);
+            ->with($imported > 0 ? 'success' : 'error', $message)
+            ->with('upload_errors', array_merge($errors, $skipped));
+    }
+
+    /**
+     * Read a CSV the way schools produce them: Excel in French saves with
+     * semicolons and in the old Windows encoding; Excel in English with
+     * commas and sometimes a byte-order mark; either may keep "sep=".
+     *
+     * @return array{0: list<string>, 1: array<int, list<string>>} headers, and rows keyed by line number
+     */
+    private function readCsv(string $path): array
+    {
+        $text = (string) file_get_contents($path);
+        $text = (string) preg_replace('/^\xEF\xBB\xBF/', '', $text);
+        if (! mb_check_encoding($text, 'UTF-8')) {
+            $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
+        }
+
+        $line = 0;
+        if (preg_match('/^"?sep=(.)"?\r?\n/i', $text, $m)) {
+            $delimiter = $m[1];
+            $text = substr($text, strlen($m[0]));
+            $line = 1;
+        } else {
+            $head = strtok($text, "\r\n") ?: '';
+            $delimiter = substr_count($head, ';') > substr_count($head, ',') ? ';' : ',';
+        }
+
+        // Parsed as a stream, so a quoted value holding a comma or a line
+        // break stays one value.
+        $handle = fopen('php://temp', 'w+');
+        fwrite($handle, $text);
+        rewind($handle);
+
+        $headers = [];
+        $rows = [];
+        while (($row = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
+            $line++;
+            if ($headers === []) {
+                $headers = array_map(function ($h) {
+                    $key = str_replace([' ', '-', '.'], '_', mb_strtolower(trim((string) $h)));
+                    $key = rtrim($key, '*_');
+
+                    return self::ALIASES[$key] ?? $key;
+                }, $row);
+
+                continue;
+            }
+            $rows[$line] = $row;
+        }
+        fclose($handle);
+
+        return [$headers, $rows];
+    }
+
+    /** 15/05/2018, 15-05-2018, 15.05.2018, 15/05/18 or 2018-05-15. Day first: this is Cameroon. */
+    private function parseDate(string $value): ?Carbon
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        // Two-digit years first: "Y" would read 15/05/18 as the year 18.
+        foreach (['Y-m-d', 'd/m/y', 'd/m/Y', 'd-m-y', 'd-m-Y', 'd.m.Y', 'Y/m/d'] as $format) {
+            $date = \DateTime::createFromFormat('!'.$format, $value);
+            $problems = \DateTime::getLastErrors();
+            if ($date && ($problems === false || ($problems['warning_count'] === 0 && $problems['error_count'] === 0))) {
+                return Carbon::instance($date);
+            }
+        }
+
+        return null;
+    }
+
+    private function parseGender(string $value): ?string
+    {
+        $v = mb_strtolower(trim($value));
+
+        return match (true) {
+            in_array($v, ['m', 'male', 'boy', 'masculin', 'garçon', 'garcon', 'h', 'homme'], true) => 'male',
+            in_array($v, ['f', 'female', 'girl', 'féminin', 'feminin', 'fille', 'femme'], true) => 'female',
+            default => null,
+        };
     }
 }
