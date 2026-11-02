@@ -27,7 +27,7 @@
             <h2 class="text-lg font-semibold text-gray-800">{{ __('Class List') }}</h2>
             <p class="text-sm text-gray-500 mt-0.5">{{ __('Every pupil in a class, with sex, date of birth and a parent to call. Print it for the register, an inspection or the ministry.') }}</p>
         </div>
-        <form method="GET" class="flex flex-wrap items-end gap-2">
+        <form method="GET" class="flex flex-wrap items-end gap-2 lg:flex-nowrap">
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Class') }}</label>
                 <select name="class_section_id" onchange="this.form.submit()" style="appearance:auto;" class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white min-w-48">
@@ -38,8 +38,10 @@
                 </select>
             </div>
             @if($section)
-                <button type="button" onclick="window.print()" class="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700">{{ __('Print') }}</button>
-                <a href="{{ route('admin.class-list.csv', ['class_section_id' => $section->id]) }}" class="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">{{ __('Export CSV') }}</a>
+                <div class="flex gap-2">
+                    <button type="button" onclick="window.print()" class="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700">{{ __('Print') }}</button>
+                    <a href="{{ route('admin.class-list.csv', ['class_section_id' => $section->id]) }}" class="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap">{{ __('Export CSV') }}</a>
+                </div>
             @endif
         </form>
     </div>
