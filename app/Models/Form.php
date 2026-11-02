@@ -56,6 +56,23 @@ class Form extends Model
         };
     }
 
+    /**
+     * The school's own first and last class at a level, e.g. "Pre Nursery –
+     * Nursery 2", rather than a generic "Nursery 1–3" that names classes
+     * the school does not have.
+     */
+    public static function classesAt(string $level): string
+    {
+        $names = static::query()->where('level', $level)->where('is_active', true)
+            ->orderBy('display_order')->pluck('name');
+
+        return match ($names->count()) {
+            0 => '',
+            1 => (string) $names->first(),
+            default => $names->first().' – '.$names->last(),
+        };
+    }
+
     public static function levelHint(?string $level): string
     {
         return match ($level) {
@@ -77,7 +94,7 @@ class Form extends Model
         $levels = [];
 
         foreach (self::levelsFor($schoolLevel) as $level) {
-            $levels[$level] = ['label' => self::levelLabel($level), 'hint' => self::levelHint($level)];
+            $levels[$level] = ['label' => self::levelLabel($level), 'hint' => self::classesAt($level) ?: self::levelHint($level)];
         }
 
         return $levels;

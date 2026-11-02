@@ -95,7 +95,7 @@
                                 <option value="">{{ __('— Select Batch —') }}</option>
                                 @foreach($batches as $batch)
                                 <option value="{{ $batch->id }}" data-shortcode="{{ $batch->shortcode }}"
-                                        {{ old('batch_id') == $batch->id ? 'selected' : '' }}>
+                                        {{ old('batch_id', $batches->count() === 1 ? $batch->id : $batches->sortByDesc('id')->first()?->id) == $batch->id ? 'selected' : '' }}>
                                     {{ $batch->name }}
                                 </option>
                                 @endforeach
