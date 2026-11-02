@@ -12,14 +12,11 @@
         </a>
     </div>
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{{ session('error') }}</div>
-    @endif
+    @foreach($warnings ?? [] as $warning)
+        <div class="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-lg text-sm">{{ $warning }}</div>
+    @endforeach
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -36,17 +33,16 @@
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ __('Term') }} {{ $term->term_number }}</td>
                     <td class="px-6 py-4 text-sm text-gray-600">{{ $term->name }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-600">{{ $term->start_date->format('M d, Y') }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-600">{{ $term->end_date->format('M d, Y') }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ $term->start_date->translatedFormat('j M Y') }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ $term->end_date->translatedFormat('j M Y') }}</td>
                     <td class="px-6 py-4">
                         @if($term->is_current)
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">{{ __('Current') }}</span>
                         @else
-                            <form method="POST" action="{{ route('admin.terms.set-current', $term) }}" class="inline">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ __('Not current') }}</span>
+                            <form method="POST" action="{{ route('admin.terms.set-current', $term) }}" class="inline ml-2" onsubmit="return confirm('{{ __('Make this the current term?') }}')">
                                 @csrf @method('PATCH')
-                                <button type="submit" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition cursor-pointer" title="{{ __('Click to set as current') }}">
-                                    {{ __('Inactive') }}
-                                </button>
+                                <button type="submit" class="text-xs font-medium text-teal-700 hover:text-teal-900 underline underline-offset-2">{{ __('Make current') }}</button>
                             </form>
                         @endif
                     </td>

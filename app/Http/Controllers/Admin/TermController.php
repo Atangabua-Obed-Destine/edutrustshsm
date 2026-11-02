@@ -26,7 +26,39 @@ class TermController extends Controller implements HasMiddleware
     public function index()
     {
         $terms = Term::orderBy('term_number')->get();
-        return view('admin.terms.index', compact('terms'));
+
+        // What the dates mean for the rest of the system, said plainly:
+        // attendance and report cards only count days inside term dates.
+        $warnings = [];
+        $current = $terms->firstWhere('is_current', true);
+        $today = now()->startOfDay();
+        if (! $current) {
+            $warnings[] = __('No term is marked current. Marks entry, registration and the dashboards all start from the current term.');
+        } elseif ($today->lt($current->start_date) || $today->gt($current->end_date)) {
+            $warnings[] = __('Today (:today) is outside the current term (:start – :end). Registers taken today will not count on report cards, which only count days inside term dates.', [
+                'today' => $today->translatedFormat('j M Y'),
+                'start' => $current->start_date->translatedFormat('j M Y'),
+                'end' => $current->end_date->translatedFormat('j M Y'),
+            ]);
+        }
+        foreach ($terms as $t) {
+            $days = $t->start_date->diffInDays($t->end_date);
+            if ($days < 28) {
+                $warnings[] = __(':term lasts only :days days. A school term usually runs ten to fourteen weeks; check the dates.', ['term' => $t->name, 'days' => (int) $days]);
+            }
+        }
+
+        return view('admin.terms.index', compact('terms', 'warnings'));
+    }
+
+    /** Terms may not overlap: a day must belong to one term only. */
+    private function overlapping(string $start, string $end, ?int $ignore = null): ?Term
+    {
+        return Term::query()
+            ->when($ignore, fn ($q) => $q->where('id', '!=', $ignore))
+            ->whereDate('start_date', '<=', $end)
+            ->whereDate('end_date', '>=', $start)
+            ->first();
     }
 
     public function create()
@@ -46,7 +78,11 @@ class TermController extends Controller implements HasMiddleware
         $exists = Term::where('term_number', $validated['term_number'])->exists();
 
         if ($exists) {
-            return back()->withInput()->withErrors(['term_number' => 'This term number already exists.']);
+            return back()->withInput()->withErrors(['term_number' => __('This term number already exists.')]);
+        }
+
+        if ($clash = $this->overlapping($validated['start_date'], $validated['end_date'])) {
+            return back()->withInput()->withErrors(['start_date' => __('These dates overlap :term. A day belongs to one term only.', ['term' => $clash->name])]);
         }
 
         Term::create($validated);
@@ -74,7 +110,11 @@ class TermController extends Controller implements HasMiddleware
             ->where('id', '!=', $term->id)->exists();
 
         if ($exists) {
-            return back()->withInput()->withErrors(['term_number' => 'This term number already exists.']);
+            return back()->withInput()->withErrors(['term_number' => __('This term number already exists.')]);
+        }
+
+        if ($clash = $this->overlapping($validated['start_date'], $validated['end_date'], $term->id)) {
+            return back()->withInput()->withErrors(['start_date' => __('These dates overlap :term. A day belongs to one term only.', ['term' => $clash->name])]);
         }
 
         $isCurrent = (bool) ($validated['is_current'] ?? false);
