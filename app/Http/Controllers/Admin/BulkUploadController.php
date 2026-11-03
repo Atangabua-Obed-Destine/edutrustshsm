@@ -191,7 +191,9 @@ class BulkUploadController extends Controller implements HasMiddleware
                     'mother_phone' => $get('mother_phone') ?: null,
                     'guardian_name' => $get('guardian_name') ?: null,
                     'guardian_phone' => $get('guardian_phone') ?: null,
-                    'emergency_contact_name' => $contactName ?: $name,
+                    // The parent's name when the sheet gives one; otherwise say so,
+                    // rather than putting the child's own name where a parent's goes.
+                    'emergency_contact_name' => $contactName ?: __('Parent of :name', ['name' => $name]),
                     'emergency_contact_phone' => $contactPhone,
                 ]);
 
