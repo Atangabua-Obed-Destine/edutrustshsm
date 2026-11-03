@@ -598,7 +598,7 @@
                 @foreach($payment->allocations as $idx => $alloc)
                 <tr>
                     <td style="text-align: center;">{{ $idx + 1 }}</td>
-                    <td>{{ $alloc->studentFee->feeCategory->name ?? '—' }}</td>
+                    <td>{{ $alloc->studentFee->feeCategory->name ?? '—' }}@if($alloc->studentFee?->enrollment && (int) $alloc->studentFee->enrollment->academic_session_id !== (int) $payment->enrollment?->academic_session_id) ({{ __('Arrears :year', ['year' => $alloc->studentFee->enrollment->academicSession?->name]) }})@endif</td>
                     <td class="right">{{ number_format($alloc->amount) }}</td>
                 </tr>
                 @endforeach
@@ -675,6 +675,9 @@
                 <div style="font-size: 7px; color: #94a3b8;">{{ $currency }}</div>
             </div>
         </div>
+        @if(($arrearsOwed ?? 0) > 0)
+        <div style="margin-top: 4px; font-size: 9px; color: #dc2626; font-weight: 600;">{{ __('Arrears from earlier years still owed') }}: {{ number_format($arrearsOwed) }} {{ $currency }}</div>
+        @endif
     </div>
 
     {{-- Payment Method Details --}}
@@ -838,7 +841,7 @@
                 @foreach($payment->allocations as $idx => $alloc)
                 <tr>
                     <td style="text-align: center;">{{ $idx + 1 }}</td>
-                    <td>{{ $alloc->studentFee->feeCategory->name ?? '—' }}</td>
+                    <td>{{ $alloc->studentFee->feeCategory->name ?? '—' }}@if($alloc->studentFee?->enrollment && (int) $alloc->studentFee->enrollment->academic_session_id !== (int) $payment->enrollment?->academic_session_id) ({{ __('Arrears :year', ['year' => $alloc->studentFee->enrollment->academicSession?->name]) }})@endif</td>
                     <td class="right">{{ number_format($alloc->amount) }}</td>
                 </tr>
                 @endforeach
@@ -911,6 +914,9 @@
                 <div style="font-size: 7px; color: #94a3b8;">{{ $currency }}</div>
             </div>
         </div>
+        @if(($arrearsOwed ?? 0) > 0)
+        <div style="margin-top: 4px; font-size: 9px; color: #dc2626; font-weight: 600;">{{ __('Arrears from earlier years still owed') }}: {{ number_format($arrearsOwed) }} {{ $currency }}</div>
+        @endif
     </div>
 
     <div class="payment-details">

@@ -81,7 +81,10 @@
                                 <td class="px-4 py-2 whitespace-nowrap">@if($r['phone'])<a href="tel:{{ preg_replace('/\s+/', '', $r['phone']) }}" class="text-teal-700">{{ $r['phone'] }}</a>@else — @endif</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ number_format($r['fees']) }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums text-emerald-700">{{ number_format($r['paid']) }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums font-semibold text-red-600">{{ number_format($r['balance']) }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums font-semibold text-red-600">
+                                    {{ number_format($r['balance']) }}
+                                    @if($r['arrears'] > 0)<span class="block text-xs font-normal">{{ __('incl. :amount from earlier years', ['amount' => number_format($r['arrears'])]) }}</span>@endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

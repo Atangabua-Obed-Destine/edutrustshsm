@@ -18,8 +18,8 @@ class ParentFeesController extends Controller
         $totals = ['net' => 0, 'paid' => 0, 'balance' => 0];
 
         if ($enrollment) {
-            $fees = StudentFee::where('student_enrollment_id', $enrollment->id)
-                ->with('feeCategory')
+            $fees = StudentFee::owedOn($enrollment)
+                ->with(['feeCategory', 'enrollment.academicSession'])
                 ->orderBy('id')
                 ->get();
 

@@ -60,7 +60,13 @@ class ExpenseCategoryController extends Controller implements HasMiddleware
 
     public function destroy(ExpenseCategory $expense_category)
     {
-        $old = $expense_category->toArray();
+        // The rows would go with it at database level, where no observer
+        // runs: the ledger entries and account movements would stay behind
+        // for money the books no longer show. Deactivate it instead.
+        if (\App\Models\Expense::where('category_id', $expense_category->id)->exists()) {
+            return back()->with('error', __('This category has recorded expenses, so it cannot be deleted. Deactivate it instead.'));
+        }
+
         $expense_category->delete();
 
 

@@ -19,7 +19,7 @@
     </div>
 
     {{-- Summary Cards --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 {{ $totalArrears > 0 ? 'md:grid-cols-4' : 'md:grid-cols-3' }} gap-4">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <p class="text-xs text-gray-500 uppercase">{{ __('Total Fees') }}</p>
             <p class="text-2xl font-bold text-gray-800 font-mono mt-1">{{ number_format($totalFees) }} <span class="text-sm text-gray-400">XAF</span></p>
@@ -32,6 +32,13 @@
             <p class="text-xs text-gray-500 uppercase">{{ __('Balance') }}</p>
             <p class="text-2xl font-bold {{ $totalBalance > 0 ? 'text-red-600' : 'text-green-700' }} font-mono mt-1">{{ number_format($totalBalance) }} <span class="text-sm text-gray-400">XAF</span></p>
         </div>
+        @if($totalArrears > 0)
+        <div class="bg-red-50 rounded-xl shadow-sm border border-red-200 p-5">
+            <p class="text-xs text-red-700 uppercase">{{ __('Arrears from earlier years') }}</p>
+            <p class="text-2xl font-bold text-red-700 font-mono mt-1">{{ number_format($totalArrears) }} <span class="text-sm text-red-400">XAF</span></p>
+            <p class="text-xs text-red-600 mt-1">{{ __('Total owed') }}: {{ number_format($totalBalance + $totalArrears) }} XAF</p>
+        </div>
+        @endif
     </div>
 
     {{-- Fee Breakdown --}}
@@ -39,6 +46,7 @@
         <div class="px-4 py-3 border-b bg-gray-50">
             <h4 class="font-semibold text-gray-700 text-sm">{{ __('Fee Breakdown') }}</h4>
         </div>
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="text-xs text-gray-500 uppercase bg-gray-50">
                 <tr>
@@ -49,12 +57,17 @@
                     <th class="px-4 py-2 text-right">{{ __('Paid') }}</th>
                     <th class="px-4 py-2 text-right">{{ __('Balance') }}</th>
                     <th class="px-4 py-2 text-center">{{ __('Status') }}</th>
+                    @can('assignment-history.view')<th class="px-4 py-2"></th>@endcan
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-                @forelse($fees as $fee)
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-2 font-medium text-gray-700">{{ $fee->feeCategory->name }}</td>
+                @forelse($arrears->concat($fees) as $fee)
+                @php $isArrear = $arrears->contains('id', $fee->id); @endphp
+                <tr class="hover:bg-gray-50 {{ $isArrear ? 'bg-red-50/50' : '' }}">
+                    <td class="px-4 py-2 font-medium text-gray-700">
+                        {{ $fee->feeCategory->name }}
+                        @if($isArrear)<span class="block text-xs text-red-600">{{ __('Arrears :year', ['year' => $fee->enrollment?->academicSession?->name]) }}</span>@endif
+                    </td>
                     <td class="px-4 py-2 text-right font-mono">{{ number_format($fee->original_amount) }}</td>
                     <td class="px-4 py-2 text-right font-mono text-orange-600">{{ $fee->discount_amount > 0 ? number_format($fee->discount_amount) : '—' }}</td>
                     <td class="px-4 py-2 text-right font-mono">{{ number_format($fee->net_amount) }}</td>
@@ -65,14 +78,18 @@
                             $sc = ['paid' => 'green', 'partial' => 'yellow', 'unpaid' => 'red', 'waived' => 'blue'];
                             $c = $sc[$fee->status] ?? 'gray';
                         @endphp
-                        <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-{{ $c }}-100 text-{{ $c }}-700 capitalize">{{ $fee->status }}</span>
+                        <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-{{ $c }}-100 text-{{ $c }}-700">{{ __(ucfirst($fee->status)) }}</span>
                     </td>
+                    @can('assignment-history.view')
+                    <td class="px-4 py-2 text-right"><a href="{{ route('admin.assignment-history.show', $fee) }}" class="text-xs font-medium text-blue-700 hover:underline">{{ __('Adjust') }}</a></td>
+                    @endcan
                 </tr>
                 @empty
-                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">{{ __('No fees assigned.') }}</td></tr>
+                <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">{{ __('No fees assigned.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     {{-- Payment History --}}

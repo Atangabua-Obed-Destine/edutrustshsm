@@ -60,7 +60,13 @@ class IncomeCategoryController extends Controller implements HasMiddleware
 
     public function destroy(IncomeCategory $income_category)
     {
-        $old = $income_category->toArray();
+        // The rows would go with it at database level, where no observer
+        // runs: the ledger entries and account movements would stay behind
+        // for money the books no longer show. Deactivate it instead.
+        if (\App\Models\Income::where('category_id', $income_category->id)->exists()) {
+            return back()->with('error', __('This category has recorded incomes, so it cannot be deleted. Deactivate it instead.'));
+        }
+
         $income_category->delete();
 
 

@@ -260,6 +260,9 @@
                         </td>
                         <td style="padding: 12px 14px;">
                             <span style="font-weight: 500; color: #475569; font-size: 0.83rem;">{{ $fee->feeCategory->name ?? '—' }}</span>
+                            @if($sessionId && (int) $fee->enrollment?->academic_session_id !== (int) $sessionId)
+                                <span style="display: block; font-size: 0.68rem; color: #dc2626; font-weight: 600;">{{ __('Arrears :year', ['year' => $fee->enrollment?->academicSession?->name]) }}</span>
+                            @endif
                             @if($fee->paymentPlan && $fee->paymentPlan->status === 'active')
                                 @php
                                     $pp = $fee->paymentPlan;

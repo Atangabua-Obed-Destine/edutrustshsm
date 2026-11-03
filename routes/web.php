@@ -582,6 +582,10 @@ Route::middleware('auth')->group(function () {
         // Assignment History
         Route::get('assignment-history', [FeeAssignmentHistoryController::class, 'index'])->name('assignment-history.index');
         Route::get('assignment-history/streams-by-form/{form}', [FeeAssignmentHistoryController::class, 'streamsByForm'])->name('assignment-history.streams-by-form');
+        Route::get('assignment-history/{studentFee}', [FeeAssignmentHistoryController::class, 'show'])->name('assignment-history.show');
+        Route::put('assignment-history/{studentFee}/amount', [FeeAssignmentHistoryController::class, 'updateAmount'])->name('assignment-history.amount');
+        Route::put('assignment-history/{studentFee}/due-date', [FeeAssignmentHistoryController::class, 'updateDueDate'])->name('assignment-history.due-date');
+        Route::post('assignment-history/{studentFee}/transfer', [FeeAssignmentHistoryController::class, 'transfer'])->name('assignment-history.transfer');
         Route::delete('assignment-history/{studentFee}', [FeeAssignmentHistoryController::class, 'destroy'])->name('assignment-history.destroy');
 
         // Fee Reports

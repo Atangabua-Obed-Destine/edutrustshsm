@@ -121,22 +121,22 @@ class FeeDiscountController extends Controller implements HasMiddleware
     public function destroy(FeeDiscount $feeDiscount)
     {
         DB::transaction(function () use ($feeDiscount) {
-            // Reverse the discount from student fees
-            $query = StudentFee::where('student_enrollment_id', $feeDiscount->student_enrollment_id);
-            if ($feeDiscount->apply_to === 'specific_category') {
-                $query->where('fee_category_id', $feeDiscount->fee_category_id);
-            }
-
-            foreach ($query->get() as $fee) {
-                $discountAmount = $feeDiscount->discount_type === 'percentage'
-                    ? round($fee->original_amount * $feeDiscount->value / 100, 2)
-                    : min($feeDiscount->value, $fee->original_amount);
-
-                $fee->discount_amount = max(0, $fee->discount_amount - $discountAmount);
-                $fee->recalculate()->save();
-            }
+            $fees = StudentFee::where('student_enrollment_id', $feeDiscount->student_enrollment_id)
+                ->when($feeDiscount->apply_to === 'specific_category', fn ($q) => $q->where('fee_category_id', $feeDiscount->fee_category_id))
+                ->get();
 
             $feeDiscount->delete();
+
+            // Rebuilt from the discounts that remain rather than subtracting
+            // this one: the subtraction rounded to the centime while applying
+            // rounded to the franc, and left fees a few francs out.
+            $remaining = FeeDiscount::where('student_enrollment_id', $feeDiscount->student_enrollment_id)->get();
+            foreach ($fees as $fee) {
+                $fee->discount_amount = $remaining
+                    ->filter(fn ($d) => $d->apply_to !== 'specific_category' || (int) $d->fee_category_id === (int) $fee->fee_category_id)
+                    ->sum(fn ($d) => $this->discountOn($fee, $d->only(['discount_type', 'value'])));
+                $fee->recalculate()->save();
+            }
         });
 
         return redirect()->route('admin.fee-discounts.index')

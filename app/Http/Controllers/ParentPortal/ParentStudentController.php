@@ -27,7 +27,7 @@ class ParentStudentController extends Controller
         $feeBalance = 0;
         $subjectCount = 0;
         if ($enrollment) {
-            $feeBalance = StudentFee::where('student_enrollment_id', $enrollment->id)->sum('balance');
+            $feeBalance = StudentFee::owedOn($enrollment)->sum('balance');
             $subjectCount = $enrollment->studentSubjects()->count();
         }
 

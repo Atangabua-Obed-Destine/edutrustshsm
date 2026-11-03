@@ -25,8 +25,8 @@ class ParentPaymentController extends Controller
                 continue;
             }
 
-            $fees = StudentFee::where('student_enrollment_id', $enrollment->id)
-                ->with('feeCategory')
+            $fees = StudentFee::owedOn($enrollment)
+                ->with(['feeCategory', 'enrollment.academicSession'])
                 ->orderBy('fee_category_id')
                 ->get();
 
@@ -71,9 +71,9 @@ class ParentPaymentController extends Controller
         if ($studentId = $request->query('student_id')) {
             $selectedStudent = $children->firstWhere('id', (int) $studentId);
             if ($selectedStudent && $selectedStudent->currentEnrollment) {
-                $fees = StudentFee::where('student_enrollment_id', $selectedStudent->currentEnrollment->id)
+                $fees = StudentFee::owedOn($selectedStudent->currentEnrollment)
                     ->where('balance', '>', 0)
-                    ->with('feeCategory')
+                    ->with(['feeCategory', 'enrollment.academicSession'])
                     ->get();
 
                 if ($feeId = $request->query('fee_id')) {
@@ -112,8 +112,8 @@ class ParentPaymentController extends Controller
         // If a fee was targeted, confirm it belongs to this student's enrollment.
         $feeId = null;
         if (! empty($validated['fee_id'])) {
-            $fee = StudentFee::where('id', $validated['fee_id'])
-                ->where('student_enrollment_id', $enrollment->id)
+            $fee = StudentFee::owedOn($enrollment)
+                ->where('student_fees.id', $validated['fee_id'])
                 ->first();
             $feeId = $fee?->id;
         }

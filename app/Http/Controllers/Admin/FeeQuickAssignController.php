@@ -57,24 +57,19 @@ class FeeQuickAssignController extends Controller implements HasMiddleware
         }
 
         if ($existing && $request->boolean('override')) {
-            // An override below what was already paid left a negative balance
-            // that shrank the school's outstanding totals.
-            if ((float) $validated['amount'] - (float) $existing->discount_amount - (float) $existing->waiver_amount < (float) $existing->paid_amount - 0.5) {
-                return back()->withInput()->with('error', __(':paid has already been paid on this fee, more than the new amount. Record the refund or credit for the difference first.', ['paid' => number_format((float) $existing->paid_amount)]));
+            // Same rules as correcting a fee from its own page: raised freely,
+            // lowered only while nothing is paid, and the change is noted.
+            try {
+                $adjust = app(\App\Services\FeeAdjustment::class);
+                if (round((float) $validated['amount']) !== round((float) $existing->original_amount)) {
+                    $adjust->correctAmount($existing, (float) $validated['amount'], ($validated['notes'] ?? null) ?: __('Changed on Quick Assign'));
+                }
+                if (($validated['due_date'] ?? null) && $existing->due_date?->toDateString() !== $validated['due_date'] && (float) $existing->balance > 0) {
+                    $adjust->correctDueDate($existing, $validated['due_date'], ($validated['notes'] ?? null) ?: __('Changed on Quick Assign'));
+                }
+            } catch (\RuntimeException $e) {
+                return back()->withInput()->with('error', $e->getMessage());
             }
-
-            // Update existing fee — preserve paid_amount and fines, recalculate balance
-            $existing->update([
-                'original_amount' => $validated['amount'],
-                'net_amount' => $validated['amount'] - $existing->discount_amount - $existing->waiver_amount + (float) $existing->fine_amount,
-                'balance' => ($validated['amount'] - $existing->discount_amount - $existing->waiver_amount + (float) $existing->fine_amount) - $existing->paid_amount,
-                'due_date' => $validated['due_date'],
-                'notes' => $validated['notes'],
-                'status' => $this->calculateStatus(
-                    $existing->paid_amount,
-                    $validated['amount'] - $existing->discount_amount - $existing->waiver_amount
-                ),
-            ]);
 
             return redirect()->route('admin.quick-assign.create')
                 ->with('success', __('Fee updated successfully for the student.'));
@@ -191,13 +186,5 @@ class FeeQuickAssignController extends Controller implements HasMiddleware
         }
 
         return response()->json($result);
-    }
-
-    private function calculateStatus(float $paidAmount, float $netAmount): string
-    {
-        if ($netAmount <= 0) return 'waived';
-        if ($paidAmount <= 0) return 'unpaid';
-        if ($paidAmount >= $netAmount) return $paidAmount > $netAmount ? 'overpaid' : 'paid';
-        return 'partial';
     }
 }

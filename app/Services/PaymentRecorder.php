@@ -137,8 +137,8 @@ class PaymentRecorder
                 continue;
             }
 
-            $fee = StudentFee::where('student_enrollment_id', $payment->student_enrollment_id)
-                ->where('id', $line['fee_id'] ?? 0)
+            $fee = $this->pupilFees($payment)
+                ->where('student_fees.id', $line['fee_id'] ?? 0)
                 ->first();
 
             if (! $fee) {
@@ -157,9 +157,9 @@ class PaymentRecorder
         }
 
         if ($targetFeeId) {
-            $target = StudentFee::where('student_enrollment_id', $payment->student_enrollment_id)
-                ->where('id', $targetFeeId)
-                ->where('balance', '>', 0)
+            $target = $this->pupilFees($payment)
+                ->where('student_fees.id', $targetFeeId)
+                ->where('student_fees.balance', '>', 0)
                 ->first();
 
             if ($target) {
@@ -171,10 +171,13 @@ class PaymentRecorder
         }
 
         if ($remaining > 0) {
-            $outstanding = StudentFee::where('student_enrollment_id', $payment->student_enrollment_id)
-                ->when($targetFeeId, fn ($q) => $q->where('id', '!=', $targetFeeId))
-                ->where('balance', '>', 0)
-                ->orderBy('id')
+            // Last year's unpaid fees come first: a debt does not lapse
+            // because the pupil moved up a class.
+            $outstanding = $this->pupilFees($payment)
+                ->when($targetFeeId, fn ($q) => $q->where('student_fees.id', '!=', $targetFeeId))
+                ->where('student_fees.balance', '>', 0)
+                ->orderBy('academic_sessions.start_date')
+                ->orderBy('student_fees.id')
                 ->get();
 
             foreach ($outstanding as $fee) {
@@ -190,6 +193,24 @@ class PaymentRecorder
         }
 
         return $applied;
+    }
+
+    /**
+     * Every fee the pupil owes, whichever year's enrolment it was billed on.
+     *
+     * A promoted pupil gets a new enrolment and the old one is closed, but
+     * what was not paid on it is still owed: the school collects it at the
+     * same counter, on the same receipt.
+     */
+    protected function pupilFees(Payment $payment)
+    {
+        $studentId = \App\Models\StudentEnrollment::whereKey($payment->student_enrollment_id)->value('student_id');
+
+        return StudentFee::query()
+            ->select('student_fees.*')
+            ->join('student_enrollments', 'student_enrollments.id', '=', 'student_fees.student_enrollment_id')
+            ->leftJoin('academic_sessions', 'academic_sessions.id', '=', 'student_enrollments.academic_session_id')
+            ->where('student_enrollments.student_id', $studentId);
     }
 
     /**

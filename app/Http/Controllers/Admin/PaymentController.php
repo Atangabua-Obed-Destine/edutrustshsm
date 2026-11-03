@@ -168,6 +168,12 @@ class PaymentController extends Controller implements HasMiddleware
         $totalPaid = $fees->sum('paid_amount');
         $totalBalance = $fees->sum('balance');
 
-        return view('admin.fees.student-fees', compact('student', 'enrollment', 'fees', 'payments', 'totalFees', 'totalPaid', 'totalBalance'));
+        // Last year's unpaid fees are still owed after promotion.
+        $arrears = StudentFee::with(['feeCategory', 'enrollment.academicSession'])
+            ->arrearsOf($student->id, $enrollment?->academic_session_id)
+            ->get();
+        $totalArrears = (float) $arrears->sum('balance');
+
+        return view('admin.fees.student-fees', compact('student', 'enrollment', 'fees', 'payments', 'totalFees', 'totalPaid', 'totalBalance', 'arrears', 'totalArrears'));
     }
 }

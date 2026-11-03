@@ -76,7 +76,7 @@
                         <tbody class="divide-y divide-gray-50">
                             @foreach($fees as $fee)
                                 <tr>
-                                    <td class="py-2 text-gray-700">{{ $fee->feeCategory->name ?? '—' }}</td>
+                                    <td class="py-2 text-gray-700">{{ $fee->feeCategory->name ?? '—' }}@if($fee->student_enrollment_id !== $submission->student_enrollment_id)<span class="block text-xs text-red-600">{{ __('Arrears :year', ['year' => $fee->enrollment?->academicSession?->name]) }}</span>@endif</td>
                                     <td class="py-2 text-right text-gray-500">{{ number_format($fee->paid_amount, 0) }} / {{ number_format($fee->net_amount, 0) }}</td>
                                     <td class="py-2 text-right font-semibold {{ $fee->balance > 0 ? 'text-red-600' : 'text-green-600' }}">{{ number_format($fee->balance, 0) }}</td>
                                 </tr>
@@ -95,6 +95,16 @@
                         <form method="POST" action="{{ route('admin.parent-payments.approve', $submission) }}"
                               onsubmit="return confirm('{{ __('Approve this payment and record an official receipt?') }}')">
                             @csrf
+                            @if($sameReference->isNotEmpty())
+                                <div class="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                                    <p class="font-semibold">{{ __('This reference has already been used:') }}</p>
+                                    <ul class="list-disc ml-5 my-1">@foreach($sameReference as $line)<li>{{ $line }}</li>@endforeach</ul>
+                                    <label class="flex items-start gap-2 mt-2">
+                                        <input type="checkbox" name="reference_checked" value="1" required class="mt-0.5">
+                                        <span>{{ __('I checked the statement: this is a different payment.') }}</span>
+                                    </label>
+                                </div>
+                            @endif
                             <button type="submit" class="inline-flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                 {{ __('Approve & Record Payment') }}

@@ -211,9 +211,9 @@ class FeeReportController extends Controller implements HasMiddleware
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, [__('Class'), __('Matricule'), __('Name'), __('Parent / Guardian'), __('Phone'), __('Total Fees'), __('Paid'), __('Balance')]);
+            fputcsv($out, [__('Class'), __('Matricule'), __('Name'), __('Parent / Guardian'), __('Phone'), __('Total Fees'), __('Paid'), __('Arrears from earlier years'), __('Balance')]);
             foreach ($rows as $r) {
-                fputcsv($out, [$r['class'], $r['matricule'], $r['name'], $r['parent'], $r['phone'], $r['fees'], $r['paid'], $r['balance']]);
+                fputcsv($out, [$r['class'], $r['matricule'], $r['name'], $r['parent'], $r['phone'], $r['fees'], $r['paid'], $r['arrears'], $r['balance']]);
             }
             fclose($out);
         }, 'defaulters-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -229,18 +229,34 @@ class FeeReportController extends Controller implements HasMiddleware
             ->whereHas('form', fn ($f) => $f->forCurrentLevel())->get()
             ->sortBy(fn ($s) => [$s->form->display_order, $s->name])->values();
 
-        $rows = StudentFee::with(['enrollment.student.guardian', 'enrollment.classSection.form'])
-            ->whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $session?->id)->where('status', 'active')
-                ->whereHas('classSection.form', fn ($f) => $f->forCurrentLevel())
-                ->when($sectionId, fn ($q) => $q->where('class_section_id', $sectionId)))
-            ->where('balance', '>', 0)
-            ->get()
-            ->groupBy('student_enrollment_id')
-            ->map(function ($fees) {
-                $e = $fees->first()->enrollment;
+        // Every pupil in class this year, then what each owes: this year's
+        // fees and whatever is left unpaid from earlier years. A pupil who
+        // cleared this year but still owes last year's fees is a defaulter.
+        $enrollments = \App\Models\StudentEnrollment::with(['student.guardian', 'classSection.form'])
+            ->where('academic_session_id', $session?->id)->where('status', 'active')
+            ->whereHas('classSection.form', fn ($f) => $f->forCurrentLevel())
+            ->when($sectionId, fn ($q) => $q->where('class_section_id', $sectionId))
+            ->get();
+
+        $thisYear = StudentFee::whereIn('student_enrollment_id', $enrollments->pluck('id'))
+            ->get(['student_enrollment_id', 'net_amount', 'paid_amount', 'balance'])
+            ->groupBy('student_enrollment_id');
+        $arrears = StudentFee::query()
+            ->join('student_enrollments as se', 'se.id', '=', 'student_fees.student_enrollment_id')
+            ->whereIn('se.student_id', $enrollments->pluck('student_id'))
+            ->where('se.academic_session_id', '!=', $session?->id)
+            ->where('student_fees.balance', '>', 0)
+            ->groupBy('se.student_id')
+            ->selectRaw('se.student_id, SUM(student_fees.balance) as owed')
+            ->pluck('owed', 'se.student_id');
+
+        $rows = $enrollments
+            ->filter(fn ($e) => (float) ($thisYear[$e->id] ?? collect())->sum('balance') + (float) ($arrears[$e->student_id] ?? 0) > 0)
+            ->map(function ($e) use ($thisYear, $arrears) {
                 $s = $e->student;
                 $g = $s?->guardian;
-                $all = StudentFee::where('student_enrollment_id', $e->id)->get(['net_amount', 'paid_amount', 'balance']);
+                $all = $thisYear[$e->id] ?? collect();
+                $old = (float) ($arrears[$e->student_id] ?? 0);
 
                 return [
                     'order' => [$e->classSection?->form?->display_order ?? 0, $e->classSection?->name, $s?->last_name, $s?->first_name],
@@ -251,7 +267,8 @@ class FeeReportController extends Controller implements HasMiddleware
                     'phone' => $g?->guardian_phone ?: $g?->mother_phone ?: $g?->father_phone ?: $g?->emergency_contact_phone,
                     'fees' => (float) $all->sum('net_amount'),
                     'paid' => (float) $all->sum('paid_amount'),
-                    'balance' => (float) $all->sum('balance'),
+                    'arrears' => $old,
+                    'balance' => (float) $all->sum('balance') + $old,
                 ];
             })
             ->sortBy('order')
