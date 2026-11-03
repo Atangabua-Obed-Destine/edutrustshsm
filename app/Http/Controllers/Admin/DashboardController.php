@@ -87,67 +87,43 @@ class DashboardController extends Controller implements HasMiddleware
     }
 
     /**
-     * A teacher's first screen: their classes, and for each what is due —
-     * today's register, this term's marks per subject per sequence, the
-     * nursery sheets — each a link straight into the work.
+     * A teacher's first screen, as in the reference system: how the day and
+     * the week look, today's periods, and every subject they teach as a card
+     * that opens straight into its marks. A class teacher also finds the
+     * class's register and report-card remarks.
      */
     private function teacher(\App\Services\TeachingScope $scope, $school, $currentSession)
     {
         $user = auth()->user();
         $term = \App\Models\Term::current() ?? \App\Models\Term::orderBy('term_number')->first();
-        $classes = $scope->myClasses($user);
-        $todo = 0;
+        $cards = app(\App\Services\TeacherSubjects::class)->cards($user, $currentSession, $term);
 
-        $rows = $classes->map(function (array $c) use ($user, $term, $currentSession, &$todo) {
-            $section = $c['section'];
-            $enrolments = StudentEnrollment::where('class_section_id', $section->id)
+        // What only the class teacher does: the register and the remarks.
+        $duties = $scope->myClasses($user)->filter(fn ($c) => $c['class_teacher'])->map(function (array $c) use ($currentSession) {
+            $enrolments = StudentEnrollment::where('class_section_id', $c['section']->id)
                 ->when($currentSession, fn ($q) => $q->where('academic_session_id', $currentSession->id))
                 ->where('status', 'active')->pluck('id');
-
             $today = Attendance::whereIn('student_enrollment_id', $enrolments)->whereDate('date', today());
-            $registerTaken = (clone $today)->exists();
-            if ($c['class_teacher'] && ! $registerTaken && $enrolments->isNotEmpty() && ! today()->isWeekend()) {
-                $todo++;
-            }
-
-            $nursery = $section->form->level === 'nursery';
-            $sheetsDone = 0;
-            $marks = [];
-
-            if ($nursery && $term) {
-                $total = app(\App\Services\NurseryAssessmentService::class)->competencesFor($section->form)->sum(fn ($a) => $a->competences->count());
-                $sheetsDone = $total > 0 ? \App\Models\NurseryAssessment::whereIn('student_enrollment_id', $enrolments)->where('term_id', $term->id)
-                    ->selectRaw('student_enrollment_id, count(*) n')->groupBy('student_enrollment_id')->get()->where('n', '>=', $total)->count() : 0;
-                $todo += max(0, $enrolments->count() - $sheetsDone) > 0 ? 1 : 0;
-            } elseif ($term) {
-                $sequences = \App\Models\Sequence::whereIn('id', \Illuminate\Support\Facades\DB::table('form_sequence')->where('form_id', $section->form_id)->where('term_id', $term->id)->pluck('sequence_id'))
-                    ->orderBy('sequence_number')->get();
-                $submissions = \App\Models\MarksSubmission::forSession($currentSession?->id)->where('class_section_id', $section->id)->whereIn('sequence_id', $sequences->pluck('id'))->get()
-                    ->keyBy(fn ($s) => $s->subject_id.':'.$s->sequence_id);
-
-                foreach ($c['subjects'] as $subject) {
-                    $cells = [];
-                    foreach ($sequences as $seq) {
-                        $sub = $submissions->get($subject->id.':'.$seq->id);
-                        $status = $sub?->status ?? 'none';
-                        if (in_array($status, ['none', 'draft', 'returned'], true) && $seq->id === $sequences->first()?->id || $status === 'returned') {
-                            $todo++;
-                        }
-                        $cells[] = ['sequence' => $seq, 'status' => $status, 'entered' => (int) ($sub?->marks_entered ?? 0)];
-                    }
-                    $marks[] = ['subject' => $subject, 'sequences' => $cells];
-                }
-            }
 
             return $c + [
                 'pupils' => $enrolments->count(),
-                'register_taken' => $registerTaken,
+                'register_taken' => (clone $today)->exists(),
                 'absent_today' => (clone $today)->where('status', 'absent')->count(),
-                'nursery' => $nursery,
-                'sheets_done' => $sheetsDone,
-                'marks' => $marks,
             ];
-        });
+        })->values();
+
+        $week = \App\Models\TimetableEntry::with(['subject', 'classSection', 'room', 'slot'])
+            ->where('teacher_id', $user->id)
+            ->when($currentSession, fn ($q) => $q->where('academic_session_id', $currentSession->id))
+            ->get();
+        $today = $week->where('day_of_week', strtolower(now()->englishDayOfWeek))->sortBy(fn ($e) => (string) ($e->start_time ?? $e->slot?->start_time))->values();
+
+        // What is waiting: a register not taken on a school day, a returned
+        // sheet, a first sequence not started, nursery sheets unfinished.
+        $todo = $duties->filter(fn ($d) => ! $d['register_taken'] && $d['pupils'] > 0 && ! today()->isWeekend())->count()
+            + $cards->sum(fn ($card) => $card['nursery']
+                ? (int) (! $card['done'] && $card['pupils'] > 0)
+                : collect($card['sequences'])->filter(fn ($cell, $i) => $cell['status'] === 'returned' || ($i === 0 && in_array($cell['status'], ['none', 'draft'], true)))->count());
 
         $notices = Announcement::published()->forStaff()->orderByDesc('published_at')->take(5)->get();
 
@@ -155,7 +131,10 @@ class DashboardController extends Controller implements HasMiddleware
             'school' => $school,
             'currentSession' => $currentSession,
             'term' => $term,
-            'classes' => $rows,
+            'cards' => $cards,
+            'duties' => $duties,
+            'today' => $today,
+            'week' => $week,
             'todo' => $todo,
             'notices' => $notices,
         ]);

@@ -112,6 +112,39 @@ class TeacherAccessTest extends TestCase
             ->assertSee('Mathematics');
     }
 
+    public function test_the_dashboard_shows_each_subject_as_a_card_with_its_marks_and_todays_periods(): void
+    {
+        $this->actingAs($this->teacher);
+        $this->marks($this->p3, $this->maths, $this->p3Pupil, 14)->assertSessionHas('success');
+        \App\Models\TimetableEntry::create(['branch_id' => $this->branch->id, 'academic_session_id' => $this->session->id, 'class_section_id' => $this->p3->id, 'subject_id' => $this->maths->id, 'teacher_id' => $this->teacher->id, 'day_of_week' => 'monday', 'start_time' => '08:00', 'end_time' => '09:00']);
+        $this->travelTo(\Illuminate\Support\Carbon::parse('next monday 07:30'));
+
+        $this->get(route('admin.dashboard'))->assertSuccessful()
+            ->assertViewHas('cards', fn ($cards) => $cards->count() === 2
+                && $cards->firstWhere('subject.id', $this->maths->id)['sequences'][0]['status'] === 'draft')
+            ->assertViewHas('today', fn ($today) => $today->count() === 1)
+            ->assertSee(__('My subjects'))
+            ->assertSee(__(':n/:t entered', ['n' => 1, 't' => 1]))
+            ->assertSee(__('Enter marks'));
+    }
+
+    public function test_marks_entry_opens_on_the_teachers_subject_cards(): void
+    {
+        $this->actingAs($this->teacher);
+        $response = $this->get(route('admin.marks.index'))->assertSuccessful()
+            ->assertSee(__('My assigned subjects'))
+            ->assertViewHas('cards', fn ($cards) => $cards->pluck('section.name')->unique()->values()->all() === ['P3A']);
+
+        // A sequence on a card opens that grid, and the grid is the teacher's.
+        $url = $response->viewData('cards')->first()['sequences'][0]['url'];
+        $this->get($url)->assertSuccessful()->assertViewHas('filtered', true);
+
+        // Someone who teaches nothing keeps the filters, with no cards.
+        $this->actingAs($this->admin)->get(route('admin.marks.index'))->assertSuccessful()
+            ->assertViewHas('cards', fn ($cards) => $cards->isEmpty())
+            ->assertDontSee(__('My assigned subjects'));
+    }
+
     public function test_a_class_teacher_prints_their_own_class_list_and_no_other(): void
     {
         // Last year this pupil sat Primary 3 too: a repeater.

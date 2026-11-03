@@ -45,13 +45,61 @@
     </div>
     @endif
 
+
+    {{-- My assigned subjects, as cards. A tap on a sequence opens its grid. --}}
+    @if($cards->isNotEmpty())
+    @php $finished = $cards->where('done', true)->count(); @endphp
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" x-data="{ open: {{ $filtered ? 'false' : 'true' }}, showDone: {{ $showDone ? 'true' : 'false' }} }">
+        <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0">
+                <h2 class="font-semibold">{{ __('My assigned subjects') }}</h2>
+                <p class="text-xs text-indigo-100">{{ $current?->name ?? '' }} · {{ trans_choice('{1} :count subject|[2,*] :count subjects', $cards->count(), ['count' => $cards->count()]) }}@if($finished) · {{ trans_choice('{1} :count finished|[2,*] :count finished', $finished, ['count' => $finished]) }}@endif</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                @if($cardTerms->count() > 1)
+                    <div class="flex rounded-lg bg-white/10 p-0.5 text-xs">
+                        @foreach($cardTerms as $t)
+                            <a href="{{ route('admin.marks.index', ['cards_term' => $t->id]) }}" class="px-2.5 py-1 rounded-md {{ $cardsTerm?->id === $t->id ? 'bg-white text-indigo-800 font-semibold' : 'text-white/90 hover:bg-white/10' }}">{{ $t->name }}</a>
+                        @endforeach
+                    </div>
+                @endif
+                @if($finished)
+                    <button type="button" @click="showDone = !showDone" class="text-xs px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20" x-text="showDone ? @js(__('Hide finished')) : @js(__('Show finished'))"></button>
+                @endif
+                <button type="button" @click="open = !open" class="text-xs px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20" x-text="open ? @js(__('Hide')) : @js(__('Show'))"></button>
+            </div>
+        </div>
+        <div x-show="open" x-cloak class="p-4 sm:p-5">
+            @if($finished === $cards->count())
+                <div x-show="!showDone" class="text-center py-6">
+                    <p class="font-semibold text-emerald-700">{{ __('All your marks for :term are approved.', ['term' => $cardsTerm?->name]) }}</p>
+                    <button type="button" @click="showDone = true" class="mt-2 text-sm text-indigo-700 hover:underline">{{ __('Show finished') }}</button>
+                </div>
+            @endif
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                @foreach($cards as $card)
+                    <div @if($card['done']) x-show="showDone" x-cloak @endif class="flex min-w-0">
+                        @include('admin.marks._subject-card', ['card' => $card, 'term' => $cardsTerm])
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Filter Bar: folds to one line once a grid is open, so a teacher on a
-         phone lands on the pupils, not on seven dropdowns. --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6" x-data="{ open: {{ ($filtered && $classSection && $subject && $sequence) ? 'false' : 'true' }} }">
+         phone lands on the pupils, not on seven dropdowns. With cards above,
+         it starts folded: the filters are the way to anything else. --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6" x-data="{ open: {{ ($filtered && $classSection && $subject && $sequence) || $cards->isNotEmpty() ? 'false' : 'true' }} }">
         @if($filtered && $classSection && $subject && $sequence)
         <div x-show="!open" class="flex items-center justify-between gap-3">
             <p class="text-sm text-gray-700 min-w-0 truncate"><span class="font-semibold">{{ $classSection->name }}</span> · {{ $subject->name }} · {{ $sequence->name }}</p>
             <button type="button" @click="open = true" class="shrink-0 text-sm font-medium text-teal-700 hover:text-teal-900">{{ __('Change') }}</button>
+        </div>
+        @elseif($cards->isNotEmpty())
+        <div x-show="!open" class="flex items-center justify-between gap-3">
+            <p class="text-sm text-gray-500">{{ __('Or choose a class, subject and sequence with the filters.') }}</p>
+            <button type="button" @click="open = true" class="shrink-0 text-sm font-medium text-teal-700 hover:text-teal-900">{{ __('Filters') }}</button>
         </div>
         @endif
         <form method="GET" action="{{ route('admin.marks.index') }}" id="filterForm" x-show="open" x-cloak>
@@ -415,8 +463,8 @@
     </div>
     @endif
 
-    @else
-    {{-- Not filtered yet --}}
+    @elseif($cards->isEmpty())
+    {{-- Not filtered yet, and no cards to start from --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
         <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
         <h3 class="text-lg font-medium text-gray-600 mb-1">{{ __('Select filters to begin') }}</h3>

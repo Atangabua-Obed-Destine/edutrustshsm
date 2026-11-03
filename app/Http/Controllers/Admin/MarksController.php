@@ -182,6 +182,20 @@ class MarksController extends Controller implements HasMiddleware
         $maxMark = (float) (SchoolSetting::current()?->max_mark ?? 20);
         $passMark = (float) (SchoolSetting::current()?->pass_mark ?? 10);
 
+        // The subjects this user teaches, as cards, as in the reference
+        // system's "My Assigned Courses": a teacher opens a grid with one tap
+        // instead of seven dropdowns. Someone who teaches nothing (the head,
+        // the secretary) keeps the filters.
+        $current = AcademicSession::current();
+        $cardTerms = Term::whereIn('id', DB::table('form_sequence')->distinct()->pluck('term_id'))->orderBy('term_number')->get();
+        $cardsTerm = $cardTerms->firstWhere('id', (int) ($request->input('cards_term') ?: $termId))
+            ?? $cardTerms->firstWhere('id', Term::current()?->id)
+            ?? $cardTerms->first();
+        $cards = $current && (int) $sessionId === (int) $current->id
+            ? app(\App\Services\TeacherSubjects::class)->cards($user, $current, $cardsTerm)
+            : collect();
+        $showDone = $request->boolean('show_done');
+
         return view('admin.marks.index', compact('maxMark', 'passMark',
             'sessions', 'forms', 'sessionId', 'educationSystem', 'formId',
             'classSectionId', 'subjectId', 'termId', 'sequenceId',
@@ -189,7 +203,7 @@ class MarksController extends Controller implements HasMiddleware
             'enrollments', 'existingMarks', 'submission', 'gradeScales',
             'classSection', 'subject', 'sequence', 'filtered', 'coefficient',
             'recentSubmissions'
-        , 'nurseryClasses'));
+        , 'nurseryClasses', 'cards', 'cardsTerm', 'cardTerms', 'showDone', 'current'));
     }
 
     /**

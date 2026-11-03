@@ -2,6 +2,12 @@
 @section('title', __('My Classes'))
 @section('breadcrumb', __('Dashboard'))
 
+@php
+    $time = fn ($entry) => substr((string) ($entry->start_time ?? $entry->slot?->start_time), 0, 5);
+    $until = fn ($entry) => substr((string) ($entry->end_time ?? $entry->slot?->end_time), 0, 5);
+    $subjectCards = $cards->where('nursery', false);
+@endphp
+
 @section('content')
 <div class="space-y-5">
     <div class="bg-gradient-to-r from-[#1e293b] to-[#334155] rounded-xl p-6 text-white">
@@ -14,86 +20,98 @@
         @endif
     </div>
 
-    @if($classes->isEmpty())
+    {{-- The day and the week at a glance --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl p-4 text-white bg-gradient-to-br from-indigo-500 to-violet-600">
+            <p class="text-3xl font-bold">{{ $today->count() }}</p>
+            <p class="text-sm font-medium">{{ __('Periods today') }}</p>
+            <p class="text-xs text-white/80">{{ now()->translatedFormat('l') }}</p>
+        </div>
+        <div class="rounded-xl p-4 text-white bg-gradient-to-br from-pink-500 to-rose-500">
+            <p class="text-3xl font-bold">{{ $subjectCards->count() }}</p>
+            <p class="text-sm font-medium">{{ __('Subjects I teach') }}</p>
+            <p class="text-xs text-white/80">{{ $currentSession?->name }}</p>
+        </div>
+        <div class="rounded-xl p-4 text-white bg-gradient-to-br from-sky-500 to-cyan-500">
+            <p class="text-3xl font-bold">{{ $week->count() }}</p>
+            <p class="text-sm font-medium">{{ __('Periods a week') }}</p>
+            <a href="{{ route('admin.timetable.teacher-schedule', ['teacher_id' => auth()->id()]) }}" class="text-xs text-white/90 underline">{{ __('My Timetable') }}</a>
+        </div>
+    </div>
+
+    @if($cards->isEmpty() && $duties->isEmpty())
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-10 text-center">
             <h3 class="font-semibold text-gray-800">{{ __('You have no class yet.') }}</h3>
             <p class="text-sm text-gray-500 mt-1">{{ __('The head teacher assigns classes and subjects. Once that is done, your classes appear here with their registers and marks.') }}</p>
         </div>
     @endif
 
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        @foreach($classes as $c)
-            @php $section = $c['section']; @endphp
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
-                    <div>
-                        <h3 class="font-semibold text-gray-800">{{ $section->form->name }} — {{ $section->name }}</h3>
-                        <p class="text-xs text-gray-500">{{ trans_choice('{0} no pupils|{1} :count pupil|[2,*] :count pupils', $c['pupils'], ['count' => $c['pupils']]) }}@if($c['class_teacher']) · <span class="text-teal-700 font-medium">{{ __('You are the class teacher') }}</span>@endif</p>
-                    </div>
-                </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {{-- Today's periods --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden lg:col-span-2">
+            <div class="px-5 py-3 border-b border-gray-100"><h3 class="font-semibold text-gray-800">{{ __("Today's periods") }}</h3></div>
+            @if($today->isEmpty())
+                <p class="px-5 py-6 text-sm text-gray-400">{{ today()->isWeekend() ? __('No school today.') : __('No period on your timetable today.') }}</p>
+            @else
+                <ul class="divide-y divide-gray-100">
+                    @foreach($today as $entry)
+                        <li class="px-5 py-2.5 flex items-center gap-3 text-sm">
+                            <span class="w-24 shrink-0 font-semibold text-gray-800 tabular-nums">{{ $time($entry) }}–{{ $until($entry) }}</span>
+                            <span class="flex-1 min-w-0">
+                                @if($entry->subject?->code)<span class="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[0.7rem] font-semibold mr-1">{{ $entry->subject->code }}</span>@endif
+                                <span class="text-gray-700">{{ $entry->subject?->name }}</span>
+                            </span>
+                            <span class="text-gray-500">{{ $entry->classSection?->name }}</span>
+                            @if($entry->room)<span class="hidden sm:inline text-xs text-gray-400">{{ $entry->room->name }}</span>@endif
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
 
-                <div class="divide-y divide-gray-100">
-                    @if($c['class_teacher'] && auth()->user()->can('attendance.mark'))
-                        <a href="{{ route('admin.attendance.index', ['class_section_id' => $section->id]) }}" class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+        {{-- What only the class teacher does --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100"><h3 class="font-semibold text-gray-800">{{ __('My class') }}</h3></div>
+            @forelse($duties as $d)
+                <div class="divide-y divide-gray-100 border-b border-gray-100 last:border-0">
+                    <p class="px-5 pt-3 pb-1 text-sm font-semibold text-gray-700">{{ $d['section']->name }} <span class="text-xs font-normal text-gray-400">· {{ trans_choice('{0} no pupils|{1} :count pupil|[2,*] :count pupils', $d['pupils'], ['count' => $d['pupils']]) }}</span></p>
+                    @can('attendance.mark')
+                        <a href="{{ route('admin.attendance.index', ['class_section_id' => $d['section']->id]) }}" class="flex items-center justify-between px-5 py-2.5 hover:bg-gray-50">
                             <span class="text-sm text-gray-700">{{ __("Today's register") }}</span>
-                            @if($c['register_taken'])
-                                <span class="text-xs font-medium text-emerald-700">{{ __('Taken') }} · {{ __(':n absent', ['n' => $c['absent_today']]) }}</span>
+                            @if($d['register_taken'])
+                                <span class="text-xs font-medium text-emerald-700">{{ __('Taken') }} · {{ __(':n absent', ['n' => $d['absent_today']]) }}</span>
                             @else
                                 <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">{{ __('Not taken yet') }}</span>
                             @endif
                         </a>
-                    @endif
-
-                    @if($c['class_teacher'] && $term)
-                        <a href="{{ route('admin.report-cards.remarks', ['class_section_id' => $section->id, 'term_id' => $term->id]) }}" class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+                    @endcan
+                    @if($term)
+                        <a href="{{ route('admin.report-cards.remarks', ['class_section_id' => $d['section']->id, 'term_id' => $term->id]) }}" class="flex items-center justify-between px-5 py-2.5 hover:bg-gray-50">
                             <span class="text-sm text-gray-700">{{ __('Report card remarks') }}</span>
                             <span class="text-xs text-teal-700 font-medium">{{ __('Write') }} &rarr;</span>
                         </a>
                     @endif
-
-                    @if($c['nursery'])
-                        <a href="{{ route('admin.nursery.index', ['class_section_id' => $section->id, 'term_id' => $term?->id]) }}" class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
-                            <span class="text-sm text-gray-700">{{ __('Assessment sheets this term') }}</span>
-                            <span class="text-xs font-medium {{ $c['sheets_done'] >= $c['pupils'] && $c['pupils'] > 0 ? 'text-emerald-700' : 'text-amber-700' }}">{{ $c['sheets_done'] }}/{{ $c['pupils'] }}</span>
-                        </a>
-                    @else
-                        @forelse($c['marks'] as $row)
-                            <div class="px-5 py-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
-                                <span class="text-sm text-gray-700 sm:w-44 shrink-0">{{ $row['subject']->name }}</span>
-                                <div class="flex flex-wrap gap-1.5">
-                                    @foreach($row['sequences'] as $s)
-                                        @php
-                                            $tone = match ($s['status']) {
-                                                'approved', 'published' => 'bg-emerald-100 text-emerald-800',
-                                                'submitted' => 'bg-sky-100 text-sky-800',
-                                                'returned' => 'bg-red-100 text-red-800',
-                                                'draft' => 'bg-amber-100 text-amber-800',
-                                                default => 'bg-gray-100 text-gray-600',
-                                            };
-                                            $label = match ($s['status']) {
-                                                'approved' => __('Approved'), 'published' => __('Published'), 'submitted' => __('Submitted'),
-                                                'returned' => __('Returned'), 'draft' => __(':n/:t entered', ['n' => $s['entered'], 't' => $c['pupils']]),
-                                                default => __('Not started'),
-                                            };
-                                        @endphp
-                                        <a href="{{ route('admin.marks.index', ['form_id' => $section->form_id, 'class_section_id' => $section->id, 'subject_id' => $row['subject']->id, 'term_id' => $term?->id, 'sequence_id' => $s['sequence']->id, 'education_system' => $section->form->education_system]) }}"
-                                           class="text-xs px-2 py-1 rounded-md {{ $tone }} hover:ring-2 hover:ring-offset-1 hover:ring-gray-300" title="{{ $s['sequence']->name }}">
-                                            {{ $s['sequence']->name }}: {{ $label }}
-                                        </a>
-                                    @endforeach
-                                    @if(empty($row['sequences']))
-                                        <span class="text-xs text-gray-400">{{ __('No sequence is set for this term.') }}</span>
-                                    @endif
-                                </div>
-                            </div>
-                        @empty
-                            <p class="px-5 py-3 text-sm text-gray-400">{{ __('No subject of this class is assigned to you.') }}</p>
-                        @endforelse
-                    @endif
                 </div>
-            </div>
-        @endforeach
+            @empty
+                <p class="px-5 py-6 text-sm text-gray-400">{{ __('You are not class teacher of a class.') }}</p>
+            @endforelse
+        </div>
     </div>
+
+    {{-- My subjects, as cards --}}
+    @if($cards->isNotEmpty())
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-gray-800">{{ __('My subjects') }}{{ $term ? ' · '.$term->name : '' }}</h3>
+                @can('marks-entry.view')<a href="{{ route('admin.marks.index') }}" class="text-sm text-indigo-700 hover:underline">{{ __('Marks Entry') }} &rarr;</a>@endcan
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                @foreach($cards as $card)
+                    @include('admin.marks._subject-card', ['card' => $card, 'term' => $term])
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     @if($notices->isNotEmpty())
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
