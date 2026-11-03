@@ -56,6 +56,9 @@ class AccountMappingController extends Controller implements HasMiddleware
             // Both are catch-all rules — they do not vary by fee category.
             'student_credit' => collect(),
             'credit_applied' => collect(),
+            // Last year's unpaid fees, from before the system, as they are
+            // collected: DR Cash/Bank -> CR pupils' receivables.
+            'arrears_collected' => collect(),
             // Paying credit back to a family: DR Student Advances → CR Cash/Bank.
             'credit_refund' => collect(),
         ];
@@ -67,7 +70,7 @@ class AccountMappingController extends Controller implements HasMiddleware
     public function save(Request $request)
     {
         $validated = $request->validate([
-            'mapping_type' => ['required', 'in:income,expense,fee_payment,student_credit,credit_applied,credit_refund'],
+            'mapping_type' => ['required', 'in:income,expense,fee_payment,student_credit,credit_applied,credit_refund,arrears_collected'],
             'category_id' => ['nullable', 'integer'],
             'debit_account_id' => ['required', 'exists:chart_of_accounts,id'],
             'credit_account_id' => ['required', 'exists:chart_of_accounts,id', 'different:debit_account_id'],
@@ -168,15 +171,20 @@ class AccountMappingController extends Controller implements HasMiddleware
         // unverified receipt brought no money. One paid from a pupil's credit
         // brought no new cash either, so it posts as credit applied
         // (DR 419 → CR revenue), as the live observer does.
-        PaymentAllocation::with(['payment', 'studentFee.feeCategory'])
-            ->whereNotIn('id', $mappedIds('fee_payment', 'credit_applied'))
-            ->whereHas('payment', fn ($q) => $q->where('verification_status', 'verified'))
+        PaymentAllocation::with(['payment', 'studentFee.feeCategory', 'studentFee.enrollment.academicSession'])
+            ->whereNotIn('id', $mappedIds('fee_payment', 'credit_applied', 'arrears_collected'))
+            // Paid in the old system: booked there, never posted here.
+            ->whereHas('payment', fn ($q) => $q->where('verification_status', 'verified')->where('payment_method', '!=', 'prior_system'))
             ->orderBy('id')
             ->get()
             ->each(function (PaymentAllocation $a) use (&$rows) {
                 $rows->push((object) [
                     'type' => 'fee_payment',
-                    'posting_type' => $a->payment?->payment_method === 'student_credit' ? 'credit_applied' : 'fee_payment',
+                    'posting_type' => match (true) {
+                        $a->payment?->payment_method === 'student_credit' => 'credit_applied',
+                        (bool) $a->studentFee?->enrollment?->academicSession?->is_recorded => 'arrears_collected',
+                        default => 'fee_payment',
+                    },
                     'id' => $a->id,
                     'label' => trim(($a->studentFee?->feeCategory?->name ?? __('Fee'))
                         .' - '.($a->payment?->receipt_number ?? ''), ' -'),

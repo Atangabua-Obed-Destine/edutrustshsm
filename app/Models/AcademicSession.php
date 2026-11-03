@@ -12,7 +12,7 @@ class AcademicSession extends Model
 
     protected $fillable = [
         'branch_id',
-        'name', 'start_date', 'end_date', 'status', 'is_current',
+        'name', 'start_date', 'end_date', 'status', 'is_current', 'is_recorded',
     ];
 
     protected function casts(): array
@@ -21,6 +21,9 @@ class AcademicSession extends Model
             'start_date' => 'date',
             'end_date' => 'date',
             'is_current' => 'boolean',
+            // A year from before the system: recorded from the report cards,
+            // never computed, never current. See App\Services\PastYearRecorder.
+            'is_recorded' => 'boolean',
         ];
     }
 

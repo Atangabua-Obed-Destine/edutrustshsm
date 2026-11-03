@@ -37,6 +37,7 @@
             // here, so they could not be configured without editing the database.
             ['student_credit', __('Over-payments Held as Credit'), collect([(object)['id' => null, 'title' => __('DR Cash/Bank → CR Student Advances (419)')]]), 'bg-indigo-600'],
             ['credit_applied', __('Credit Applied to Fees'), collect([(object)['id' => null, 'title' => __('DR Student Advances (419) → CR Fee Revenue')]]), 'bg-indigo-500'],
+            ['arrears_collected', __('Arrears From Before the System, Collected'), collect([(object)['id' => null, 'title' => __('DR Cash/Bank → CR Pupils\' receivables (411)')]]), 'bg-teal-600'],
             ['credit_refund', __('Credit Refunded to Families'), collect([(object)['id' => null, 'title' => __('DR Student Advances (419) → CR Cash/Bank')]]), 'bg-indigo-400'],
         ];
     @endphp

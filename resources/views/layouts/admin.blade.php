@@ -60,9 +60,10 @@
                         </span>
                         <svg id="academic-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="academic-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.sessions.*', 'admin.terms.*', 'admin.sequences.*', 'admin.forms.*', 'admin.streams.*', 'admin.subjects.*', 'admin.subject-enrollments.*', 'admin.sequence-enrollments.*', 'admin.class-sections.*', 'admin.batches.*', 'admin.rooms.*') ? 'open' : '' }}">
+                    <div id="academic-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.sessions.*', 'admin.terms.*', 'admin.sequences.*', 'admin.forms.*', 'admin.streams.*', 'admin.subjects.*', 'admin.subject-enrollments.*', 'admin.sequence-enrollments.*', 'admin.class-sections.*', 'admin.batches.*', 'admin.rooms.*', 'admin.past-years.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.sessions.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.sessions.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Sessions') }}</a>
                         <a href="{{ route('admin.terms.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.terms.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Terms') }}</a>
+                        @can('past-year.view')<a href="{{ route('admin.past-years.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.past-years.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Past Years') }}</a>@endcan
                         <a href="{{ route('admin.sequences.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.sequences.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Sequences') }}</a>
                         <a href="{{ route('admin.forms.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.forms.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Classes') }}</a>
                         @if(\App\Support\LevelContext::runsSecondary())

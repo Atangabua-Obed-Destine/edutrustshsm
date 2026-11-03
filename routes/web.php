@@ -570,6 +570,26 @@ Route::middleware('auth')->group(function () {
         Route::get('prior-payments', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'index'])->name('prior-payments.index');
         Route::get('prior-payments/template', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'template'])->name('prior-payments.template');
         Route::post('prior-payments', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'upload'])->name('prior-payments.upload');
+
+        // A school year from before the system: where pupils were, their
+        // results as proclaimed, and what was left unpaid.
+        Route::controller(\App\Http\Controllers\Admin\PastYearController::class)->prefix('past-years')->name('past-years.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('{year}', 'show')->name('show');
+            Route::get('{year}/placement/{section}', 'placement')->name('placement');
+            Route::post('{year}/placement/{section}', 'place')->name('place');
+            Route::get('{year}/sheets/{section}/{term}', 'sheet')->name('sheet');
+            Route::get('{year}/sheets/{section}/{term}/template', 'template')->name('template');
+            Route::post('{year}/sheets/{section}/{term}', 'upload')->name('upload');
+            Route::post('{year}/sheets/{section}/{term}/evidence', 'attachEvidence')->name('evidence.store');
+            Route::get('{year}/sheets/{section}/{term}/evidence', 'evidence')->name('evidence');
+            Route::post('{year}/sheets/{section}/{term}/verify', 'verify')->name('verify');
+            Route::post('{year}/sheets/{section}/{term}/reopen', 'reopen')->name('reopen');
+            Route::get('{year}/unpaid/template', 'arrearsTemplate')->name('arrears.template');
+            Route::post('{year}/unpaid', 'arrears')->name('arrears');
+            Route::get('{year}/pupils/{student}', 'record')->name('record');
+        });
         Route::get('collect-fees/streams-by-form/{form}', [FeeCollectionController::class, 'streamsByForm'])->name('collect-fees.streams-by-form');
         Route::get('collect-fees/sections-by-form/{form}', [FeeCollectionController::class, 'sectionsByForm'])->name('collect-fees.sections-by-form');
 

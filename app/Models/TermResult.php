@@ -16,8 +16,14 @@ class TermResult extends Model
         'term_average', 'overall_grade', 'class_rank', 'total_students', 'class_average',
         'highest_average', 'lowest_average', 'days_present', 'days_absent',
         'total_school_days', 'class_teacher_remark', 'principal_remark', 'conduct',
-        'is_published',
+        'is_published', 'source', 'recorded_by',
     ];
+
+    /** Copied from the school's own report cards for a year before this system. */
+    public function isRecorded(): bool
+    {
+        return $this->source === 'recorded';
+    }
 
     protected function casts(): array
     {

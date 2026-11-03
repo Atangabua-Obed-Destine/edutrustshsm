@@ -149,6 +149,12 @@ class ReportCardController extends Controller implements HasMiddleware
      */
     public function show(TermResult $termResult)
     {
+        // Recorded from before the system: there is no report card to
+        // rebuild, only the record of what the paper one said.
+        if ($termResult->isRecorded()) {
+            return redirect()->route('admin.past-years.record', [$termResult->enrollment->academic_session_id, $termResult->enrollment->student_id]);
+        }
+
         abort_unless(app(\App\Services\TeachingScope::class)->canUseSection(auth()->user(), (int) $termResult->enrollment?->class_section_id), 403);
 
         $termResult->load([

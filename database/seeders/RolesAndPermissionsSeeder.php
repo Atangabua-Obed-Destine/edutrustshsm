@@ -119,6 +119,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // Recording an exit takes a pupil off every class list and fee
             // report in the school, which is not the same act as editing them.
             'Student Exit' => ['view', 'create', 'readmit'],
+            // A school year from before the system: recorded from the paper,
+            // and verified against it by someone other than who entered it.
+            'Past Year' => ['view', 'record', 'verify'],
             'Audit Log' => ['view', 'export'],
 
             // Connection settings for the body's EdutrustPay console. Viewing,

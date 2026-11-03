@@ -82,8 +82,16 @@ class PaymentAllocationObserver
      */
     private function mappingType(PaymentAllocation $allocation): string
     {
-        return $allocation->payment?->payment_method === 'student_credit'
-            ? 'credit_applied'
+        if ($allocation->payment?->payment_method === 'student_credit') {
+            return 'credit_applied';
+        }
+
+        // A fee billed in a year from before the system was that year's
+        // revenue, carried into the opening balances as money owed to the
+        // school. Collecting it clears the receivable (DR Cash -> CR 411);
+        // crediting revenue again would count it twice.
+        return $allocation->studentFee?->enrollment?->academicSession?->is_recorded
+            ? 'arrears_collected'
             : 'fee_payment';
     }
 

@@ -14,7 +14,7 @@ class StudentEnrollment extends Model
         'branch_id',
         'student_id', 'academic_session_id', 'term_id', 'class_section_id',
         'stream_id', 'residence_type', 'enrollment_date', 'status',
-        'final_average', 'final_rank',
+        'final_average', 'final_rank', 'final_written',
     ];
 
     protected function casts(): array
@@ -22,6 +22,7 @@ class StudentEnrollment extends Model
         return [
             'enrollment_date' => 'date',
             'final_average' => 'decimal:2',
+            'final_written' => 'boolean',
         ];
     }
 

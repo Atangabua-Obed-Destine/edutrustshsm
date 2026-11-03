@@ -86,6 +86,10 @@
                         <span class="text-gray-400 font-normal">·</span>
                         {{ $year['class'] ?? '—' }}
                         @if($year['stream'])<span class="text-xs text-gray-500">({{ $year['stream'] }})</span>@endif
+                        @if($year['recorded'])
+                            <span class="ml-1 px-2 py-0.5 rounded-full text-[0.65rem] font-medium bg-indigo-100 text-indigo-700">{{ __('Recorded') }}</span>
+                            <a href="{{ route('admin.past-years.record', [$year['session_id'], $student]) }}" class="ml-1 text-xs font-normal text-blue-700 hover:underline">{{ __('Record of results') }}</a>
+                        @endif
                     </h3>
                 </div>
                 <div class="flex items-center gap-3 text-xs">

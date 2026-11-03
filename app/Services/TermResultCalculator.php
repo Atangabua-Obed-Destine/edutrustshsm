@@ -57,6 +57,10 @@ class TermResultCalculator
             ->where('academic_session_id', $sessionId)
             ->where('term_id', $term->id)
             ->whereIn('status', ['active', 'completed'])
+            // A recorded year's results are the ones proclaimed at the time.
+            // There are no marks to compute from, and computing would
+            // overwrite them with blanks: such a class has no one to compute.
+            ->whereHas('academicSession', fn ($q) => $q->where('is_recorded', false))
             ->with([
                 'student:id,student_id,first_name,last_name',
                 'studentSubjects.subject.forms' => fn ($q) => $q->where('form_id', $classSection->form_id),
