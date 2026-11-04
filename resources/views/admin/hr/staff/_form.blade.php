@@ -18,7 +18,24 @@
 
     <h4 class="text-base font-semibold text-gray-700 mb-3 border-b pb-2">{{ __('Employment & Payroll') }}</h4>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div><label class="block text-sm text-gray-600 mb-1">{{ __('Role') }} *</label><select name="role" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="teacher" {{ old('role',$staff?->role)==='teacher'?'selected':'' }}>{{ __('Teacher') }}</option><option value="staff" {{ old('role',$staff?->role)==='staff'?'selected':'' }}>{{ __('Staff') }}</option></select></div>
+        <div class="md:col-span-3">
+            <span class="block text-sm text-gray-600 mb-1">{{ __('Roles') }} *</span>
+            @php($held = old('roles', $staff ? $staff->roleNames() : ['teacher']))
+            <div class="flex flex-wrap gap-2">
+                @foreach($roleChoices as $r)
+                    <label class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm cursor-pointer has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+                        <input type="checkbox" name="roles[]" value="{{ $r->name }}" @checked(in_array($r->name, $held, true)) class="rounded border-gray-300">
+                        {{ __($r->display_name) }}
+                    </label>
+                @endforeach
+                <label class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm cursor-pointer has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+                    <input type="checkbox" name="roles[]" value="staff" @checked(in_array('staff', $held, true)) class="rounded border-gray-300">
+                    {{ __('Support staff (no system access)') }}
+                </label>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">{{ __('Tick every role this person holds: a teacher who is also the bursar gets both. Administrators are made under User Accounts.') }}</p>
+            @error('roles') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+        </div>
         <div><label class="block text-sm text-gray-600 mb-1">{{ __('Department') }}</label><select name="department_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="">—</option>@foreach($departments as $d)<option value="{{ $d->id }}" {{ (string)old('department_id',$staff?->department_id)===(string)$d->id?'selected':'' }}>{{ $d->name }}</option>@endforeach</select></div>
         <div><label class="block text-sm text-gray-600 mb-1">{{ __('Designation') }}</label><select name="designation_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="">—</option>@foreach($designations as $d)<option value="{{ $d->id }}" {{ (string)old('designation_id',$staff?->designation_id)===(string)$d->id?'selected':'' }}>{{ $d->title }}</option>@endforeach</select></div>
         <div><label class="block text-sm text-gray-600 mb-1">{{ __('Work Shift') }}</label><select name="work_shift_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="">—</option>@foreach($workShifts as $w)<option value="{{ $w->id }}" {{ (string)old('work_shift_id',$staff?->work_shift_id)===(string)$w->id?'selected':'' }}>{{ $w->title }}</option>@endforeach</select></div>

@@ -37,7 +37,8 @@
                     {{ __('Dashboard') }}
                 </a>
 
-                @if(auth()->user()->role === 'teacher')
+                @php $teachingOnly = app(\App\Services\TeachingScope::class)->restricted(auth()->user()); @endphp
+                @if($teachingOnly)
                 {{-- A teacher's menu: their own work, nothing else. --}}
                 <a href="{{ route('admin.marks.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.marks.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Marks Entry') }}</a>
                 @if(\App\Support\LevelContext::runsNurseryPrimary())
@@ -49,7 +50,11 @@
                 <a href="{{ route('admin.class-list.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.class-list.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Class List') }}</a>
                 @endcan
                 <a href="{{ route('admin.timetable.teacher-schedule', ['teacher_id' => auth()->id()]) }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.timetable.teacher-schedule') ? 'active text-white' : 'text-gray-300' }}">{{ __('My Timetable') }}</a>
-                @else
+                @endif
+                {{-- Everything below is shown by permission. A teacher who also holds
+                     another role (bursar, front desk) gets that role's sections after
+                     their own; the school-wide academic screens stay with administrators. --}}
+                @unless($teachingOnly)
                 <!-- Academic Config -->
                 @if(auth()->user()->canAny(['academic-session.view', 'term.view', 'exam-sequence.view', 'form.view', 'stream.view', 'subject.view', 'class-section.view', 'classroom.view', 'batch.view', 'subject-enrollment.view', 'sequence-enrollment.view']))
                 <div class="sidebar-group">
@@ -80,6 +85,8 @@
                 </div>
                 @endif
 
+                @endunless
+
                 <!-- Admissions -->
                 @if(auth()->user()->canAny(['admission.view', 'id-card.view']))
                 <div class="sidebar-group">
@@ -98,7 +105,7 @@
                 @endif
 
                 <!-- Students -->
-                @if(auth()->user()->canAny(['student.view', 'group-enrol.view', 'subject-add-drop.view', 'bulk-upload.view']))
+                @if(auth()->user()->canAny(['student.view', 'group-enrol.view', 'subject-add-drop.view', 'bulk-upload.view']) && (! $teachingOnly || auth()->user()->can('student.create')))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('admissions-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -108,7 +115,9 @@
                         <svg id="admissions-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
                     <div id="admissions-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.students.*', 'admin.class-list.*', 'admin.bulk-upload.*', 'admin.subject-add-drop.*', 'admin.group-enrol.*') ? 'open' : '' }}">
+                        @can('student.create')
                         <a href="{{ route('admin.students.create') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.create') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('New Registration') }}</a>
+                        @endcan
                         <a href="{{ route('admin.students.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.index') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student List') }}</a>
                         <a href="{{ route('admin.class-list.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.class-list.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class List') }}</a>
                         @if(app(\App\Services\OutOfScopeService::class)->hasAny())
@@ -117,16 +126,21 @@
                         @can('student-exit.view')
                         <a href="{{ route('admin.students.archive') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.archive') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Former Pupils') }}</a>
                         @endcan
+                        @can('group-enrol.view')
                         <a href="{{ route('admin.group-enrol.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.group-enrol.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Group Enrol') }}</a>
+                        @endcan
                         @if(\App\Support\LevelContext::runsSecondary())
                         <a href="{{ route('admin.subject-add-drop.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.subject-add-drop.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Subject Add/Drop') }}</a>
                         @endif
+                        @can('bulk-upload.view')
                         <a href="{{ route('admin.bulk-upload.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.bulk-upload.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Bulk Upload') }}</a>
+                        @endcan
                     </div>
                 </div>
                 @endif
 
                 <!-- Examinations -->
+                @if(! $teachingOnly && auth()->user()->canAny(['exam-schedule.view', 'marks-entry.view', 'exam-publishing.view', 'report-card.view', 'academic-analytics.view', 'class-council.view', 'gce-registration.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('exams-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -160,7 +174,10 @@
                     </div>
                 </div>
 
+                @endif
+
                 <!-- Fees Collection -->
+                @if(auth()->user()->canAny(['fee-collection.view', 'payment-plan.view', 'quick-assign-fee.view', 'assignment-history.view', 'fee-structure.view', 'fee-category.view', 'payment.view', 'fee-discount.view', 'fee-report.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('fees-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -192,7 +209,11 @@
                     </div>
                 </div>
 
+                @endif
+
+                @unless($teachingOnly)
                 <!-- Attendance -->
+                @if(auth()->user()->canAny(['attendance.view', 'attendance.mark', 'attendance.report']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('attendance-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -207,7 +228,10 @@
                     </div>
                 </div>
 
+                @endif
+
                 <!-- Routines -->
+                @if(auth()->user()->canAny(['class-schedule.view', 'teacher-routine.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('routines-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -222,6 +246,8 @@
                     </div>
                 </div>
 
+                @endif
+
                 <!-- Promotion -->
                 @if(auth()->user()->canAny(['promotion.view']))
                 <a href="{{ route('admin.promotion.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.promotion.*') ? 'active bg-white/10' : 'hover:bg-white/5' }}">
@@ -231,10 +257,12 @@
                 @endif
 
                 <!-- Reports -->
+                @can('report-and-analytics.view')
                 <a href="{{ route('admin.reports.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.reports.*') ? 'active bg-white/10' : 'hover:bg-white/5' }}">
                     <svg class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                     {{ __('Reports & Analytics') }}
                 </a>
+                @endcan
 
                 @if(auth()->user()->canAny(['staff.view', 'role-and-permission.view']))
                 <!-- User Accounts -->
@@ -283,6 +311,8 @@
                     </div>
                 </div>
                 @endif
+
+                @endunless
 
                 <!-- Income & Expense -->
                 @if(auth()->user()->canAny(['daybook.view', 'income.view', 'expense.view', 'outcome.view', 'payment-account.view', 'fund-transfer.view', 'budget.view', 'chart-of-accounts.view', 'journal-entry.view', 'general-ledger.view', 'payroll.view']))
@@ -384,7 +414,9 @@
                         <svg id="hr-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
                     <div id="hr-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.staff.*', 'admin.payroll.*', 'admin.designations.*', 'admin.work-shifts.*', 'admin.allowance-types.*', 'admin.deduction-types.*', 'admin.tax-groups.*', 'admin.tax-settings.*', 'admin.tax-report.*', 'admin.tax-remittances.*') ? 'open' : '' }}">
+                        @can('staff.view')
                         <a href="{{ route('admin.staff.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.staff.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff List') }}</a>
+                        @endcan
                         <a href="{{ route('admin.payroll.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payroll.index', 'admin.payroll.generate', 'admin.payroll.store') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payrolls') }}</a>
                         @can('staff-leave.view')
                         <a href="{{ route('admin.leaves.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.leaves.*') || request()->routeIs('admin.leave-types.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff Leave') }}</a>
@@ -393,8 +425,12 @@
                         <a href="{{ route('admin.staff-attendance.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.staff-attendance.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff Attendance') }}</a>
                         @endcan
                         <a href="{{ route('admin.payroll.report') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payroll.report') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payroll Reports') }}</a>
+                        @can('work-shift-type.view')
                         <a href="{{ route('admin.work-shifts.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.work-shifts.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Work Shift Types') }}</a>
+                        @endcan
+                        @can('designation.view')
                         <a href="{{ route('admin.designations.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.designations.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Designations') }}</a>
+                        @endcan
                         <a href="{{ route('admin.allowance-types.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.allowance-types.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Allowance Type') }}</a>
                         <a href="{{ route('admin.deduction-types.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.deduction-types.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Deduction Type') }}</a>
                         <a href="{{ route('admin.tax-groups.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.tax-groups.*', 'admin.tax-settings.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Tax Groups') }}</a>
@@ -405,7 +441,6 @@
                     </div>
                 </div>
                 @endif
-                            @endif
             </nav>
 
             <!-- System Settings -->

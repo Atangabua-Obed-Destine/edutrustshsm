@@ -242,7 +242,7 @@ class TimetableController extends Controller implements HasMiddleware
         $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])->where('is_active', true)->orderBy('last_name')->get();
         $teacherId = $request->input('teacher_id');
         // A teacher sees their own week, not a list of colleagues to pick from.
-        if (auth()->user()?->role === 'teacher') {
+        if (app(\App\Services\TeachingScope::class)->restricted(auth()->user())) {
             $teacherId = auth()->id();
             $teachers = $teachers->where('id', auth()->id())->values();
         }

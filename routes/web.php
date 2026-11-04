@@ -221,7 +221,9 @@ Route::middleware('auth')->group(function () {
     // The screens a teacher works in. Admins reach them too; a teacher sees
     // only their own classes and subjects inside them (TeachingScope).
     // Approving, publishing and generating stay in the admin group below.
-    Route::middleware('role:super_admin,admin,teacher')->prefix('admin')->name('admin.')->group(function () {
+    // Each section admits the roles whose work is in it; what a person may do
+    // inside is the screen's own permission check, over every role they hold.
+    Route::middleware('role:super_admin,admin,teacher,accountant,receptionist')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::post('/level-context', [LevelContextController::class, 'switch'])->name('level-context.switch');
 
@@ -255,7 +257,7 @@ Route::middleware('auth')->group(function () {
         Route::get('report-cards/{termResult}', [ReportCardController::class, 'show'])->name('report-cards.show')->whereNumber('termResult');
     });
 
-    Route::middleware('role:super_admin,admin')->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('role:super_admin,admin,accountant,receptionist')->prefix('admin')->name('admin.')->group(function () {
 
         // Dashboard
 
@@ -644,7 +646,7 @@ Route::middleware('auth')->group(function () {
     // `role:super_admin,admin` meant the outer middleware rejected `staff`
     // before this one was ever consulted, so the carve-out never applied.
     // ═══════════════════════════════════════════════════════════════
-    Route::middleware('role:super_admin,admin,staff')->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('role:super_admin,admin,staff,accountant,receptionist')->prefix('admin')->name('admin.')->group(function () {
             // Leaving, and the roll of those who have left.
         Route::get('students/archive', [StudentExitController::class, 'index'])->name('students.archive');
         // Pupils and classes at a level the school no longer runs.

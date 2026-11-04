@@ -29,6 +29,7 @@ class StudentController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
+            static::can('student.view', ['history', 'historyPdf']),
             static::can('student.view', ['getFormStreams', 'getFormSections']),
         ];
     }

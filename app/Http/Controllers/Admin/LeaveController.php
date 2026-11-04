@@ -33,6 +33,7 @@ class LeaveController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
+            static::can('staff-leave.view', ['remaining']),
             static::can('staff-leave.approve', ['approve', 'reject']),
         ];
     }

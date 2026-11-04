@@ -38,6 +38,8 @@ class ClassCouncilController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
+            static::can('class-council.edit', ['decisions', 'addSignature', 'removeSignature']),
+            static::can('class-council.view', ['minutes']),
             static::can('class-council.conclude', ['conclude', 'reopen']),
         ];
     }

@@ -32,7 +32,9 @@ class TeachingScope
 
     public function restricted(?User $user): bool
     {
-        return $user !== null && $user->role === 'teacher';
+        // A teacher sees their own classes. A head teacher or administrator
+        // who also teaches still sees the whole school.
+        return $user !== null && $user->isTeacher() && ! $user->isAdmin();
     }
 
     /** @return array<int, int> class section ids the teacher works in */

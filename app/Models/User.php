@@ -59,6 +59,9 @@ class User extends Authenticatable
     /** @var array<int, string>|null Memoized permission names for this request. */
     protected ?array $permissionNames = null;
 
+    /** @var array<int, string>|null */
+    protected ?array $roleNames = null;
+
     protected function casts(): array
     {
         return [
@@ -151,6 +154,47 @@ class User extends Authenticatable
         return preg_replace('/\s+/', ' ', $names);
     }
 
+    /**
+     * Every role this person holds: those ticked on their account and the one
+     * named on it. A teacher who is also the bursar holds both, as in the
+     * reference system, and each opens its part of the school.
+     *
+     * @return array<int, string>
+     */
+    public function roleNames(): array
+    {
+        return $this->roleNames ??= collect($this->roles()->pluck('name'))
+            ->push($this->role)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The one role written on the account, from the roles held: the most
+     * senior. Kept for the reports and lists that count by it; access itself
+     * follows every role held.
+     *
+     * @param  array<int, string>  $names
+     */
+    public static function primaryRoleFor(array $names): string
+    {
+        foreach (['super_admin', 'admin', 'accountant', 'teacher'] as $role) {
+            if (in_array($role, $names, true)) {
+                return $role;
+            }
+        }
+
+        return 'staff';
+    }
+
+    /** Whether this person holds any of the given roles. */
+    public function holdsRole(string ...$names): bool
+    {
+        return array_intersect($names, $this->roleNames()) !== [];
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->role === 'super_admin';
@@ -158,12 +202,12 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin']);
+        return $this->holdsRole('super_admin', 'admin');
     }
 
     public function isTeacher(): bool
     {
-        return $this->role === 'teacher';
+        return $this->holdsRole('teacher');
     }
 
     public function isAccountant(): bool
@@ -266,6 +310,7 @@ class User extends Authenticatable
     public function forgetPermissions(): void
     {
         $this->permissionNames = null;
+        $this->roleNames = null;
     }
 
     /**
