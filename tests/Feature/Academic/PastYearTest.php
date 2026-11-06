@@ -176,6 +176,19 @@ class PastYearTest extends TestCase
         $this->assertEquals(14.4, (float) TermResult::whereHas('enrollment', fn ($q) => $q->where('student_id', $this->bih->id))->value('term_average'), '(12x2 + 16x3) / 5');
     }
 
+    public function test_mathematics_coded_mat_is_a_subject_not_the_matricule(): void
+    {
+        // The secondary curriculum codes Mathematics MAT, which is also how
+        // people head a matricule column ("Mat."). The marks column won.
+        Subject::where('code', 'MATH')->update(['code' => 'MAT']);
+        $year = $this->lastYear();
+        $this->placeBoth($year);
+
+        $this->sheet($year, 1, "matricule;name;ENG;MAT\r\nTS250001;NGWA Bih;12;15\r\nTS250002;FRU Che;10;9\r\n")->assertSessionHas('success');
+
+        $this->assertEquals(13.8, (float) TermResult::whereHas('enrollment', fn ($q) => $q->where('student_id', $this->bih->id))->value('term_average'), '(12x2 + 15x3) / 5');
+    }
+
     public function test_a_bad_line_records_nothing(): void
     {
         $year = $this->lastYear();

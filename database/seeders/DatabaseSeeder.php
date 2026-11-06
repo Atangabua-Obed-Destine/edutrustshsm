@@ -3,12 +3,14 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
+    // Model events stay on: the one-branch rule (BelongsToBranch) stamps every
+    // seeded class, subject and fee category with the school's branch. With
+    // them off, a fresh install saved all of it with no branch and every
+    // screen hid it.
 
     /**
      * Seed the application's database.

@@ -71,6 +71,8 @@ class RecordedResults
         return DB::table('form_subject')
             ->join('subjects', 'subjects.id', '=', 'form_subject.subject_id')
             ->where('form_subject.form_id', $section->form_id)
+            // A Sixth Form class that is one stream records that stream's subjects.
+            ->when($section->stream_id, fn ($q) => $q->where(fn ($w) => $w->where('form_subject.stream_id', $section->stream_id)->orWhereNull('form_subject.stream_id')))
             ->orderBy('subjects.name')
             ->get(['subjects.id', 'subjects.code', 'subjects.name', 'form_subject.coefficient'])
             ->unique('id')
@@ -127,12 +129,16 @@ class RecordedResults
             throw new RuntimeException(__('Say what the marks are out of (for example 20, 10 or 100).'));
         }
 
-        [$headers, $rows] = SchoolCsv::read($path, self::ALIASES);
+        $subjects = $this->subjects($sheet->classSection);
+        // A subject's code is never read as something else: Mathematics coded
+        // MAT is a marks column, not "Mat." for the matricule.
+        $subjectKeys = $subjects->flatMap(fn ($s) => [$this->key($s->code), $this->key($s->name)])->all();
+        $aliases = array_diff_key(self::ALIASES, array_flip($subjectKeys));
+
+        [$headers, $rows] = SchoolCsv::read($path, $aliases);
         if (! in_array('matricule', $headers, true)) {
             throw new RuntimeException(__('The file needs a matricule column. Download the template to see the layout.'));
         }
-
-        $subjects = $this->subjects($sheet->classSection);
         $subjectColumns = [];
         $unknown = [];
         $known = ['matricule', 'name', 'average', 'rank', 'conduct', 'days_absent', 'remark', 'annual_average', 'annual_rank'];

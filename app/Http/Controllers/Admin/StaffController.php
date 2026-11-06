@@ -64,6 +64,7 @@ class StaffController extends Controller implements HasMiddleware
                 $user->profile_photo = $request->file('profile_photo')->store('staff/photos', 'public');
             }
             $user->save();
+            $user->joinWorkingBranch();
             $this->syncRoles($user, $roles);
             $this->syncBankAccounts($user, $request);
             return $user;

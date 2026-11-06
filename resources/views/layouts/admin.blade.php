@@ -488,7 +488,7 @@
                     </div>
                     <div class="ml-3 flex-1 min-w-0">
                         <p class="text-sm font-medium truncate">{{ auth()->user()->full_name }}</p>
-                        <p class="text-xs text-gray-400 capitalize">{{ str_replace('_', ' ', auth()->user()->role) }}</p>
+                        <p class="text-xs text-gray-400">{{ collect(auth()->user()->roleNames())->map(fn ($r) => __(\Illuminate\Support\Str::headline($r)))->join(' · ') }}</p>
                     </div>
                 </div>
             </div>

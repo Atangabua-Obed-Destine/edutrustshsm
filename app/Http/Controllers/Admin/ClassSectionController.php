@@ -20,7 +20,7 @@ class ClassSectionController extends Controller implements HasMiddleware
 
     public function index()
     {
-        $classSections = ClassSection::with(['form', 'classTeacher', 'room'])
+        $classSections = ClassSection::with(['form', 'stream', 'classTeacher', 'room'])
             ->whereHas('form', fn($q) => $q->forCurrentLevel())
             ->orderBy('form_id')
             ->orderBy('section')
@@ -32,10 +32,11 @@ class ClassSectionController extends Controller implements HasMiddleware
     public function create()
     {
         $forms = Form::forCurrentLevel()->ordered()->get();
-        $teachers = User::where('role', 'teacher')->where('is_active', true)->orderBy('first_name')->get();
+        $teachers = User::holdingRole('teacher')->where('is_active', true)->orderBy('first_name')->get();
         $rooms = Room::where('is_active', true)->orderBy('name')->get();
+        $streams = \App\Models\Stream::where('is_active', true)->whereHas('forms', fn ($q) => $q->forCurrentLevel())->orderBy('name')->get();
 
-        return view('admin.class-sections.create', compact('forms', 'teachers', 'rooms'));
+        return view('admin.class-sections.create', compact('forms', 'teachers', 'rooms', 'streams'));
     }
 
     public function store(Request $request)
@@ -47,7 +48,10 @@ class ClassSectionController extends Controller implements HasMiddleware
             'class_teacher_id' => ['nullable', 'exists:users,id'],
             'room_id' => ['nullable', 'exists:rooms,id'],
             'max_students' => ['required', 'integer', 'min:1', 'max:200'],
+            // A stream the class's form actually has.
+            'stream_id' => ['nullable', \Illuminate\Validation\Rule::exists('form_stream', 'stream_id')->where('form_id', (int) $request->input('form_id'))],
         ]);
+        $validated['stream_id'] = $validated['stream_id'] ?? null;
 
         ClassSection::create($validated);
 
@@ -58,10 +62,11 @@ class ClassSectionController extends Controller implements HasMiddleware
     public function edit(ClassSection $classSection)
     {
         $forms = Form::forCurrentLevel()->ordered()->get();
-        $teachers = User::where('role', 'teacher')->where('is_active', true)->orderBy('first_name')->get();
+        $teachers = User::holdingRole('teacher')->where('is_active', true)->orderBy('first_name')->get();
         $rooms = Room::where('is_active', true)->orderBy('name')->get();
+        $streams = \App\Models\Stream::where('is_active', true)->whereHas('forms', fn ($q) => $q->forCurrentLevel())->orderBy('name')->get();
 
-        return view('admin.class-sections.edit', compact('classSection', 'forms', 'teachers', 'rooms'));
+        return view('admin.class-sections.edit', compact('classSection', 'forms', 'teachers', 'rooms', 'streams'));
     }
 
     public function update(Request $request, ClassSection $classSection)
@@ -73,7 +78,10 @@ class ClassSectionController extends Controller implements HasMiddleware
             'class_teacher_id' => ['nullable', 'exists:users,id'],
             'room_id' => ['nullable', 'exists:rooms,id'],
             'max_students' => ['required', 'integer', 'min:1', 'max:200'],
+            // A stream the class's form actually has.
+            'stream_id' => ['nullable', \Illuminate\Validation\Rule::exists('form_stream', 'stream_id')->where('form_id', (int) $request->input('form_id'))],
         ]);
+        $validated['stream_id'] = $validated['stream_id'] ?? null;
 
         $classSection->update($validated);
 

@@ -32,7 +32,7 @@
             <tbody class="divide-y divide-gray-200">
                 @forelse($classSections as $cs)
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $cs->name }}</td>
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $cs->name }}@if($cs->stream) <span class="ml-1 text-xs font-normal px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">{{ $cs->stream->name }}</span>@endif</td>
                     <td class="px-6 py-4 text-sm text-gray-600">{{ $cs->form->name }}</td>
                     <td class="px-6 py-4 text-sm text-gray-600">{{ $cs->classTeacher?->full_name ?? '—' }}</td>
                     <td class="px-6 py-4 text-sm text-gray-600">{{ $cs->room?->name ?? '—' }}</td>

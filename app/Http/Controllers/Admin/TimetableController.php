@@ -92,7 +92,7 @@ class TimetableController extends Controller implements HasMiddleware
         $sessions = AcademicSession::orderByDesc('start_date')->get();
         $forms = Form::active()->forCurrentLevel()->ordered()->get();
         $subjects = Subject::where('is_active', true)->forCurrentLevel()->orderBy('name')->get();
-        $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])->where('is_active', true)->orderBy('last_name')->get();
+        $teachers = User::holdingRole('teacher', 'admin', 'super_admin')->where('is_active', true)->orderBy('last_name')->get();
         $rooms = Room::where('is_active', true)->orderBy('name')->get();
         $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
         $activeDay = $request->input('day', 'monday');
@@ -239,7 +239,7 @@ class TimetableController extends Controller implements HasMiddleware
     public function teacherSchedule(Request $request)
     {
         $currentSession = AcademicSession::current();
-        $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])->where('is_active', true)->orderBy('last_name')->get();
+        $teachers = User::holdingRole('teacher', 'admin', 'super_admin')->where('is_active', true)->orderBy('last_name')->get();
         $teacherId = $request->input('teacher_id');
         // A teacher sees their own week, not a list of colleagues to pick from.
         if (app(\App\Services\TeachingScope::class)->restricted(auth()->user())) {

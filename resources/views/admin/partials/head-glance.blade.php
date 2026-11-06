@@ -32,7 +32,7 @@
             <p class="text-xs text-gray-500 mt-1">{{ __(':done of :total subject-sequences approved', ['done' => $g['marks']['done'], 'total' => $g['marks']['expected']]) }}{{ $g['marks']['term'] ? ' · '.$g['marks']['term']->name : '' }}</p>
         @else
             <p class="text-2xl font-bold text-gray-300 mt-1">—</p>
-            <p class="text-xs text-gray-500 mt-1">{{ __('Nothing to mark yet: no primary class has pupils, subjects and sequences for this term.') }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('Nothing to mark yet: no class has pupils, subjects and sequences for this term.') }}</p>
         @endif
     </a>
     @endcan

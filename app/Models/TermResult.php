@@ -41,4 +41,11 @@ class TermResult extends Model
     public function enrollment() { return $this->belongsTo(StudentEnrollment::class, 'student_enrollment_id'); }
     public function term() { return $this->belongsTo(Term::class); }
     public function subjectResults() { return $this->hasMany(SubjectTermResult::class); }
+
+    /** What the class council decided for this result, once the council has concluded. */
+    public function councilEntry()
+    {
+        return $this->hasOne(ClassCouncilEntry::class)
+            ->whereHas('council', fn ($q) => $q->where('status', ClassCouncil::CONCLUDED));
+    }
 }

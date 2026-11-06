@@ -311,6 +311,17 @@
             {{ $passed ? __('✓ PASS — Average at or above :mark', ['mark' => $markLabel]) : __('✗ BELOW PASS MARK — Average below :mark', ['mark' => $markLabel]) }}
         </div>
 
+        {{-- The class council's decision, once the council has concluded. --}}
+        @php
+            $council = $termResult->councilEntry;
+            $conduct = $termResult->conduct ?: $council?->conduct;
+        @endphp
+        @if($council && $council->award !== \App\Models\ClassCouncilEntry::NONE)
+        <div class="decision-bar {{ in_array($council->award, [\App\Models\ClassCouncilEntry::WORK_WARNING, \App\Models\ClassCouncilEntry::CONDUCT_WARNING], true) ? 'decision-fail' : 'decision-pass' }}" style="margin-top:6px;">
+            {{ __('Class council: :decision', ['decision' => $council->awardLabel()]) }}
+        </div>
+        @endif
+
         {{-- Remarks --}}
         <div class="remark-section">
             <div class="remark-box">
@@ -323,7 +334,7 @@
             <div class="remark-box">
                 <div class="remark-title">{{ __('Conduct & Discipline') }}</div>
                 @php($conductLabels = ['excellent' => __('Excellent'), 'very_good' => __('Very good'), 'good' => __('Good'), 'fair' => __('Fair'), 'poor' => __('Poor')])
-                <div class="remark-text">{{ $termResult->conduct ? ($conductLabels[$termResult->conduct] ?? $termResult->conduct) : '_______________________________________________' }}</div>
+                <div class="remark-text">{{ $conduct ? ($conductLabels[$conduct] ?? $conduct) : '_______________________________________________' }}</div>
             </div>
         </div>
 

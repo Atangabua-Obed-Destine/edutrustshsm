@@ -48,29 +48,24 @@ class TeachingAssignmentController extends Controller implements HasMiddleware
             ->sortBy(fn ($s) => [$s->form->display_order, $s->name])
             ->values();
 
-        $subjectsByForm = DB::table('form_subject')
-            ->join('subjects', 'subjects.id', '=', 'form_subject.subject_id')
-            ->whereIn('form_subject.form_id', $sections->pluck('form_id')->unique())
-            ->where('subjects.is_active', true)
-            ->orderBy('subjects.name')
-            ->get(['form_subject.form_id', 'subjects.id', 'subjects.name', 'subjects.code'])
-            ->groupBy('form_id');
+        // A Sixth Form class that is one stream lists only that stream's subjects.
+        $subjectsBySection = $sections->mapWithKeys(fn ($s) => [$s->id => $s->curriculum()]);
 
         $assigned = $session
             ? TeacherSubjectAssignment::where('academic_session_id', $session->id)->get()
                 ->groupBy('class_section_id')->map(fn ($rows) => $rows->pluck('user_id', 'subject_id'))
             : collect();
 
-        $teachers = User::where('is_active', true)->whereIn('role', ['teacher', 'admin', 'super_admin'])
+        $teachers = User::where('is_active', true)->holdingRole('teacher', 'admin', 'super_admin')
             ->orderBy('last_name')->orderBy('first_name')->get(['id', 'first_name', 'last_name', 'role']);
 
         // A class with a subject nobody teaches, at secondary, or with no
         // class teacher at primary: someone has to type those marks.
-        $gaps = $sections->filter(function ($s) use ($subjectsByForm, $assigned) {
+        $gaps = $sections->filter(function ($s) use ($subjectsBySection, $assigned) {
             if ($s->form->school_level === 'nursery_primary') {
                 return ! $s->class_teacher_id;
             }
-            $subjects = $subjectsByForm->get($s->form_id, collect());
+            $subjects = $subjectsBySection->get($s->id, collect());
 
             return $subjects->contains(fn ($subj) => ! ($assigned->get($s->id)?->get($subj->id)));
         })->count();
@@ -78,7 +73,7 @@ class TeachingAssignmentController extends Controller implements HasMiddleware
         return view('admin.teaching-assignments.index', [
             'session' => $session,
             'sections' => $sections,
-            'subjectsByForm' => $subjectsByForm,
+            'subjectsBySection' => $subjectsBySection,
             'assigned' => $assigned,
             'teachers' => $teachers,
             'gaps' => $gaps,
@@ -97,7 +92,7 @@ class TeachingAssignmentController extends Controller implements HasMiddleware
             'subjects.*' => ['nullable', 'exists:users,id'],
         ]);
 
-        $formSubjects = DB::table('form_subject')->where('form_id', $classSection->form_id)->pluck('subject_id')->map(fn ($v) => (int) $v)->flip();
+        $formSubjects = $classSection->curriculum()->pluck('id')->map(fn ($v) => (int) $v)->flip();
 
         DB::transaction(function () use ($classSection, $session, $data, $formSubjects) {
             $classSection->update(['class_teacher_id' => $data['class_teacher_id'] ?? null]);

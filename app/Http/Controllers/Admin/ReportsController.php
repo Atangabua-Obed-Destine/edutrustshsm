@@ -43,7 +43,7 @@ class ReportsController extends Controller implements HasMiddleware
         $totalStudents = $currentSession
             ? StudentEnrollment::where('academic_session_id', $currentSession->id)->whereHas('classSection.form', fn($q) => $q->forCurrentLevel())->where('status', 'active')->count()
             : 0;
-        $totalTeachers = User::where('role', 'teacher')->where('is_active', true)->inBranchContext()->count();
+        $totalTeachers = User::holdingRole('teacher')->where('is_active', true)->inBranchContext()->count();
         $totalClasses = ClassSection::where('is_active', true)->whereHas('form', fn($q) => $q->forCurrentLevel())->count();
 
         // Fee KPIs

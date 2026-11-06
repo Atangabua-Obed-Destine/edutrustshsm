@@ -428,9 +428,19 @@ class ReportCardController extends Controller implements HasMiddleware
             return [];
         }
 
-        $subjects = DB::table('form_subject')->join('subjects', 'subjects.id', '=', 'form_subject.subject_id')
-            ->where('form_subject.form_id', $section->form_id)->where('subjects.is_active', true)
-            ->pluck('subjects.name', 'subjects.id');
+        // The subjects this class's pupils take this term: a Sixth Form
+        // Science class owes no Literature marks, and an elective nobody
+        // chose has no sheet to wait for.
+        $subjects = DB::table('student_subjects as ss')
+            ->join('student_enrollments as se', 'se.id', '=', 'ss.student_enrollment_id')
+            ->join('subjects', 'subjects.id', '=', 'ss.subject_id')
+            ->where('se.class_section_id', $sectionId)->where('se.term_id', $termId)
+            ->where('se.academic_session_id', \App\Models\AcademicSession::current()?->id)
+            ->whereIn('se.status', ['active', 'completed'])->where('subjects.is_active', true)
+            ->distinct()->pluck('subjects.name', 'subjects.id');
+        if ($subjects->isEmpty()) {
+            $subjects = $section->curriculum()->pluck('name', 'id');
+        }
 
         $done = \App\Models\MarksSubmission::forSession()
             ->where('class_section_id', $sectionId)

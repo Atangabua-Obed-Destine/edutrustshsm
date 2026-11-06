@@ -43,8 +43,11 @@ class DashboardController extends Controller implements HasMiddleware
         $stats = [
             'total_students' => 0,
             'active_students' => 0,
-            'total_teachers' => User::where('role', 'teacher')->where('is_active', true)->inBranchContext()->count(),
-            'total_staff' => User::whereIn('role', ['staff', 'admin', 'accountant'])->where('is_active', true)->inBranchContext()->count(),
+            'total_teachers' => User::holdingRole('teacher')->where('is_active', true)->inBranchContext()->count(),
+            // Everyone else on the staff: a teacher who also keeps the bursary
+            // is counted once, as a teacher.
+            'total_staff' => User::holdingRole('staff', 'admin', 'accountant', 'receptionist', 'librarian')
+                ->whereNot(fn ($q) => $q->holdingRole('teacher'))->where('is_active', true)->inBranchContext()->count(),
             'total_classes' => 0,
             'present_today' => 0,
             'absent_today' => 0,
@@ -171,9 +174,18 @@ class DashboardController extends Controller implements HasMiddleware
             $marked = $classes->filter(fn ($s) => $s->form->level !== 'nursery');
             $approved = \App\Models\MarksSubmission::forSession($session->id)->whereIn('class_section_id', $marked->pluck('id'))
                 ->whereIn('status', ['approved', 'published'])->get()->groupBy('class_section_id');
+            // The subjects the class's pupils actually take this term: a Sixth
+            // Form class is one stream, so the other stream's subjects are not
+            // its sheets to hand in.
+            $taken = \Illuminate\Support\Facades\DB::table('student_subjects as ss')
+                ->join('student_enrollments as se', 'se.id', '=', 'ss.student_enrollment_id')
+                ->where('se.academic_session_id', $session->id)->where('se.term_id', $term->id)->where('se.status', 'active')
+                ->whereIn('se.class_section_id', $marked->pluck('id'))
+                ->selectRaw('se.class_section_id, COUNT(DISTINCT ss.subject_id) as n')->groupBy('se.class_section_id')
+                ->pluck('n', 'se.class_section_id');
             foreach ($marked as $s) {
                 $seqs = \Illuminate\Support\Facades\DB::table('form_sequence')->where('form_id', $s->form_id)->where('term_id', $term->id)->pluck('sequence_id');
-                $subjects = \Illuminate\Support\Facades\DB::table('form_subject')->where('form_id', $s->form_id)->count();
+                $subjects = (int) ($taken[$s->id] ?? \Illuminate\Support\Facades\DB::table('form_subject')->where('form_id', $s->form_id)->distinct()->count('subject_id'));
                 $expected += $seqs->count() * $subjects;
                 $done += ($approved->get($s->id) ?? collect())->whereIn('sequence_id', $seqs)->count();
             }

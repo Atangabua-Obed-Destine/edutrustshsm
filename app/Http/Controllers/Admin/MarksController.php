@@ -126,6 +126,7 @@ class MarksController extends Controller implements HasMiddleware
                 $formSubject = DB::table('form_subject')
                     ->where('form_id', $classSection->form_id)
                     ->where('subject_id', $subjectId)
+                    ->when($classSection->stream_id, fn ($q) => $q->orderByRaw('stream_id = ? DESC', [$classSection->stream_id]))
                     ->first();
                 $coefficient = $formSubject->coefficient ?? 1;
 

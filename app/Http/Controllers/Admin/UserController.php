@@ -93,6 +93,7 @@ class UserController extends Controller implements HasMiddleware
         ]);
 
         $user->roles()->sync($validated['roles']);
+        $user->joinWorkingBranch();
 
         return redirect()->route('admin.users.index')->with('success', 'Staff member created successfully.');
     }

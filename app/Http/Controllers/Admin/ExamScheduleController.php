@@ -39,7 +39,7 @@ class ExamScheduleController extends Controller implements HasMiddleware
         $sessions = AcademicSession::orderByDesc('start_date')->get();
         $forms = Form::active()->forCurrentLevel()->ordered()->get();
         $rooms = Room::where('is_active', true)->orderBy('name')->get();
-        $teachers = User::whereIn('role', ['teacher', 'admin', 'super_admin'])
+        $teachers = User::holdingRole('teacher', 'admin', 'super_admin')
             ->where('is_active', true)
             ->orderBy('first_name')
             ->orderBy('last_name')

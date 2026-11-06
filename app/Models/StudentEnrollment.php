@@ -26,6 +26,23 @@ class StudentEnrollment extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // A class that is one stream (Lower Sixth Science) gives its pupils
+        // that stream, whichever way they were put in it: registration, the
+        // spreadsheet import, a term move, promotion. Their subjects and fees
+        // follow from it. A class with no stream leaves the choice per pupil.
+        static::saving(function (StudentEnrollment $enrollment) {
+            if (! $enrollment->class_section_id || ! ($enrollment->isDirty('class_section_id') || $enrollment->isDirty('stream_id'))) {
+                return;
+            }
+            $stream = ClassSection::withoutGlobalScopes()->whereKey($enrollment->class_section_id)->value('stream_id');
+            if ($stream) {
+                $enrollment->stream_id = $stream;
+            }
+        });
+    }
+
     public function student() { return $this->belongsTo(Student::class); }
     public function academicSession() { return $this->belongsTo(AcademicSession::class); }
     public function term() { return $this->belongsTo(Term::class); }

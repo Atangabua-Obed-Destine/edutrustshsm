@@ -241,6 +241,20 @@ class PromotionGateTest extends TestCase
         $this->assertSame(2, $alsoTied->fresh()->final_rank);
     }
 
+    public function test_a_graduate_leaves_school_dated_and_listed_among_former_students(): void
+    {
+        $enrollment = $this->student('Precious', 'MAIN0010', [1 => 13.0, 2 => 14.0]);
+
+        $this->process([['enrollment_id' => $enrollment->id, 'action' => 'graduate', 'target_class_id' => null]])
+            ->assertSessionHasNoErrors();
+
+        $student = $enrollment->student->fresh();
+        $this->assertSame('graduated', $student->status);
+        $this->assertSame($this->session->end_date->toDateString(), $student->withdrawal_date->toDateString());
+        $this->assertSame(0, StudentEnrollment::where('student_id', $student->id)->where('status', 'active')->count());
+        $this->get(route('admin.students.archive', ['year' => $this->session->end_date->year]))->assertSuccessful()->assertSee('Precious');
+    }
+
     public function test_a_repeating_student_stays_in_their_own_class_by_default(): void
     {
         $enrollment = $this->student('Ivy', 'MAIN0009', [1 => 6.0, 2 => 7.0]);

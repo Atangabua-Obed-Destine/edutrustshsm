@@ -128,6 +128,21 @@ class User extends Authenticatable
      * accessible branch). Used for branch-aware staff/teacher counts on reports.
      * Users belong to branches via the branch_user pivot.
      */
+    /**
+     * Put a newly made staff account in the branch it was made in (in a
+     * one-branch school, that branch). Accounts made on the staff screens
+     * belonged to no branch, so the branch's counts and lists left them out.
+     */
+    public function joinWorkingBranch(): void
+    {
+        $branchId = \App\Support\BranchContext::onlyBranch()
+            ?? (\App\Support\BranchContext::isActive() && ! \App\Support\BranchContext::isAllBranches() ? \App\Support\BranchContext::current() : null);
+
+        if ($branchId) {
+            $this->branches()->syncWithoutDetaching([$branchId => ['is_default' => ! $this->branches()->exists()]]);
+        }
+    }
+
     public function scopeInBranchContext($query)
     {
         if (! \App\Support\BranchContext::isActive()) {
@@ -187,6 +202,17 @@ class User extends Authenticatable
         }
 
         return 'staff';
+    }
+
+    /**
+     * People holding any of the given roles, whether it is the one written on
+     * the account or one held alongside it: the teacher who keeps the bursary
+     * has "accountant" written on the account and is still a teacher.
+     */
+    public function scopeHoldingRole($query, string ...$names)
+    {
+        return $query->where(fn ($q) => $q->whereIn('role', $names)
+            ->orWhereHas('roles', fn ($r) => $r->whereIn('name', $names)));
     }
 
     /** Whether this person holds any of the given roles. */

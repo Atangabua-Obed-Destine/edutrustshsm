@@ -26,7 +26,7 @@
         <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-900">{{ __('No current academic year is set.') }}</div>
     @elseif($sections->isEmpty())
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-10 text-center text-sm text-gray-500">{{ __('No active class yet.') }}</div>
-    @elseif($teachers->where('role', 'teacher')->isEmpty())
+    @elseif(! $teachers->contains(fn ($t) => $t->isTeacher()))
         <div class="bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 text-sm text-sky-900">
             {{ __('No teacher accounts exist yet. Add staff with the role Teacher under Human Resources, then come back here.') }}
         </div>
@@ -35,7 +35,7 @@
     <div class="space-y-3">
         @foreach($sections as $section)
             @php
-                $subjects = $subjectsByForm->get($section->form_id, collect());
+                $subjects = $subjectsBySection->get($section->id, collect());
                 $mine = $assigned->get($section->id, collect());
                 $primary = $section->form->school_level === 'nursery_primary';
                 $covered = $primary ? (bool) $section->class_teacher_id : $subjects->every(fn ($s) => $mine->get($s->id));

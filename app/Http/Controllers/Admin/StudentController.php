@@ -108,6 +108,10 @@ class StudentController extends Controller implements HasMiddleware
         $formModel = $request->input('form_id') ? Form::find($request->input('form_id')) : null;
         $isSecondCycle = $formModel && $formModel->level === 'second_cycle';
         $hasStreams = $formModel && $formModel->has_streams;
+        // A class that is one stream (Lower Sixth Science) decides the pupil's stream.
+        if ($sectionStream = \App\Models\ClassSection::whereKey((int) $request->input('class_section_id'))->value('stream_id')) {
+            $request->merge(['stream_id' => $sectionStream]);
+        }
 
         // The section and stream have to belong to the form being admitted into.
         // The screen guarantees that by resetting them whenever the form changes,

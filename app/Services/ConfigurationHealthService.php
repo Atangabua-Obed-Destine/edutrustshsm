@@ -54,6 +54,7 @@ class ConfigurationHealthService
         $this->checkSequences();
         $this->checkCurriculum();
         $this->checkGrading();
+        $this->checkAdmissions();
         $this->checkEnrollments();
         $this->checkFees();
         $this->checkLedger();
@@ -195,6 +196,15 @@ class ConfigurationHealthService
             $this->warn('Grading', __('Grade scale does not cover every mark'), __('The scale does not span 0 to :max, so some scores will fall outside every band and get no grade.', ['max' => $max]), 'admin.settings.index', __('Fix Grade Scale'));
         } else {
             $this->ok('Grading', __('Grade scale configured'), __(':count grade band(s) covering 0 to :max.', ['count' => $scale->count(), 'max' => $max]));
+        }
+    }
+
+    private function checkAdmissions(): void
+    {
+        // Every matricule is drawn from an intake batch, so the registration
+        // form, the spreadsheet import and admissions all need one.
+        if (\App\Models\Batch::where('is_active', true)->doesntExist()) {
+            $this->error('Students', __('No intake batch'), __('No pupil can be registered, imported or admitted until an intake batch exists, such as the class of 2026.'), 'admin.batches.index', __('Add a Batch'));
         }
     }
 

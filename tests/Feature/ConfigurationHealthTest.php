@@ -269,7 +269,15 @@ class ConfigurationHealthTest extends TestCase
             'branch_id' => $this->branch->id, 'grade' => 'A',
             'min_mark' => 0, 'max_mark' => 20, 'description' => 'Pass', 'display_order' => 1,
         ]);
+        \App\Models\Batch::create(['branch_id' => $this->branch->id, 'name' => 'Intake 2025', 'shortcode' => '25', 'is_active' => true]);
+    }
 
+    public function test_a_school_with_no_intake_batch_is_told_it_cannot_register_anyone(): void
+    {
+        $this->configure();
+        \App\Models\Batch::query()->delete();
+
+        $this->assertStringContainsString('No intake batch', $this->titles($this->report()['errors']));
     }
 
     public function test_a_fully_configured_school_reports_healthy(): void
