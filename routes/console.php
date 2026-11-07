@@ -57,9 +57,10 @@ Schedule::command('fees:remind')
 | All three are no-ops unless EDUTRUSTPAY_ENABLED is true.
 */
 
-// Built on the 4th, once the previous month has had time to settle.
-Schedule::command('edutrustpay:report')
-    ->monthlyOn(4, '03:00')
+// Daily, not monthly: it files any month not yet filed and refiles any recent
+// month that has since changed. Unchanged months are skipped.
+Schedule::command('edutrustpay:report --months=3')
+    ->dailyAt('03:00')
     ->withoutOverlapping()
     ->onOneServer();
 

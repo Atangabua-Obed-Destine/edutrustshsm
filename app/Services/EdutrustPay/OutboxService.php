@@ -59,6 +59,50 @@ class OutboxService
     }
 
     /**
+     * The newest report held for a month, in any state.
+     */
+    public function latestFor(int $branchId, string $period): ?EdutrustPayOutbox
+    {
+        return EdutrustPayOutbox::query()
+            ->where('branch_id', $branchId)
+            ->where('kind', 'report')
+            ->where('period', $period)
+            ->orderByDesc('sequence')
+            ->first();
+    }
+
+    /**
+     * File a correction after the console said it already holds other figures.
+     *
+     * Happens when this outbox has lost its history (a restored database, a
+     * reinstall) and the books differ from what was filed. Going to the next
+     * sequence records it openly as a restatement; stopping here would leave the
+     * console holding the old figures with only a log line to say so.
+     */
+    private function refileAfterConflict(EdutrustPayOutbox $item, string $body): ?EdutrustPayOutbox
+    {
+        $current = json_decode($body, true)['current_sequence'] ?? null;
+
+        if ($item->kind !== 'report' || ! is_int($current)) {
+            return null;
+        }
+
+        try {
+            return $this->enqueue(
+                (int) $item->branch_id,
+                app(PeriodReportBuilder::class)->build((int) $item->branch_id, $item->period, $current + 1)
+            );
+        } catch (\Throwable $e) {
+            Log::error('EdutrustPay could not refile a conflicting month.', [
+                'period' => $item->period,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
      * Attempt delivery of everything that is due.
      *
      * @return array{attempted: int, delivered: int, deferred: int, failed: int}
@@ -149,9 +193,8 @@ class OutboxService
          * conflict. Retrying is pointless and would bury the real problem under
          * attempt counts, so it stops and stays visible.
          *
-         * 409 in particular is worth reading rather than retrying: it means this
-         * month was already filed with DIFFERENT figures at the same sequence,
-         * which is a restatement that has to be sent deliberately.
+         * 409 is the one exception: this month was already filed with different
+         * figures at the same sequence, so it is refiled at the next sequence.
          */
         if ($status >= 400 && $status < 500) {
             $item->forceFill([
@@ -166,6 +209,10 @@ class OutboxService
                 'status' => $status,
                 'response' => mb_substr($body, 0, 500),
             ]);
+
+            if ($status === 409 && ($next = $this->refileAfterConflict($item, $body))) {
+                return $this->deliver($next);
+            }
 
             return 'failed';
         }
