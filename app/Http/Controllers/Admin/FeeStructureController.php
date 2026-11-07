@@ -115,8 +115,19 @@ class FeeStructureController extends Controller implements HasMiddleware
             }
         });
 
+        // Pupils already in the class this year are billed what the structure
+        // now adds. Promotion places pupils in the new year before its fees
+        // are set, so without this they began the year owing nothing. Fees
+        // already billed are left as they are: changing one is an adjustment.
+        $billed = 0;
+        foreach (\App\Models\ClassSection::where('form_id', $validated['form_id'])->pluck('id') as $sectionId) {
+            $billed += \App\Models\StudentEnrollment::syncFeesForClass((int) $sectionId, (int) $currentSession->id)['assigned'];
+        }
+
         return redirect()->route('admin.fee-structures.index')
-            ->with('success', __('Fee structure saved successfully.'));
+            ->with('success', $billed > 0
+                ? trans_choice('{1} Fee structure saved. 1 fee billed to pupils already in the class.|[2,*] Fee structure saved. :count fees billed to pupils already in the class.', $billed, ['count' => $billed])
+                : __('Fee structure saved successfully.'));
     }
 
     public function edit(FeeStructure $feeStructure)

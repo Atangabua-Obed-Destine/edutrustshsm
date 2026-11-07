@@ -55,12 +55,15 @@ class ParentPaymentVerificationController extends Controller implements HasMiddl
             'payment.allocations.studentFee.feeCategory',
         ]);
 
-        // Outstanding fees so the reviewer sees what the payment will be allocated to.
+        // Outstanding fees so the reviewer sees what the payment will be
+        // allocated to, last year's arrears included: they are paid first.
         $fees = $submission->enrollment
-            ? $submission->enrollment->fees()->with('feeCategory')->get()
+            ? \App\Models\StudentFee::owedOn($submission->enrollment)->with(['feeCategory', 'enrollment.academicSession'])->get()
             : collect();
 
-        return view('admin.parent-payments.show', compact('submission', 'fees'));
+        $sameReference = $this->sameReference($submission);
+
+        return view('admin.parent-payments.show', compact('submission', 'fees', 'sameReference'));
     }
 
     /** Approve a submission → record the official Payment + allocate it. */
@@ -68,6 +71,13 @@ class ParentPaymentVerificationController extends Controller implements HasMiddl
     {
         if (! $submission->enrollment) {
             return back()->with('error', __('The related enrollment no longer exists.'));
+        }
+
+        // The same bank or mobile-money reference already paid for something:
+        // most often one transfer sent in twice. The reviewer checks the
+        // statement and says so before it can count again.
+        if ($this->sameReference($submission)->isNotEmpty() && ! $request->boolean('reference_checked')) {
+            return back()->with('error', __('This reference has already been used. Check the bank or mobile-money statement, then tick the box to confirm it is a different payment.'));
         }
 
         // One transaction, with the pending check re-read under a row lock. The
@@ -115,6 +125,41 @@ class ParentPaymentVerificationController extends Controller implements HasMiddl
 
         return redirect()->route('admin.parent-payments.show', $submission)
             ->with('success', __('Payment approved and recorded. Receipt: :r', ['r' => $payment->receipt_number]));
+    }
+
+    /**
+     * Receipts and other parent submissions carrying the same transaction
+     * reference. Short references ("1", "ok") say nothing and are ignored.
+     *
+     * @return \Illuminate\Support\Collection<int, string> one line per earlier use
+     */
+    private function sameReference(ParentPaymentSubmission $submission)
+    {
+        $ref = trim((string) $submission->transaction_ref);
+        if (mb_strlen($ref) < 4) {
+            return collect();
+        }
+
+        $payments = \App\Models\Payment::with('enrollment.student')
+            ->where('transaction_ref', $ref)
+            ->where('verification_status', 'verified')
+            ->when($submission->payment_id, fn ($q) => $q->where('id', '!=', $submission->payment_id))
+            ->get()
+            ->map(fn ($p) => __('Receipt :r of :date for :name, :amount', [
+                'r' => $p->receipt_number, 'date' => $p->payment_date?->format('d/m/Y'),
+                'name' => $p->enrollment?->student?->full_name, 'amount' => number_format((float) $p->amount),
+            ]));
+
+        $others = ParentPaymentSubmission::with('enrollment.student')
+            ->where('transaction_ref', $ref)
+            ->where('id', '!=', $submission->id)
+            ->where('status', 'pending')
+            ->get()
+            ->map(fn ($s) => __('Another submission waiting for review, for :name, :amount', [
+                'name' => $s->enrollment?->student?->full_name, 'amount' => number_format((float) $s->amount),
+            ]));
+
+        return $payments->concat($others)->values();
     }
 
     public function reject(Request $request, ParentPaymentSubmission $submission)

@@ -31,6 +31,26 @@ class Student extends Model
         ];
     }
 
+    /**
+     * The next matricule for a batch: school code + batch shortcode + a
+     * four-digit number (e.g. 5SNPS260012). One rule for the registration
+     * form and the bulk import, so a school's numbers all look alike.
+     * Numbers are read, not sorted as text, so a longer imported number
+     * cannot throw the sequence off.
+     */
+    public static function nextMatricule(Batch $batch): string
+    {
+        $prefix = (SchoolSetting::current()?->school_code ?? 'SCH').$batch->shortcode;
+
+        $last = static::withoutGlobalScopes()->where('student_id', 'like', $prefix.'%')->pluck('student_id')
+            ->map(fn ($id) => substr($id, strlen($prefix)))
+            ->filter(fn ($n) => ctype_digit($n))
+            ->map(fn ($n) => (int) $n)
+            ->max() ?? 0;
+
+        return $prefix.str_pad((string) ($last + 1), 4, '0', STR_PAD_LEFT);
+    }
+
     public function getFullNameAttribute(): string
     {
         $parts = array_filter([$this->first_name, $this->other_names, $this->last_name]);

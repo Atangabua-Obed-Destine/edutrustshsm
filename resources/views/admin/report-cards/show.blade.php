@@ -118,7 +118,7 @@
                 <div class="value">{{ $student->last_name }} {{ $student->first_name }} {{ $student->other_names ?? '' }}</div>
             </div>
             <div class="col">
-                <div class="label">{{ __('Student ID') }}</div>
+                <div class="label">{{ __('Matricule') }}</div>
                 <div class="value">{{ $student->student_id }}</div>
             </div>
             <div class="col">
@@ -175,10 +175,14 @@
                 @foreach($subjectResults->values() as $i => $sr)
                 @php
                     $avg = $sr->term_average;
-                    $isFail = $avg !== null && $avg < 10;
+                    $absentSeqs = $sr->resolved_weights['absent'] ?? [];
+                    $absentThroughout = $sr->grade === 'ABS';
+                    $isFail = $avg !== null && $avg < (float) ($school->pass_mark ?? 10);
                     // Get remark from GradeScale description
                     $remark = '-';
-                    if ($avg !== null) {
+                    if ($absentThroughout) {
+                        $remark = __('Absent');
+                    } elseif ($avg !== null) {
                         $gs = \App\Models\GradeScale::getGrade((float) $avg);
                         $remark = $gs ? $gs->description : '-';
                     }
@@ -191,9 +195,13 @@
                         $seqField = 'sequence_' . ($sIdx + 1) . '_score';
                         $seqVal = $sr->$seqField;
                     @endphp
-                    <td class="{{ $seqVal !== null && $seqVal < 10 ? 'fail' : '' }}">
+                    @if($absentThroughout || in_array($seq->id, $absentSeqs))
+                    <td class="fail" title="{{ __('Absent') }}">{{ __('ABS') }}</td>
+                    @else
+                    <td class="{{ $seqVal !== null && $seqVal < (float) ($school->pass_mark ?? 10) ? 'fail' : '' }}">
                         {{ $seqVal !== null ? number_format($seqVal, 1) : '-' }}
                     </td>
+                    @endif
                     @endforeach
                     @if($sequences->isEmpty())
                     <td>{{ $sr->sequence_1_score !== null ? number_format($sr->sequence_1_score, 1) : '-' }}</td>
@@ -203,8 +211,8 @@
                     <td>{{ number_format($sr->coefficient, 1) }}</td>
                     <td>{{ $sr->weighted_score !== null ? number_format($sr->weighted_score, 2) : '-' }}</td>
                     @endif
-                    <td class="avg-highlight {{ $isFail ? 'fail' : 'pass' }}">
-                        {{ $avg !== null ? number_format($avg, 2) : '-' }}
+                    <td class="avg-highlight {{ $isFail || $absentThroughout ? 'fail' : 'pass' }}">
+                        {{ $absentThroughout ? __('ABS') : ($avg !== null ? number_format($avg, 2) : '-') }}
                     </td>
                     <td class="rank-cell">
                         @if($sr->subject_rank)
@@ -303,6 +311,17 @@
             {{ $passed ? __('✓ PASS — Average at or above :mark', ['mark' => $markLabel]) : __('✗ BELOW PASS MARK — Average below :mark', ['mark' => $markLabel]) }}
         </div>
 
+        {{-- The class council's decision, once the council has concluded. --}}
+        @php
+            $council = $termResult->councilEntry;
+            $conduct = $termResult->conduct ?: $council?->conduct;
+        @endphp
+        @if($council && $council->award !== \App\Models\ClassCouncilEntry::NONE)
+        <div class="decision-bar {{ in_array($council->award, [\App\Models\ClassCouncilEntry::WORK_WARNING, \App\Models\ClassCouncilEntry::CONDUCT_WARNING], true) ? 'decision-fail' : 'decision-pass' }}" style="margin-top:6px;">
+            {{ __('Class council: :decision', ['decision' => $council->awardLabel()]) }}
+        </div>
+        @endif
+
         {{-- Remarks --}}
         <div class="remark-section">
             <div class="remark-box">
@@ -314,13 +333,14 @@
             </div>
             <div class="remark-box">
                 <div class="remark-title">{{ __('Conduct & Discipline') }}</div>
-                <div class="remark-text">{{ $termResult->conduct ?? '_______________________________________________' }}</div>
+                @php($conductLabels = ['excellent' => __('Excellent'), 'very_good' => __('Very good'), 'good' => __('Good'), 'fair' => __('Fair'), 'poor' => __('Poor')])
+                <div class="remark-text">{{ $conduct ? ($conductLabels[$conduct] ?? $conduct) : '_______________________________________________' }}</div>
             </div>
         </div>
 
         <div class="remark-section" style="margin-top:8px;">
             <div class="remark-box" style="grid-column: 1 / -1;">
-                <div class="remark-title">{{ __("Principal's Remark") }}</div>
+                <div class="remark-title">{{ $classSection->form->school_level === 'nursery_primary' ? __("Head Teacher's Remark") : __("Principal's Remark") }}</div>
                 <div class="remark-text">{{ $termResult->principal_remark ?? '___________________________________________________________________________________________' }}</div>
             </div>
         </div>
@@ -331,7 +351,7 @@
                 <div class="sig-line">{{ __("Class Teacher's Signature & Date") }}</div>
             </div>
             <div class="sig-block">
-                <div class="sig-line">{{ __("Principal's Signature & Stamp") }}</div>
+                <div class="sig-line">{{ $classSection->form->school_level === 'nursery_primary' ? __("Head Teacher's Signature & Stamp") : __("Principal's Signature & Stamp") }}</div>
             </div>
         </div>
     </div>

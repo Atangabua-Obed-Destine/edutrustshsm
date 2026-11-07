@@ -1,5 +1,6 @@
 @php($expense = $expense ?? null)
-<form method="POST" action="{{ $action }}" enctype="multipart/form-data">
+<form method="POST" action="{{ $action }}" enctype="multipart/form-data"
+      x-data="confirmFigures(@js(['category_id' => __('Category'), 'title' => __('Title'), 'amount' => __('Amount'), 'date' => __('Date'), 'payment_method' => __('Payment Method'), 'payment_account_id' => __('Payment Account')]))" @submit="check($event)">
     @csrf
     @if(($method ?? 'POST') === 'PUT') @method('PUT') @endif
 
@@ -108,6 +109,7 @@
         <a href="{{ route('admin.account.expense.index') }}" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">{{ __('Cancel') }}</a>
         <button type="submit" class="bg-[#1e293b] hover:bg-[#334155] text-white px-6 py-2 rounded-lg text-sm font-medium">{{ __('Save') }}</button>
     </div>
+    @include('admin.account.partials.confirm-figures')
 </form>
 
 @isset($budgets)

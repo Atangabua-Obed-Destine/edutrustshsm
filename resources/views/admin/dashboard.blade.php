@@ -18,6 +18,10 @@
     <x-setup-notice />
     <x-out-of-scope-notice />
 
+    @if($glance)
+        @include('admin.partials.head-glance')
+    @endif
+
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Active Students -->
@@ -140,27 +144,29 @@
     </div>
     @endif
 
-    <!-- Quick Actions -->
-    @if(in_array(auth()->user()->role, ['super_admin', 'admin']))
+    <!-- Quick Actions: the day's work, not setup -->
+    @php
+        $actions = collect([
+            ['student.create', 'admin.students.create', __('Register a pupil'), 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z'],
+            ['fee-collection.collect', 'admin.collect-fees.index', __('Collect fees'), 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m9-5a9 9 0 11-18 0 9 9 0 0118 0z'],
+            ['attendance.mark', 'admin.attendance.index', __('Take a register'), 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'],
+            ['marks-entry.view', 'admin.marks.index', __('Enter marks'), 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'],
+            ['report-card.view', 'admin.report-cards.index', __('Report cards'), 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
+            ['announcement.create', 'admin.announcements.create', __('Send a notice'), 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z'],
+            ['daybook.view', 'admin.daybook.index', __('Cash book'), 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'],
+            ['student.view', 'admin.students.index', __('Find a pupil'), 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'],
+        ])->filter(fn ($a) => auth()->user()->can($a[0]) && \Illuminate\Support\Facades\Route::has($a[1]));
+    @endphp
+    @if($actions->isNotEmpty())
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ __('Quick Actions') }}</h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <a href="{{ route('admin.sessions.index') }}" class="flex flex-col items-center p-4 rounded-lg bg-gray-50 hover:bg-blue-50 transition">
-                <svg class="w-8 h-8 text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                <span class="text-xs font-medium text-gray-700 text-center">{{ __('Manage Sessions') }}</span>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            @foreach($actions as [$perm, $route, $label, $icon])
+            <a href="{{ route($route) }}" class="flex flex-col items-center p-4 rounded-lg bg-gray-50 hover:bg-teal-50 transition">
+                <svg class="w-8 h-8 text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="{{ $icon }}"/></svg>
+                <span class="text-xs font-medium text-gray-700 text-center">{{ $label }}</span>
             </a>
-            <a href="{{ route('admin.students.create') }}" class="flex flex-col items-center p-4 rounded-lg bg-gray-50 hover:bg-blue-50 transition">
-                <svg class="w-8 h-8 text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                <span class="text-xs font-medium text-gray-700 text-center">{{ __('Add Student') }}</span>
-            </a>
-            <a href="{{ route('admin.subjects.index') }}" class="flex flex-col items-center p-4 rounded-lg bg-gray-50 hover:bg-blue-50 transition">
-                <svg class="w-8 h-8 text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                <span class="text-xs font-medium text-gray-700 text-center">{{ __('Manage Subjects') }}</span>
-            </a>
-            <a href="{{ route('admin.class-sections.index') }}" class="flex flex-col items-center p-4 rounded-lg bg-gray-50 hover:bg-blue-50 transition">
-                <svg class="w-8 h-8 text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                <span class="text-xs font-medium text-gray-700 text-center">{{ __('Class Sections') }}</span>
-            </a>
+            @endforeach
         </div>
     </div>
     @endif

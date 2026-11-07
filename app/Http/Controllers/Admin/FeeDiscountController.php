@@ -78,6 +78,23 @@ class FeeDiscountController extends Controller implements HasMiddleware
             return back()->withInput()->withErrors(['value' => 'Percentage discount cannot exceed 100%.']);
         }
 
+        // A discount that would bring a fee below what has already been paid
+        // used to floor the balance at zero and the family's excess vanished.
+        // Refuse it here; the excess has to go back as a credit, which is a
+        // deliberate act, not a side effect.
+        $targets = StudentFee::where('student_enrollment_id', $validated['student_enrollment_id'])
+            ->when($validated['apply_to'] === 'specific_category', fn ($q) => $q->where('fee_category_id', $validated['fee_category_id']))
+            ->get();
+        foreach ($targets as $fee) {
+            $cut = $this->discountOn($fee, $validated);
+            if ((float) $fee->net_amount - $cut < (float) $fee->paid_amount - 0.5) {
+                return back()->withInput()->with('error', __('This discount would bring :fee below the :paid already paid. Record the refund or credit for the difference first, then apply a smaller discount.', [
+                    'fee' => $fee->feeCategory?->name ?? __('a fee'),
+                    'paid' => number_format((float) $fee->paid_amount),
+                ]));
+            }
+        }
+
         DB::transaction(function () use ($validated) {
             $discount = FeeDiscount::create(array_merge($validated, [
                 'approved_by' => auth()->id(),
@@ -90,9 +107,7 @@ class FeeDiscountController extends Controller implements HasMiddleware
             }
 
             foreach ($query->get() as $fee) {
-                $discountAmount = $validated['discount_type'] === 'percentage'
-                    ? round($fee->original_amount * $validated['value'] / 100, 2)
-                    : min($validated['value'], $fee->original_amount);
+                $discountAmount = $this->discountOn($fee, $validated);
 
                 $fee->discount_amount = $fee->discount_amount + $discountAmount;
                 $fee->recalculate()->save();
@@ -106,25 +121,37 @@ class FeeDiscountController extends Controller implements HasMiddleware
     public function destroy(FeeDiscount $feeDiscount)
     {
         DB::transaction(function () use ($feeDiscount) {
-            // Reverse the discount from student fees
-            $query = StudentFee::where('student_enrollment_id', $feeDiscount->student_enrollment_id);
-            if ($feeDiscount->apply_to === 'specific_category') {
-                $query->where('fee_category_id', $feeDiscount->fee_category_id);
-            }
-
-            foreach ($query->get() as $fee) {
-                $discountAmount = $feeDiscount->discount_type === 'percentage'
-                    ? round($fee->original_amount * $feeDiscount->value / 100, 2)
-                    : min($feeDiscount->value, $fee->original_amount);
-
-                $fee->discount_amount = max(0, $fee->discount_amount - $discountAmount);
-                $fee->recalculate()->save();
-            }
+            $fees = StudentFee::where('student_enrollment_id', $feeDiscount->student_enrollment_id)
+                ->when($feeDiscount->apply_to === 'specific_category', fn ($q) => $q->where('fee_category_id', $feeDiscount->fee_category_id))
+                ->get();
 
             $feeDiscount->delete();
+
+            // Rebuilt from the discounts that remain rather than subtracting
+            // this one: the subtraction rounded to the centime while applying
+            // rounded to the franc, and left fees a few francs out.
+            $remaining = FeeDiscount::where('student_enrollment_id', $feeDiscount->student_enrollment_id)->get();
+            foreach ($fees as $fee) {
+                $fee->discount_amount = $remaining
+                    ->filter(fn ($d) => $d->apply_to !== 'specific_category' || (int) $d->fee_category_id === (int) $fee->fee_category_id)
+                    ->sum(fn ($d) => $this->discountOn($fee, $d->only(['discount_type', 'value'])));
+                $fee->recalculate()->save();
+            }
         });
 
         return redirect()->route('admin.fee-discounts.index')
             ->with('success', 'Discount removed and fees recalculated.');
+    }
+
+    /**
+     * The discount on one fee, in whole francs: FCFA has no sub-unit, and a
+     * 0.50 balance left a fee "partial" forever, on the defaulters list and
+     * open to fines.
+     */
+    private function discountOn(StudentFee $fee, array $validated): float
+    {
+        return $validated['discount_type'] === 'percentage'
+            ? round((float) $fee->original_amount * (float) $validated['value'] / 100, 0)
+            : min(round((float) $validated['value'], 0), (float) $fee->original_amount);
     }
 }

@@ -49,6 +49,7 @@ class ClassCouncilService
         return DB::transaction(function () use ($section, $term) {
             $council = ClassCouncil::where('class_section_id', $section->id)
                 ->where('term_id', $term->id)
+                ->where('academic_session_id', AcademicSession::current()?->id)
                 ->first();
 
             if (! $council) {
@@ -205,7 +206,8 @@ class ClassCouncilService
         return TermResult::query()
             ->where('term_results.term_id', $council->term_id)
             ->where('term_results.is_published', true)
-            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $council->class_section_id))
+            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $council->class_section_id)
+                ->when($council->academic_session_id, fn ($q) => $q->where('academic_session_id', $council->academic_session_id)))
             ->with('enrollment.student')
             ->get();
     }

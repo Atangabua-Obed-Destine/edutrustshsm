@@ -66,7 +66,7 @@
                             $isPending = in_array($fee->id, $block['pendingFeeIds']);
                         @endphp
                         <tr style="border-bottom:1px solid #f8fafc;">
-                            <td style="padding:13px 20px; font-weight:600; color:#1e293b;">{{ $fee->feeCategory->name ?? '—' }}</td>
+                            <td style="padding:13px 20px; font-weight:600; color:#1e293b;">{{ $fee->feeCategory->name ?? '—' }}@if($fee->enrollment && $fee->enrollment->status !== 'active')<span style="display:block; font-size:0.72rem; color:#dc2626; font-weight:600;">{{ __('Arrears :year', ['year' => $fee->enrollment->academicSession?->name]) }}</span>@endif</td>
                             <td style="padding:13px 12px; text-align:right; color:#475569;">{{ number_format($fee->net_amount,0) }}</td>
                             <td style="padding:13px 12px; text-align:right; color:#16a34a;">{{ number_format($fee->paid_amount,0) }}</td>
                             <td style="padding:13px 12px; text-align:right; font-weight:600; color:{{ $fee->balance > 0 ? '#dc2626' : '#16a34a' }};">{{ number_format($fee->balance,0) }}</td>

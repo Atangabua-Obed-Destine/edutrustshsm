@@ -28,6 +28,20 @@
                     </div>
                 </div>
 
+                @if($streams->isNotEmpty())
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Stream') }}</label>
+                    <select name="stream_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        <option value="">{{ __('Any stream: chosen for each pupil') }}</option>
+                        @foreach($streams as $stream)
+                            <option value="{{ $stream->id }}" {{ (string) old('stream_id', $classSection->stream_id) === (string) $stream->id ? 'selected' : '' }}>{{ $stream->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">{{ __('For a Sixth Form class that is one stream, such as Lower Sixth Science. Every pupil put in the class takes that stream, and with it its subjects and fees.') }}</p>
+                    @error('stream_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                </div>
+                @endif
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Display Name') }}</label>
                     <input type="text" name="name" value="{{ old('name', $classSection->name) }}"

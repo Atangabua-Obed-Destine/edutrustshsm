@@ -22,6 +22,9 @@ class BranchStampingTest extends TestCase
     public function test_a_user_with_no_branches_does_not_stamp_branch_zero(): void
     {
         Branch::firstOrCreate(['code' => 'MAIN'], ['name' => 'Main', 'is_active' => true]);
+        // With several branches there is a choice to make, so an unlinked
+        // account gets none. (With one branch it works there: see below.)
+        Branch::firstOrCreate(['code' => 'SECOND'], ['name' => 'Second', 'is_active' => true]);
 
         // Deliberately NOT attached to any branch.
         $orphan = User::create([
@@ -38,6 +41,22 @@ class BranchStampingTest extends TestCase
         $category = FeeCategory::create(['name' => 'Tuition', 'code' => 'TUI', 'is_active' => true]);
 
         $this->assertNull($category->branch_id, 'branch_id must be left null, never 0');
+    }
+
+    public function test_in_a_one_branch_school_an_unlinked_user_works_in_that_branch(): void
+    {
+        $branch = Branch::firstOrCreate(['code' => 'MAIN'], ['name' => 'Main', 'is_active' => true]);
+
+        $teacher = User::create([
+            'first_name' => 'Hr', 'last_name' => 'Created',
+            'email' => 'hr@example.test', 'password' => 'password',
+            'role' => 'teacher', 'is_active' => true,
+        ]);
+
+        $this->actingAs($teacher);
+        BranchContext::flush();
+
+        $this->assertSame($branch->id, BranchContext::current());
     }
 
     public function test_a_user_with_a_branch_still_gets_stamped(): void

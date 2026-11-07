@@ -29,6 +29,7 @@ class StudentController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
+            static::can('student.view', ['history', 'historyPdf']),
             static::can('student.view', ['getFormStreams', 'getFormSections']),
         ];
     }
@@ -39,12 +40,17 @@ class StudentController extends Controller implements HasMiddleware
         $query = Student::with(['guardian', 'currentEnrollment.classSection.form']);
 
         // Search
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('student_id', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
-            });
+        if ($search = trim((string) $request->input('search'))) {
+            // Every word must match somewhere, so "Marie Ngono" and
+            // "Ngono Marie" both find her, as does part of a matricule.
+            foreach (preg_split('/\s+/', $search) as $word) {
+                $query->where(function ($q) use ($word) {
+                    $q->where('student_id', 'like', "%{$word}%")
+                      ->orWhere('first_name', 'like', "%{$word}%")
+                      ->orWhere('last_name', 'like', "%{$word}%")
+                      ->orWhere('other_names', 'like', "%{$word}%");
+                });
+            }
         }
 
         // Filter by status
@@ -102,6 +108,10 @@ class StudentController extends Controller implements HasMiddleware
         $formModel = $request->input('form_id') ? Form::find($request->input('form_id')) : null;
         $isSecondCycle = $formModel && $formModel->level === 'second_cycle';
         $hasStreams = $formModel && $formModel->has_streams;
+        // A class that is one stream (Lower Sixth Science) decides the pupil's stream.
+        if ($sectionStream = \App\Models\ClassSection::whereKey((int) $request->input('class_section_id'))->value('stream_id')) {
+            $request->merge(['stream_id' => $sectionStream]);
+        }
 
         // The section and stream have to belong to the form being admitted into.
         // The screen guarantees that by resetting them whenever the form changes,
@@ -198,21 +208,7 @@ class StudentController extends Controller implements HasMiddleware
             ]);
 
             // 2. Generate student ID: SchoolCode + BatchShortcode + Sequential(0001)
-            $settings = SchoolSetting::current();
-            $schoolCode = $settings->school_code ?? 'SCH';
-            $batch = Batch::findOrFail($validated['batch_id']);
-            $prefix = $schoolCode . $batch->shortcode;
-
-            $lastStudent = Student::where('student_id', 'like', $prefix . '%')
-                ->orderByDesc('student_id')
-                ->first();
-
-            $nextNumber = 1;
-            if ($lastStudent) {
-                $numericPart = substr($lastStudent->student_id, strlen($prefix));
-                $nextNumber = ((int) $numericPart) + 1;
-            }
-            $studentId = $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $studentId = Student::nextMatricule(Batch::findOrFail($validated['batch_id']));
 
             // 3. Handle file uploads
             $photoPath = $request->hasFile('photo_file')

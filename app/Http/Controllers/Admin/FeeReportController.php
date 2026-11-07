@@ -27,8 +27,8 @@ class FeeReportController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
-            static::can('fee-report.view', ['index', 'partial']),
-            static::can('fee-report.export', ['partialCsv']),
+            static::can('fee-report.view', ['index', 'partial', 'defaulters']),
+            static::can('fee-report.export', ['partialCsv', 'defaultersCsv']),
         ];
     }
 
@@ -38,11 +38,17 @@ class FeeReportController extends Controller implements HasMiddleware
         $sessionId = $request->input('session_id', $currentSession?->id);
         $sessions = AcademicSession::orderByDesc('start_date')->get();
 
+        // Every figure on this page covers the same pupils: this year's, at
+        // the levels the school runs. Without the level, a primary school's
+        // report showed the secondary classes it had closed.
+        $inScope = fn ($q) => $q->where('academic_session_id', $sessionId)
+            ->whereHas('classSection.form', fn ($f) => $f->forCurrentLevel());
+
         // Overall stats
-        $totalExpected = StudentFee::whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $sessionId))->sum('net_amount');
-        $totalCollected = StudentFee::whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $sessionId))->sum('paid_amount');
-        $totalOutstanding = StudentFee::whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $sessionId))->sum('balance');
-        $totalDiscounts = StudentFee::whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $sessionId))->sum('discount_amount');
+        $totalExpected = StudentFee::whereHas('enrollment', $inScope)->sum('net_amount');
+        $totalCollected = StudentFee::whereHas('enrollment', $inScope)->sum('paid_amount');
+        $totalOutstanding = StudentFee::whereHas('enrollment', $inScope)->sum('balance');
+        $totalDiscounts = StudentFee::whereHas('enrollment', $inScope)->sum('discount_amount');
 
         $collectionRate = $totalExpected > 0 ? round(($totalCollected / $totalExpected) * 100, 1) : 0;
 
@@ -54,7 +60,7 @@ class FeeReportController extends Controller implements HasMiddleware
                 DB::raw('SUM(balance) as outstanding'),
                 DB::raw('COUNT(*) as student_count')
             )
-            ->whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $sessionId))
+            ->whereHas('enrollment', $inScope)
             ->groupBy('fee_category_id')
             ->with('feeCategory')
             ->get();
@@ -67,7 +73,7 @@ class FeeReportController extends Controller implements HasMiddleware
                 DB::raw('SUM(paid_amount) as collected'),
                 DB::raw('SUM(balance) as outstanding')
             )
-            ->whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $sessionId))
+            ->whereHas('enrollment', $inScope)
             ->groupBy('student_enrollment_id')
             ->get();
 
@@ -95,8 +101,12 @@ class FeeReportController extends Controller implements HasMiddleware
 
         // Money actually received: a reversed receipt stays on file but is not
         // money, and counting it would overstate collections.
-        $received = fn () => Payment::whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $sessionId))
-            ->where('verification_status', 'verified');
+        // A receipt paid from a pupil's credit brought no new money: the cash
+        // arrived when the credit was made. Counting it twice overstated
+        // collections by every overpayment later used.
+        $received = fn () => Payment::whereHas('enrollment', $inScope)
+            ->where('verification_status', 'verified')
+            ->whereNotIn('payment_method', Payment::NON_CASH_METHODS);
 
         $byMethod = $received()
             ->select('payment_method', DB::raw('SUM(amount) as total'), DB::raw('COUNT(*) as count'))
@@ -118,7 +128,7 @@ class FeeReportController extends Controller implements HasMiddleware
 
         // Defaulters (students with outstanding balance)
         $defaulters = StudentFee::with(['enrollment.student', 'enrollment.classSection.form'])
-            ->whereHas('enrollment', fn ($q) => $q->where('academic_session_id', $sessionId)->where('status', 'active'))
+            ->whereHas('enrollment', fn ($q) => $inScope($q)->where('status', 'active'))
             ->where('balance', '>', 0)
             ->get()
             ->groupBy('student_enrollment_id')
@@ -174,6 +184,97 @@ class FeeReportController extends Controller implements HasMiddleware
             'sections' => ClassSection::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'categories' => FeeCategory::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
+    }
+
+    /**
+     * Who still owes, class by class, with a number to call: the list a
+     * bursar prints before a PTA meeting or a fee drive. Every pupil, not
+     * the top fifty; one row per pupil, not per fee.
+     */
+    public function defaulters(Request $request)
+    {
+        [$rows, $sections, $sectionId] = $this->defaulterRows($request);
+
+        return view('admin.fees.reports.defaulters', [
+            'rows' => $rows,
+            'sections' => $sections,
+            'sectionId' => $sectionId,
+            'school' => \App\Models\SchoolSetting::current(),
+            'session' => AcademicSession::current(),
+        ]);
+    }
+
+    public function defaultersCsv(Request $request): StreamedResponse
+    {
+        [$rows] = $this->defaulterRows($request);
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, [__('Class'), __('Matricule'), __('Name'), __('Parent / Guardian'), __('Phone'), __('Total Fees'), __('Paid'), __('Arrears from earlier years'), __('Balance')]);
+            foreach ($rows as $r) {
+                fputcsv($out, [$r['class'], $r['matricule'], $r['name'], $r['parent'], $r['phone'], $r['fees'], $r['paid'], $r['arrears'], $r['balance']]);
+            }
+            fclose($out);
+        }, 'defaulters-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection, 2: ?int} */
+    private function defaulterRows(Request $request): array
+    {
+        $session = AcademicSession::current();
+        $sectionId = $request->integer('class_section_id') ?: null;
+
+        $sections = \App\Models\ClassSection::with('form')->where('is_active', true)
+            ->whereHas('form', fn ($f) => $f->forCurrentLevel())->get()
+            ->sortBy(fn ($s) => [$s->form->display_order, $s->name])->values();
+
+        // Every pupil in class this year, then what each owes: this year's
+        // fees and whatever is left unpaid from earlier years. A pupil who
+        // cleared this year but still owes last year's fees is a defaulter.
+        $enrollments = \App\Models\StudentEnrollment::with(['student.guardian', 'classSection.form'])
+            ->where('academic_session_id', $session?->id)->where('status', 'active')
+            ->whereHas('classSection.form', fn ($f) => $f->forCurrentLevel())
+            ->when($sectionId, fn ($q) => $q->where('class_section_id', $sectionId))
+            ->get();
+
+        $thisYear = StudentFee::whereIn('student_enrollment_id', $enrollments->pluck('id'))
+            ->get(['student_enrollment_id', 'net_amount', 'paid_amount', 'balance'])
+            ->groupBy('student_enrollment_id');
+        $arrears = StudentFee::query()
+            ->join('student_enrollments as se', 'se.id', '=', 'student_fees.student_enrollment_id')
+            ->whereIn('se.student_id', $enrollments->pluck('student_id'))
+            ->where('se.academic_session_id', '!=', $session?->id)
+            ->where('student_fees.balance', '>', 0)
+            ->groupBy('se.student_id')
+            ->selectRaw('se.student_id, SUM(student_fees.balance) as owed')
+            ->pluck('owed', 'se.student_id');
+
+        $rows = $enrollments
+            ->filter(fn ($e) => (float) ($thisYear[$e->id] ?? collect())->sum('balance') + (float) ($arrears[$e->student_id] ?? 0) > 0)
+            ->map(function ($e) use ($thisYear, $arrears) {
+                $s = $e->student;
+                $g = $s?->guardian;
+                $all = $thisYear[$e->id] ?? collect();
+                $old = (float) ($arrears[$e->student_id] ?? 0);
+
+                return [
+                    'order' => [$e->classSection?->form?->display_order ?? 0, $e->classSection?->name, $s?->last_name, $s?->first_name],
+                    'class' => $e->classSection?->name,
+                    'matricule' => $s?->student_id,
+                    'name' => trim(($s?->last_name ?? '').' '.($s?->first_name ?? '')),
+                    'parent' => $g?->guardian_name ?: $g?->mother_name ?: $g?->father_name ?: $g?->emergency_contact_name,
+                    'phone' => $g?->guardian_phone ?: $g?->mother_phone ?: $g?->father_phone ?: $g?->emergency_contact_phone,
+                    'fees' => (float) $all->sum('net_amount'),
+                    'paid' => (float) $all->sum('paid_amount'),
+                    'arrears' => $old,
+                    'balance' => (float) $all->sum('balance') + $old,
+                ];
+            })
+            ->sortBy('order')
+            ->values();
+
+        return [$rows, $sections, $sectionId];
     }
 
     public function partialCsv(Request $request): StreamedResponse

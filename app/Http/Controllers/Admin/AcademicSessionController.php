@@ -73,6 +73,12 @@ class AcademicSessionController extends Controller implements HasMiddleware
             return back()->with('error', 'Cannot delete the current active session.');
         }
 
+        // Its enrolments, results and fees would go with it, at database
+        // level and with no trace: a year with pupils in it stays.
+        if ($session->enrollments()->exists()) {
+            return back()->with('error', __('Pupils are enrolled in this year, so it cannot be deleted.'));
+        }
+
         $session->delete();
 
         return redirect()->route('admin.sessions.index')
@@ -81,8 +87,15 @@ class AcademicSessionController extends Controller implements HasMiddleware
 
     public function activate(AcademicSession $session)
     {
-        // Deactivate all other sessions
-        AcademicSession::where('is_current', true)->update(['is_current' => false, 'status' => 'completed']);
+        // A year recorded from before the system is history: making it
+        // current would open registers, billing and marks entry on it.
+        if ($session->is_recorded) {
+            return back()->with('error', __('This year was recorded from before the system and cannot become the current year.'));
+        }
+
+        // Deactivate all other sessions. "past" is the column's own word;
+        // "completed" is not in it and strict MySQL refused the rollover.
+        AcademicSession::where('is_current', true)->update(['is_current' => false, 'status' => 'past']);
 
         $session->update(['is_current' => true, 'status' => 'active']);
 

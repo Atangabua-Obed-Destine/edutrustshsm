@@ -65,7 +65,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">{{ __('Payment Method') }}</p>
-                    <p class="font-medium capitalize">{{ str_replace('_', ' ', $payment->payment_method) }}</p>
+                    <p class="font-medium">{{ $payment->method_label }}</p>
                 </div>
                 @if($payment->transaction_ref)
                 <div>

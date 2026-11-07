@@ -243,6 +243,7 @@ class SchoolSituationReportService
     private function councils(Term $term): array
     {
         $councils = ClassCouncil::where('term_id', $term->id)
+            ->where('academic_session_id', \App\Models\AcademicSession::current()?->id)
             ->whereHas('classSection.form', fn ($q) => $q->forCurrentLevel())
             ->get();
 

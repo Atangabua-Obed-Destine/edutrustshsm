@@ -261,6 +261,9 @@
                         </td>
                         <td style="padding: 12px 14px;">
                             <span style="font-weight: 500; color: #475569; font-size: 0.83rem;">{{ $fee->feeCategory->name ?? '—' }}</span>
+                            @if(isset($twinKeys[$fee->enrollment?->student_id.'|'.$fee->enrollment?->academic_session_id.'|'.$fee->fee_category_id]))
+                            <span style="display: block; font-size: 0.68rem; color: #b45309; font-weight: 600;">{{ __('Billed twice this year?') }}</span>
+                            @endif
                         </td>
                         <td style="padding: 12px 14px; text-align: right; font-family: monospace; font-weight: 500; color: #1e293b;">
                             {{ number_format($fee->original_amount) }}
@@ -300,18 +303,11 @@
                                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </a>
                                 @endif
-                                @if((float)$fee->paid_amount == 0)
-                                <form method="POST" action="{{ route('admin.assignment-history.destroy', $fee) }}" style="display: inline;"
-                                      onsubmit="return confirm('{{ __('Are you sure you want to delete this fee assignment?') }}')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" title="{{ __('Delete Assignment') }}"
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: #fef2f2; color: #dc2626; border-radius: 8px; border: 1px solid #fecaca; cursor: pointer; transition: all .15s;"
-                                            onmouseover="this.style.backgroundColor='#fee2e2'" onmouseout="this.style.backgroundColor='#fef2f2'">
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                    </button>
-                                </form>
-                                @endif
+                                <a href="{{ route('admin.assignment-history.show', $fee) }}"
+                                   title="{{ __('Adjust this fee') }}"
+                                   style="display: inline-flex; align-items: center; justify-content: center; height: 30px; padding: 0 10px; background: #eff6ff; color: #1d4ed8; border-radius: 8px; text-decoration: none; border: 1px solid #bfdbfe; font-size: 0.75rem; font-weight: 600;">
+                                    {{ __('Adjust') }}
+                                </a>
                             </div>
                         </td>
                     </tr>

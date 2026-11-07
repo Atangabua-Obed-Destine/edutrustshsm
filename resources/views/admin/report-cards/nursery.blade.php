@@ -106,12 +106,12 @@
         <table class="info">
             <tr>
                 <td><div class="label">{{ __('Full Name') }}</div><div class="value">{{ $student->last_name }} {{ $student->first_name }} {{ $student->other_names ?? '' }}</div></td>
-                <td><div class="label">{{ __('Student ID') }}</div><div class="value">{{ $student->student_id }}</div></td>
+                <td><div class="label">{{ __('Matricule') }}</div><div class="value">{{ $student->student_id }}</div></td>
                 <td><div class="label">{{ __('Class') }}</div><div class="value">{{ $classSection->name }}</div></td>
                 <td><div class="label">{{ __('Academic Year') }}</div><div class="value">{{ $termResult->enrollment->academicSession->name ?? $currentSession->name ?? '' }}</div></td>
                 <td><div class="label">{{ __('Term') }}</div><div class="value">{{ $term->name }}</div></td>
                 @if($student->date_of_birth)
-                <td><div class="label">{{ __('Age') }}</div><div class="value">{{ \Carbon\Carbon::parse($student->date_of_birth)->diffInYears(\Carbon\Carbon::parse($term->end_date)) }} {{ __('yrs') }}</div></td>
+                <td><div class="label">{{ __('Age') }}</div><div class="value">{{ (int) floor(\Carbon\Carbon::parse($student->date_of_birth)->diffInYears(\Carbon\Carbon::parse($term->end_date))) }} {{ __('yrs') }}</div></td>
                 @endif
             </tr>
         </table>

@@ -67,14 +67,20 @@ class JournalEntry extends Model
     }
 
     /** Unified entry number: JE-YYYY-NNNN everywhere (guide gotcha #7). */
-    public static function generateEntryNumber(): string
+    public static function generateEntryNumber(?string $date = null): string
     {
-        $prefix = 'JE-' . now()->year . '-';
-        $last = static::withTrashed()->where('entry_number', 'like', $prefix . '%')
-            ->orderByDesc('entry_number')->first();
-        $next = $last ? ((int) substr($last->entry_number, strlen($prefix))) + 1 : 1;
+        $prefix = 'JE-' . ($date ? \Carbon\Carbon::parse($date)->year : now()->year) . '-';
 
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        // The highest number by value, not by string: "JE-2026-9999" sorts
+        // above "JE-2026-10000" as text, so entry 10,001 repeated 10,000,
+        // hit the unique index, and every receipt after it failed to save.
+        // Unique across the whole table, so counted across every branch.
+        $max = static::withoutGlobalScopes()->where('entry_number', 'like', $prefix . '%')
+            ->pluck('entry_number')
+            ->map(fn ($n) => (int) substr($n, strlen($prefix)))
+            ->max() ?? 0;
+
+        return $prefix . str_pad((string) ($max + 1), 4, '0', STR_PAD_LEFT);
     }
 
     public function isBalanced(): bool

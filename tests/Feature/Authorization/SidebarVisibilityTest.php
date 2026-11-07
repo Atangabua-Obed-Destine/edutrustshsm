@@ -76,7 +76,10 @@ class SidebarVisibilityTest extends TestCase
 
         // The sidebar makes ~8 canAny() calls over ~40 permission names, and
         // BranchScope resolves the branch on every scoped query. Both are
-        // memoized per request, so a full render stays in single figures.
-        $this->assertLessThan(15, $count, "sidebar render issued {$count} queries");
+        // memoized per request. The page itself now loads its real data (an
+        // unlinked user used to see an empty school), so the budget covers the
+        // page as well as the menu; a query per permission check would still
+        // add forty or more and fail this.
+        $this->assertLessThan(30, $count, "sidebar render issued {$count} queries");
     }
 }

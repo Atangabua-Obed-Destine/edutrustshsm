@@ -21,7 +21,7 @@
             @php
                 $avg = (float) $r->term_average;
                 $avgColor = $avg >= 10 ? '#16a34a' : '#dc2626';
-                $nursery = \App\Services\NurseryAssessmentService::isNursery($r->enrollment->classSection?->form);
+                $nursery = \App\Services\NurseryAssessmentService::isNursery($r->enrollment->classSection?->form) && ! $r->isRecorded();
             @endphp
             <a href="{{ route('parent.report-cards.show', [$studentModel->id, $r->id]) }}" class="pp-card" style="display:block; padding:20px; transition:transform 0.15s, box-shadow 0.15s;"
                onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.1)'"
@@ -29,7 +29,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
                     <div>
                         <div style="font-size:0.95rem; font-weight:700; color:#0f172a;">{{ $r->term->name ?? '—' }}</div>
-                        <div style="font-size:0.76rem; color:#64748b; margin-top:2px;">{{ $r->enrollment->academicSession->name ?? '' }}</div>
+                        <div style="font-size:0.76rem; color:#64748b; margin-top:2px;">{{ $r->enrollment->academicSession->name ?? '' }}@if($r->isRecorded()) <span style="font-size:0.66rem; padding:1px 6px; border-radius:9999px; background:#e0e7ff; color:#4338ca; font-weight:600;">{{ __('Recorded') }}</span>@endif</div>
                         <div style="font-size:0.74rem; color:#94a3b8; margin-top:2px;">{{ $r->enrollment->classSection->name ?? $r->enrollment->classSection->form->name ?? '' }}</div>
                     </div>
                     @unless($nursery)

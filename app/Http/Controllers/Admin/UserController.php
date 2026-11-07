@@ -93,6 +93,7 @@ class UserController extends Controller implements HasMiddleware
         ]);
 
         $user->roles()->sync($validated['roles']);
+        $user->joinWorkingBranch();
 
         return redirect()->route('admin.users.index')->with('success', 'Staff member created successfully.');
     }
@@ -155,13 +156,7 @@ class UserController extends Controller implements HasMiddleware
      */
     private function derivePrimaryRole($selectedRoles): string
     {
-        $names = $selectedRoles->pluck('name')->toArray();
-
-        if (in_array('super_admin', $names)) return 'super_admin';
-        if (in_array('admin', $names)) return 'admin';
-        if (in_array('accountant', $names)) return 'accountant';
-        if (in_array('teacher', $names)) return 'teacher';
-        return 'staff';
+        return User::primaryRoleFor($selectedRoles->pluck('name')->all());
     }
 
     public function toggleActive(User $user)

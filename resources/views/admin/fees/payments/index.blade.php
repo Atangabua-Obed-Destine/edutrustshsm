@@ -53,7 +53,7 @@
                         </td>
                         <td class="px-4 py-3 text-gray-600">{{ $payment->enrollment->classSection?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-right font-mono font-semibold {{ $payment->isReversed() ? 'text-gray-400 line-through' : 'text-green-700' }}">{{ number_format($payment->amount) }}</td>
-                        <td class="px-4 py-3 text-gray-600 capitalize text-xs">{{ str_replace('_', ' ', $payment->payment_method) }}</td>
+                        <td class="px-4 py-3 text-gray-600 text-xs">{{ $payment->method_label }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $payment->payment_date->format('d M Y') }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $payment->receivedBy?->full_name ?? '—' }}</td>
                         <td class="px-4 py-3 text-center">

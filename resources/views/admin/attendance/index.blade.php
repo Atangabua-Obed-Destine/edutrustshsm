@@ -61,7 +61,14 @@
             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">{{ $selectedClass->name ?? 'Class' }}</h2>
-                    <p class="text-sm text-gray-500">{{ \Carbon\Carbon::parse($date)->format('l, F j, Y') }} &middot; {{ $enrollments->count() }} {{ __('students') }}</p>
+                    <p class="text-sm text-gray-500">{{ \Carbon\Carbon::parse($date)->translatedFormat('l j F Y') }} &middot; {{ trans_choice('{0} no pupils|{1} :count pupil|[2,*] :count pupils', $enrollments->count(), ['count' => $enrollments->count()]) }}</p>
+                    {{-- A saved register and an untaken one used to look the same: both show everyone present. --}}
+                    @if($existingAttendance->isNotEmpty())
+                        @php $last = $existingAttendance->sortByDesc('updated_at')->first(); @endphp
+                        <p class="text-xs font-medium text-emerald-700 mt-1">{{ __('Register saved :time by :name', ['time' => $last->updated_at?->format('H:i'), 'name' => $last->recordedBy?->first_name ?? '—']) }}</p>
+                    @else
+                        <p class="text-xs font-medium text-amber-700 mt-1">{{ __('Not taken yet for this day. Everyone starts as present: tap only the exceptions, then save.') }}</p>
+                    @endif
                 </div>
                 <div class="flex items-center gap-2">
                     <button type="button" onclick="markAll('present')" class="px-3 py-1.5 text-xs font-medium rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition">{{ __('All Present') }}</button>
@@ -70,8 +77,8 @@
             </div>
 
             {{-- Quick Stats Bar --}}
-            <div class="px-6 py-3 border-b border-gray-100 bg-white" id="statsBar">
-                <div class="flex items-center gap-6 text-sm">
+            <div class="px-3 sm:px-6 py-3 border-b border-gray-100 bg-white" id="statsBar">
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
                     <span class="flex items-center gap-1.5">
                         <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
                         {{ __('Present:') }} <strong id="countPresent">0</strong>
@@ -95,20 +102,20 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-10">#</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Student') }}</th>
-                            <th class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Status') }}</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Reason / Note') }}</th>
+                            <th class="hidden sm:table-cell px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-10">#</th>
+                            <th class="px-3 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Pupil') }}</th>
+                            <th class="px-2 sm:px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Status') }}</th>
+                            <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Reason / Note') }}</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         @foreach($enrollments->values() as $i => $enrollment)
                         @php $existing = $existingAttendance->get($enrollment->id); @endphp
                         <tr class="hover:bg-gray-50 transition attendance-row" data-enrollment="{{ $enrollment->id }}">
-                            <td class="px-6 py-3 text-sm text-gray-500">{{ $i + 1 }}</td>
-                            <td class="px-6 py-3">
+                            <td class="hidden sm:table-cell px-6 py-3 text-sm text-gray-500">{{ $i + 1 }}</td>
+                            <td class="px-3 sm:px-6 py-3">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                                    <div class="hidden sm:flex w-8 h-8 rounded-full bg-slate-800 text-white items-center justify-center text-xs font-bold shrink-0">
                                         {{ strtoupper(substr($enrollment->student->first_name, 0, 1) . substr($enrollment->student->last_name, 0, 1)) }}
                                     </div>
                                     <div>
@@ -117,14 +124,14 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-3">
+                            <td class="px-2 sm:px-6 py-3">
                                 <div class="flex items-center justify-center gap-1">
                                     @foreach(['present' => 'P', 'absent' => 'A', 'late' => 'L', 'excused' => 'E'] as $status => $label)
                                     <label class="status-label cursor-pointer">
                                         <input type="radio"
                                                name="attendance[{{ $enrollment->id }}][status]"
                                                value="{{ $status }}"
-                                               class="hidden status-radio"
+                                               class="sr-only peer status-radio"
                                                data-status="{{ $status }}"
                                                {{ ($existing?->status ?? 'present') === $status ? 'checked' : '' }}
                                                onchange="updateStats()">
@@ -134,15 +141,15 @@
                                             @elseif($status === 'late') border-yellow-300 text-yellow-700
                                             @else border-blue-300 text-blue-700
                                             @endif
-                                            status-btn status-{{ $status }}"
-                                            data-status="{{ $status }}">
+                                            status-btn status-{{ $status }} peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-gray-500"
+                                            data-status="{{ $status }}" title="{{ ['present' => __('Present'), 'absent' => __('Absent'), 'late' => __('Late'), 'excused' => __('Excused')][$status] }}">
                                             {{ $label }}
                                         </span>
                                     </label>
                                     @endforeach
                                 </div>
                             </td>
-                            <td class="px-6 py-3">
+                            <td class="hidden md:table-cell px-6 py-3">
                                 <input type="text" name="attendance[{{ $enrollment->id }}][reason]"
                                        value="{{ $existing?->reason }}"
                                        placeholder="{{ __('Optional note...') }}"
@@ -184,10 +191,12 @@
         document.querySelectorAll('.status-radio:checked').forEach(radio => {
             counts[radio.dataset.status]++;
         });
-        document.getElementById('countPresent').textContent = counts.present;
-        document.getElementById('countAbsent').textContent = counts.absent;
-        document.getElementById('countLate').textContent = counts.late;
-        document.getElementById('countExcused').textContent = counts.excused;
+        // The counters exist only once a class is open.
+        const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+        set('countPresent', counts.present);
+        set('countAbsent', counts.absent);
+        set('countLate', counts.late);
+        set('countExcused', counts.excused);
 
         // Update button visual states
         document.querySelectorAll('.status-label').forEach(label => {

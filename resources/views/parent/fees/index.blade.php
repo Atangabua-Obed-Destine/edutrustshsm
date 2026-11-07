@@ -44,6 +44,13 @@
             <div style="font-size:0.72rem; color:#64748b; text-transform:uppercase;">{{ __('Balance') }}</div>
             <div style="font-size:1.25rem; font-weight:700; color:{{ $totals['balance'] > 0 ? '#dc2626' : '#16a34a' }}; margin-top:4px;">{{ number_format($totals['balance'], 0) }} <span style="font-size:0.75rem; color:#94a3b8;">{{ $currency }}</span></div>
         </div>
+        @if(($credit ?? 0) > 0)
+        <div class="pp-card" style="padding:18px; border:1px solid #bfdbfe;">
+            <div style="font-size:0.72rem; color:#2563eb; text-transform:uppercase;">{{ __('Credit held') }}</div>
+            <div style="font-size:1.25rem; font-weight:700; color:#1d4ed8; margin-top:4px;">{{ number_format($credit, 0) }} <span style="font-size:0.75rem; color:#94a3b8;">{{ $currency }}</span></div>
+            <div style="font-size:0.72rem; color:#64748b; margin-top:4px;">{{ __('Paid beyond the fees. It will be used for the next fees, or refunded on request.') }}</div>
+        </div>
+        @endif
     </div>
 
     {{-- Fee breakdown --}}
@@ -66,7 +73,7 @@
                     @forelse($fees as $fee)
                         @php $sc = $statusColors[$fee->status] ?? ['#f1f5f9', '#475569']; @endphp
                         <tr style="border-bottom:1px solid #f8fafc;">
-                            <td style="padding:13px 20px; font-weight:600; color:#1e293b;">{{ $fee->feeCategory->name ?? '—' }}</td>
+                            <td style="padding:13px 20px; font-weight:600; color:#1e293b;">{{ $fee->feeCategory->name ?? '—' }}@if($fee->enrollment && $fee->enrollment->status !== 'active')<span style="display:block; font-size:0.72rem; color:#dc2626; font-weight:600;">{{ __('Arrears :year', ['year' => $fee->enrollment->academicSession?->name]) }}</span>@endif</td>
                             <td style="padding:13px 20px; text-align:right; color:#475569;">{{ number_format($fee->net_amount, 0) }}</td>
                             <td style="padding:13px 20px; text-align:right; color:#16a34a;">{{ number_format($fee->paid_amount, 0) }}</td>
                             <td style="padding:13px 20px; text-align:right; font-weight:600; color:{{ $fee->balance > 0 ? '#dc2626' : '#16a34a' }};">{{ number_format($fee->balance, 0) }}</td>
@@ -103,7 +110,7 @@
                         <tr style="border-bottom:1px solid #f8fafc;">
                             <td style="padding:13px 20px; font-family:monospace; color:#0f172a;">{{ $p->receipt_number }}</td>
                             <td style="padding:13px 20px; color:#475569;">{{ $p->payment_date?->format('d M Y') }}</td>
-                            <td style="padding:13px 20px; color:#475569; text-transform:capitalize;">{{ str_replace('_', ' ', $p->payment_method) }}</td>
+                            <td style="padding:13px 20px; color:#475569;">{{ $p->method_label }}</td>
                             <td style="padding:13px 20px; text-align:right; font-weight:600; color:#16a34a;">{{ number_format($p->amount, 0) }} {{ $currency }}</td>
                         </tr>
                     @empty

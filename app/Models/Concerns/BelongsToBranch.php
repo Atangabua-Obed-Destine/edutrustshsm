@@ -19,7 +19,21 @@ trait BelongsToBranch
         static::addGlobalScope(new BranchScope());
 
         static::creating(function ($model) {
-            if (! empty($model->branch_id) || ! BranchContext::isActive() || BranchContext::isAllBranches()) {
+            if (! empty($model->branch_id)) {
+                return;
+            }
+
+            // Outside a login — a seeder, an import, an artisan command — there
+            // is no branch context, and rows were saved with no branch at all,
+            // which the screens then hid. In a one-branch school there is only
+            // one place a row can belong.
+            if (! BranchContext::isActive()) {
+                $model->branch_id = BranchContext::onlyBranch();
+
+                return;
+            }
+
+            if (BranchContext::isAllBranches()) {
                 return;
             }
 

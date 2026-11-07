@@ -63,6 +63,28 @@ class StudentFee extends Model
         return $this;
     }
 
+    /**
+     * What a pupil still owes from other school years.
+     *
+     * Promotion closes last year's enrolment and opens a new one; the unpaid
+     * fees stay billed where they were. They are still owed, and every screen
+     * that shows what a family owes shows them, under this one definition.
+     */
+    public function scopeArrearsOf($query, ?int $studentId, ?int $currentSessionId)
+    {
+        return $query->where('balance', '>', 0)
+            ->whereHas('enrollment', fn ($q) => $q->where('student_id', $studentId)
+                ->when($currentSessionId, fn ($q) => $q->where('academic_session_id', '!=', $currentSessionId)));
+    }
+
+    /** This enrolment's fees and the pupil's arrears from other years. */
+    public function scopeOwedOn($query, StudentEnrollment $enrollment)
+    {
+        return $query->where(fn ($q) => $q
+            ->where('student_fees.student_enrollment_id', $enrollment->id)
+            ->orWhere(fn ($q) => $q->arrearsOf($enrollment->student_id, $enrollment->academic_session_id)));
+    }
+
     public function enrollment()
     {
         return $this->belongsTo(StudentEnrollment::class, 'student_enrollment_id');

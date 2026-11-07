@@ -16,8 +16,14 @@ class TermResult extends Model
         'term_average', 'overall_grade', 'class_rank', 'total_students', 'class_average',
         'highest_average', 'lowest_average', 'days_present', 'days_absent',
         'total_school_days', 'class_teacher_remark', 'principal_remark', 'conduct',
-        'is_published',
+        'is_published', 'source', 'recorded_by',
     ];
+
+    /** Copied from the school's own report cards for a year before this system. */
+    public function isRecorded(): bool
+    {
+        return $this->source === 'recorded';
+    }
 
     protected function casts(): array
     {
@@ -35,4 +41,11 @@ class TermResult extends Model
     public function enrollment() { return $this->belongsTo(StudentEnrollment::class, 'student_enrollment_id'); }
     public function term() { return $this->belongsTo(Term::class); }
     public function subjectResults() { return $this->hasMany(SubjectTermResult::class); }
+
+    /** What the class council decided for this result, once the council has concluded. */
+    public function councilEntry()
+    {
+        return $this->hasOne(ClassCouncilEntry::class)
+            ->whereHas('council', fn ($q) => $q->where('status', ClassCouncil::CONCLUDED));
+    }
 }

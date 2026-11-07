@@ -75,7 +75,7 @@
                                     default => 'bg-gray-100 text-gray-600',
                                 })
                                 <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $tone }}">
-                                    {{ __(ucfirst($student->status)) }}
+                                    {{ $student->status === 'withdrawn' && $student->destination_school ? __('Transferred') : __(ucfirst($student->status)) }}
                                 </span>
                                 @if($student->destination_school)
                                     <div class="text-xs text-gray-500 mt-1">→ {{ $student->destination_school }}</div>

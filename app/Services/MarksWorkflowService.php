@@ -184,6 +184,7 @@ class MarksWorkflowService
     {
         return Mark::where('subject_id', $submission->subject_id)
             ->where('sequence_id', $submission->sequence_id)
-            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $submission->class_section_id));
+            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $submission->class_section_id)
+                ->when($submission->academic_session_id, fn ($q) => $q->where('academic_session_id', $submission->academic_session_id)));
     }
 }

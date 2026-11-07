@@ -28,7 +28,34 @@ trait AuthorizesModule
 {
     public static function middleware(): array
     {
-        return array_merge(static::crudMiddleware(), static::extraMiddleware());
+        $extra = static::extraMiddleware();
+
+        // An action a controller gates with its own verb is decided by that
+        // verb alone. Stacking the generic CRUD rule on top demanded
+        // permissions that do not exist: saving a register needed
+        // "attendance.create" as well as "attendance.mark", recording a
+        // payment "payment.create" as well as "fee-collection.collect", so
+        // only the super admin could do either.
+        $covered = collect($extra)
+            ->filter(fn ($m) => $m instanceof Middleware && $m->only !== null)
+            ->flatMap(fn (Middleware $m) => (array) $m->only)
+            ->unique()
+            ->all();
+
+        $crud = collect(static::crudMiddleware())
+            ->map(function (Middleware $m) use ($covered) {
+                if ($m->only === null) {
+                    return $m;
+                }
+                $left = array_values(array_diff((array) $m->only, $covered));
+
+                return $left === [] ? null : new Middleware($m->middleware, only: $left);
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        return array_merge($crud, $extra);
     }
 
     /**

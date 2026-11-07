@@ -142,7 +142,7 @@ class ExamReadinessService
             return collect();
         }
 
-        return MarksSubmission::whereIn('class_section_id', $sections->pluck('id'))
+        return MarksSubmission::forSession()->whereIn('class_section_id', $sections->pluck('id'))
             ->whereIn('sequence_id', $sequences->pluck('id'))
             ->get()
             ->keyBy(fn (MarksSubmission $s) => $s->class_section_id.':'.$s->subject_id.':'.$s->sequence_id);

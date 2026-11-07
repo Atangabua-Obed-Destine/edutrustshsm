@@ -38,6 +38,8 @@ class ClassCouncilController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
+            static::can('class-council.edit', ['decisions', 'addSignature', 'removeSignature']),
+            static::can('class-council.view', ['minutes']),
             static::can('class-council.conclude', ['conclude', 'reopen']),
         ];
     }
@@ -111,7 +113,7 @@ class ClassCouncilController extends Controller implements HasMiddleware
                 : $this->councils->statistics($council),
             'tally' => $this->councils->awardTally($council),
             'awards' => ClassCouncilEntry::awards(),
-            'staff' => User::whereIn('role', ['super_admin', 'admin', 'teacher', 'staff'])
+            'staff' => User::holdingRole('super_admin', 'admin', 'teacher', 'staff')
                 ->where('is_active', true)->orderBy('first_name')->get(),
             'passMark' => (float) (SchoolSetting::current()?->pass_mark ?: 10),
         ]);

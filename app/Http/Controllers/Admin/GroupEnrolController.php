@@ -254,7 +254,8 @@ class GroupEnrolController extends Controller implements HasMiddleware
                     'term_id'             => $validated['target_term_id'],
                     'class_section_id'    => $validated['target_section_id'],
                     'stream_id'           => $validated['target_stream_id'] ?? null,
-                    'residence_type'      => 'day', // default, can be updated later
+                    // A boarder stays a boarder from one term to the next.
+                    'residence_type'      => $previousEnrollment?->residence_type ?? 'day',
                     'enrollment_date'     => now()->toDateString(),
                     'status'              => 'active',
                 ]);
@@ -269,7 +270,11 @@ class GroupEnrolController extends Controller implements HasMiddleware
                         $now = now();
                         $toInsert = [];
                         foreach ($prevSubjects as $ps) {
+                            // With its branch: a row without one is invisible to
+                            // every branch-scoped query, so the marks grid saw no
+                            // subjects, added them again and hit the unique key.
                             $toInsert[] = [
+                                'branch_id'             => $enrollment->branch_id,
                                 'student_enrollment_id' => $enrollment->id,
                                 'subject_id'            => $ps->subject_id,
                                 'coefficient'           => $ps->coefficient,

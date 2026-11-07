@@ -14,7 +14,7 @@ class StudentEnrollment extends Model
         'branch_id',
         'student_id', 'academic_session_id', 'term_id', 'class_section_id',
         'stream_id', 'residence_type', 'enrollment_date', 'status',
-        'final_average', 'final_rank',
+        'final_average', 'final_rank', 'final_written',
     ];
 
     protected function casts(): array
@@ -22,7 +22,25 @@ class StudentEnrollment extends Model
         return [
             'enrollment_date' => 'date',
             'final_average' => 'decimal:2',
+            'final_written' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // A class that is one stream (Lower Sixth Science) gives its pupils
+        // that stream, whichever way they were put in it: registration, the
+        // spreadsheet import, a term move, promotion. Their subjects and fees
+        // follow from it. A class with no stream leaves the choice per pupil.
+        static::saving(function (StudentEnrollment $enrollment) {
+            if (! $enrollment->class_section_id || ! ($enrollment->isDirty('class_section_id') || $enrollment->isDirty('stream_id'))) {
+                return;
+            }
+            $stream = ClassSection::withoutGlobalScopes()->whereKey($enrollment->class_section_id)->value('stream_id');
+            if ($stream) {
+                $enrollment->stream_id = $stream;
+            }
+        });
     }
 
     public function student() { return $this->belongsTo(Student::class); }

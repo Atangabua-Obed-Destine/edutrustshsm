@@ -58,7 +58,8 @@ class TranslationCoverageTest extends TestCase
 
         $missing = array_values(array_filter(
             $this->translatableStrings(),
-            fn (string $key) => ! array_key_exists($key, $fr)
+            // A key like auth.failed lives in lang/fr/auth.php, not fr.json.
+            fn (string $key) => ! array_key_exists($key, $fr) && ! \Illuminate\Support\Facades\Lang::hasForLocale($key, 'fr')
         ));
 
         $this->assertSame([], $missing, sprintf(

@@ -217,13 +217,51 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
 
     // Admin routes (super_admin and admin only)
-    Route::middleware('role:super_admin,admin')->prefix('admin')->name('admin.')->group(function () {
+    // ── Teaching ──────────────────────────────────────────────────────────
+    // The screens a teacher works in. Admins reach them too; a teacher sees
+    // only their own classes and subjects inside them (TeachingScope).
+    // Approving, publishing and generating stay in the admin group below.
+    // Each section admits the roles whose work is in it; what a person may do
+    // inside is the screen's own permission check, over every role they hold.
+    Route::middleware('role:super_admin,admin,teacher,accountant,receptionist')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::post('/level-context', [LevelContextController::class, 'switch'])->name('level-context.switch');
+
+        Route::get('marks', [MarksController::class, 'index'])->name('marks.index');
+        Route::get('marks/sections-by-form/{form}', [MarksController::class, 'sectionsByForm'])->name('marks.sectionsByForm');
+        Route::get('marks/subjects-by-form/{form}', [MarksController::class, 'subjectsByForm'])->name('marks.subjectsByForm');
+        Route::get('marks/terms-by-form/{form}', [MarksController::class, 'termsByForm'])->name('marks.termsByForm');
+        Route::get('marks/sequences-by-form-term/{form}/{term}', [MarksController::class, 'sequencesByFormTerm'])->name('marks.sequencesByFormTerm');
+        Route::post('marks/save', [MarksController::class, 'save'])->name('marks.save');
+        Route::post('marks/{submission}/submit', [MarksController::class, 'submit'])->name('marks.submit');
+
+        Route::middleware('school-level:nursery_primary')->group(function () {
+            Route::get('nursery-assessment', [NurseryAssessmentController::class, 'index'])->name('nursery.index');
+            Route::get('nursery-assessment/{enrollment}/{term}', [NurseryAssessmentController::class, 'edit'])->name('nursery.edit');
+            Route::post('nursery-assessment/{enrollment}/{term}', [NurseryAssessmentController::class, 'update'])->name('nursery.update');
+        });
+
+        Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+        Route::post('attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+
+        Route::get('class-list', [\App\Http\Controllers\Admin\ClassListController::class, 'index'])->name('class-list.index');
+        Route::get('class-list/export', [\App\Http\Controllers\Admin\ClassListController::class, 'csv'])->name('class-list.csv');
+
+        Route::get('timetable/class-schedule', [TimetableController::class, 'classSchedule'])->name('timetable.class-schedule');
+        Route::get('timetable/teacher-schedule', [TimetableController::class, 'teacherSchedule'])->name('timetable.teacher-schedule');
+
+        Route::get('report-cards', [ReportCardController::class, 'index'])->name('report-cards.index');
+        Route::get('report-cards/sections-by-form/{form}', [ReportCardController::class, 'sectionsByForm'])->name('report-cards.sections-by-form');
+        Route::get('report-cards/remarks', [ReportCardController::class, 'remarks'])->name('report-cards.remarks');
+        Route::post('report-cards/remarks', [ReportCardController::class, 'saveRemarks'])->name('report-cards.remarks.save');
+        Route::get('report-cards/{termResult}', [ReportCardController::class, 'show'])->name('report-cards.show')->whereNumber('termResult');
+    });
+
+    Route::middleware('role:super_admin,admin,accountant,receptionist')->prefix('admin')->name('admin.')->group(function () {
 
         // Dashboard
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         // School-level working context switcher (Nursery/Primary vs Secondary)
-        Route::post('/level-context', [LevelContextController::class, 'switch'])->name('level-context.switch');
 
         // Branch (campus) working context switcher
         Route::post('/branch-context', [\App\Http\Controllers\Admin\BranchContextController::class, 'switch'])->name('branch-context.switch');
@@ -293,6 +331,8 @@ Route::middleware('auth')->group(function () {
 
         // Class Sections
         Route::resource('class-sections', ClassSectionController::class)->except(['show']);
+        Route::get('teaching-assignments', [\App\Http\Controllers\Admin\TeachingAssignmentController::class, 'index'])->name('teaching-assignments.index');
+        Route::put('teaching-assignments/{classSection}', [\App\Http\Controllers\Admin\TeachingAssignmentController::class, 'update'])->name('teaching-assignments.update');
 
         // Batches
         Route::resource('batches', BatchController::class)->except(['show']);
@@ -322,22 +362,12 @@ Route::middleware('auth')->group(function () {
         Route::delete('exam-schedules/{examSchedule}', [ExamScheduleController::class, 'destroy'])->name('exam-schedules.destroy');
 
         // Marks / Exam Management
-        Route::get('marks', [MarksController::class, 'index'])->name('marks.index');
-        Route::get('marks/sections-by-form/{form}', [MarksController::class, 'sectionsByForm'])->name('marks.sectionsByForm');
-        Route::get('marks/subjects-by-form/{form}', [MarksController::class, 'subjectsByForm'])->name('marks.subjectsByForm');
-        Route::get('marks/terms-by-form/{form}', [MarksController::class, 'termsByForm'])->name('marks.termsByForm');
-        Route::get('marks/sequences-by-form-term/{form}/{term}', [MarksController::class, 'sequencesByFormTerm'])->name('marks.sequencesByFormTerm');
-        Route::post('marks/save', [MarksController::class, 'save'])->name('marks.save');
-        Route::post('marks/{submission}/submit', [MarksController::class, 'submit'])->name('marks.submit');
         Route::post('marks/{submission}/approve', [MarksController::class, 'approve'])->name('marks.approve');
         Route::post('marks/{submission}/return', [MarksController::class, 'returnMarks'])->name('marks.return');
 
         // Nursery classes are assessed by competence, not marked. Only a
         // school that runs nursery/primary has these screens at all.
         Route::middleware('school-level:nursery_primary')->group(function () {
-            Route::get('nursery-assessment', [NurseryAssessmentController::class, 'index'])->name('nursery.index');
-            Route::get('nursery-assessment/{enrollment}/{term}', [NurseryAssessmentController::class, 'edit'])->name('nursery.edit');
-            Route::post('nursery-assessment/{enrollment}/{term}', [NurseryAssessmentController::class, 'update'])->name('nursery.update');
 
             Route::get('nursery-competences', [NurseryCompetenceController::class, 'index'])->name('nursery.competences.index');
             Route::post('nursery-competences/seed', [NurseryCompetenceController::class, 'seed'])->name('nursery.competences.seed');
@@ -359,8 +389,6 @@ Route::middleware('auth')->group(function () {
         Route::get('exam-publishing/sequences-by-form-term/{form}/{term}', [ExamPublishingController::class, 'sequencesByFormTerm'])->name('exam-publishing.sequencesByFormTerm');
 
         // Attendance
-        Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
-        Route::post('attendance', [AttendanceController::class, 'store'])->name('attendance.store');
         Route::get('attendance/report', [AttendanceController::class, 'report'])->name('attendance.report');
 
         // Timetable / Routines
@@ -368,10 +396,8 @@ Route::middleware('auth')->group(function () {
         Route::post('timetable/slots', [TimetableController::class, 'storeSlot'])->name('timetable.slots.store');
         Route::put('timetable/slots/{slot}', [TimetableController::class, 'updateSlot'])->name('timetable.slots.update');
         Route::delete('timetable/slots/{slot}', [TimetableController::class, 'destroySlot'])->name('timetable.slots.destroy');
-        Route::get('timetable/class-schedule', [TimetableController::class, 'classSchedule'])->name('timetable.class-schedule');
         Route::get('timetable/sections-by-form/{form}', [TimetableController::class, 'getSectionsByForm'])->name('timetable.sections-by-form');
         Route::post('timetable/save-day-schedule', [TimetableController::class, 'saveDaySchedule'])->name('timetable.save-day-schedule');
-        Route::get('timetable/teacher-schedule', [TimetableController::class, 'teacherSchedule'])->name('timetable.teacher-schedule');
         Route::delete('timetable/entries/{entry}', [TimetableController::class, 'destroyEntry'])->name('timetable.entries.destroy');
 
         // Report Cards
@@ -397,11 +423,8 @@ Route::middleware('auth')->group(function () {
         Route::get('councils/{council}/minutes', [ClassCouncilController::class, 'minutes'])->name('councils.minutes');
         Route::delete('councils/{council}', [ClassCouncilController::class, 'destroy'])->name('councils.destroy');
 
-        Route::get('report-cards', [ReportCardController::class, 'index'])->name('report-cards.index');
-        Route::get('report-cards/sections-by-form/{form}', [ReportCardController::class, 'sectionsByForm'])->name('report-cards.sections-by-form');
         Route::post('report-cards/generate', [ReportCardController::class, 'generate'])->name('report-cards.generate');
         Route::post('report-cards/bulk-download', [ReportCardController::class, 'bulkDownload'])->name('report-cards.bulk-download');
-        Route::get('report-cards/{termResult}', [ReportCardController::class, 'show'])->name('report-cards.show');
         Route::post('report-cards/publish', [ReportCardController::class, 'publish'])->name('report-cards.publish');
 
         // Staff / User Management
@@ -546,6 +569,29 @@ Route::middleware('auth')->group(function () {
         Route::get('collect-fees', [FeeCollectionController::class, 'index'])->name('collect-fees.index');
         Route::post('collect-fees/store-payment', [FeeCollectionController::class, 'storePayment'])->name('collect-fees.store-payment');
         Route::get('collect-fees/receipt/{payment}', [FeeCollectionController::class, 'receipt'])->name('collect-fees.receipt');
+        Route::get('prior-payments', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'index'])->name('prior-payments.index');
+        Route::get('prior-payments/template', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'template'])->name('prior-payments.template');
+        Route::post('prior-payments', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'upload'])->name('prior-payments.upload');
+
+        // A school year from before the system: where pupils were, their
+        // results as proclaimed, and what was left unpaid.
+        Route::controller(\App\Http\Controllers\Admin\PastYearController::class)->prefix('past-years')->name('past-years.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('{year}', 'show')->name('show');
+            Route::get('{year}/placement/{section}', 'placement')->name('placement');
+            Route::post('{year}/placement/{section}', 'place')->name('place');
+            Route::get('{year}/sheets/{section}/{term}', 'sheet')->name('sheet');
+            Route::get('{year}/sheets/{section}/{term}/template', 'template')->name('template');
+            Route::post('{year}/sheets/{section}/{term}', 'upload')->name('upload');
+            Route::post('{year}/sheets/{section}/{term}/evidence', 'attachEvidence')->name('evidence.store');
+            Route::get('{year}/sheets/{section}/{term}/evidence', 'evidence')->name('evidence');
+            Route::post('{year}/sheets/{section}/{term}/verify', 'verify')->name('verify');
+            Route::post('{year}/sheets/{section}/{term}/reopen', 'reopen')->name('reopen');
+            Route::get('{year}/unpaid/template', 'arrearsTemplate')->name('arrears.template');
+            Route::post('{year}/unpaid', 'arrears')->name('arrears');
+            Route::get('{year}/pupils/{student}', 'record')->name('record');
+        });
         Route::get('collect-fees/streams-by-form/{form}', [FeeCollectionController::class, 'streamsByForm'])->name('collect-fees.streams-by-form');
         Route::get('collect-fees/sections-by-form/{form}', [FeeCollectionController::class, 'sectionsByForm'])->name('collect-fees.sections-by-form');
 
@@ -558,11 +604,17 @@ Route::middleware('auth')->group(function () {
         // Assignment History
         Route::get('assignment-history', [FeeAssignmentHistoryController::class, 'index'])->name('assignment-history.index');
         Route::get('assignment-history/streams-by-form/{form}', [FeeAssignmentHistoryController::class, 'streamsByForm'])->name('assignment-history.streams-by-form');
+        Route::get('assignment-history/{studentFee}', [FeeAssignmentHistoryController::class, 'show'])->name('assignment-history.show');
+        Route::put('assignment-history/{studentFee}/amount', [FeeAssignmentHistoryController::class, 'updateAmount'])->name('assignment-history.amount');
+        Route::put('assignment-history/{studentFee}/due-date', [FeeAssignmentHistoryController::class, 'updateDueDate'])->name('assignment-history.due-date');
+        Route::post('assignment-history/{studentFee}/transfer', [FeeAssignmentHistoryController::class, 'transfer'])->name('assignment-history.transfer');
         Route::delete('assignment-history/{studentFee}', [FeeAssignmentHistoryController::class, 'destroy'])->name('assignment-history.destroy');
 
         // Fee Reports
         Route::get('fee-reports', [FeeReportController::class, 'index'])->name('fee-reports.index');
         Route::get('fee-reports/partial-payments', [FeeReportController::class, 'partial'])->name('fee-reports.partial');
+        Route::get('fee-reports/defaulters', [FeeReportController::class, 'defaulters'])->name('fee-reports.defaulters');
+        Route::get('fee-reports/defaulters/export', [FeeReportController::class, 'defaultersCsv'])->name('fee-reports.defaulters.csv');
         Route::get('fee-reports/partial-payments/export', [FeeReportController::class, 'partialCsv'])->name('fee-reports.partial.csv');
 
         // Payment Plans
@@ -594,7 +646,7 @@ Route::middleware('auth')->group(function () {
     // `role:super_admin,admin` meant the outer middleware rejected `staff`
     // before this one was ever consulted, so the carve-out never applied.
     // ═══════════════════════════════════════════════════════════════
-    Route::middleware('role:super_admin,admin,staff')->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('role:super_admin,admin,staff,accountant,receptionist')->prefix('admin')->name('admin.')->group(function () {
             // Leaving, and the roll of those who have left.
         Route::get('students/archive', [StudentExitController::class, 'index'])->name('students.archive');
         // Pupils and classes at a level the school no longer runs.

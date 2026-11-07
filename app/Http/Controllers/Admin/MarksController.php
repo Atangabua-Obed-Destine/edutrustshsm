@@ -45,8 +45,10 @@ class MarksController extends Controller implements HasMiddleware
     {
         $sessions = AcademicSession::orderByDesc('start_date')->get();
         // A nursery class has no marks to enter; it is assessed by competence.
-        $forms = Form::active()->forCurrentLevel()->where('level', '!=', 'nursery')->ordered()->get();
-        $nurseryClasses = Form::active()->forCurrentLevel()->where('level', 'nursery')->count();
+        $scope = app(\App\Services\TeachingScope::class);
+        $user = auth()->user();
+        $forms = $scope->scopeForms(Form::active()->forCurrentLevel()->where('level', '!=', 'nursery'), $user)->ordered()->get();
+        $nurseryClasses = $scope->scopeForms(Form::active()->forCurrentLevel()->where('level', 'nursery'), $user)->count();
 
         $sessionId = $request->input('academic_session_id');
         $educationSystem = $request->input('education_system', 'english');
@@ -69,12 +71,16 @@ class MarksController extends Controller implements HasMiddleware
         $sequences = collect();
 
         if ($formId) {
-            $classSections = ClassSection::where('form_id', $formId)
-                ->where('is_active', true)->orderBy('name')->get();
+            $classSections = $scope->scopeSections(ClassSection::where('form_id', $formId)
+                ->where('is_active', true), $user)->orderBy('name')->get();
 
-            // Subjects enrolled for this form (via form_subject pivot)
+            // Subjects enrolled for this form (via form_subject pivot), and
+            // for a teacher only the ones they teach in the chosen section.
             $subjects = Subject::where('is_active', true)
                 ->whereHas('forms', fn ($q) => $q->where('forms.id', $formId))
+                ->when($scope->restricted($user), fn ($q) => $q->whereIn('id', $classSectionId
+                    ? ($scope->subjectIdsIn($user, (int) $classSectionId) ?: [0])
+                    : (collect($scope->sectionIds($user))->flatMap(fn ($id) => $scope->subjectIdsIn($user, $id))->unique()->all() ?: [0])))
                 ->orderBy('name')->get();
 
             // Terms that have sequences enrolled for this form (via form_sequence)
@@ -105,6 +111,10 @@ class MarksController extends Controller implements HasMiddleware
         $filtered = false;
         $coefficient = null;
 
+        if ($classSectionId && $subjectId && ! $scope->canMark($user, (int) $classSectionId, (int) $subjectId)) {
+            abort(403, __('This subject in this class is not assigned to you.'));
+        }
+
         if ($classSectionId && $subjectId && $sequenceId && $sessionId) {
             $filtered = true;
             $classSection = ClassSection::with('form')->find($classSectionId);
@@ -116,6 +126,7 @@ class MarksController extends Controller implements HasMiddleware
                 $formSubject = DB::table('form_subject')
                     ->where('form_id', $classSection->form_id)
                     ->where('subject_id', $subjectId)
+                    ->when($classSection->stream_id, fn ($q) => $q->orderByRaw('stream_id = ? DESC', [$classSection->stream_id]))
                     ->first();
                 $coefficient = $formSubject->coefficient ?? 1;
 
@@ -145,6 +156,7 @@ class MarksController extends Controller implements HasMiddleware
                 $submission = MarksSubmission::firstOrCreate(
                     [
                         'class_section_id' => $classSectionId,
+                        'academic_session_id' => $sessionId,
                         'subject_id' => $subjectId,
                         'sequence_id' => $sequenceId,
                     ],
@@ -160,20 +172,39 @@ class MarksController extends Controller implements HasMiddleware
             }
         }
 
-        // Recent submissions for current session
+        // Recent submissions for current session — a teacher's own only.
         $recentSubmissions = MarksSubmission::with(['classSection.form', 'subject', 'sequence', 'teacher'])
+            ->forSession($sessionId ? (int) $sessionId : null)
+            ->when($scope->restricted($user), fn ($q) => $q->whereIn('class_section_id', $scope->sectionIds($user) ?: [0]))
             ->orderByDesc('updated_at')
             ->limit(15)
             ->get();
 
-        return view('admin.marks.index', compact(
+        $maxMark = (float) (SchoolSetting::current()?->max_mark ?? 20);
+        $passMark = (float) (SchoolSetting::current()?->pass_mark ?? 10);
+
+        // The subjects this user teaches, as cards, as in the reference
+        // system's "My Assigned Courses": a teacher opens a grid with one tap
+        // instead of seven dropdowns. Someone who teaches nothing (the head,
+        // the secretary) keeps the filters.
+        $current = AcademicSession::current();
+        $cardTerms = Term::whereIn('id', DB::table('form_sequence')->distinct()->pluck('term_id'))->orderBy('term_number')->get();
+        $cardsTerm = $cardTerms->firstWhere('id', (int) ($request->input('cards_term') ?: $termId))
+            ?? $cardTerms->firstWhere('id', Term::current()?->id)
+            ?? $cardTerms->first();
+        $cards = $current && (int) $sessionId === (int) $current->id
+            ? app(\App\Services\TeacherSubjects::class)->cards($user, $current, $cardsTerm)
+            : collect();
+        $showDone = $request->boolean('show_done');
+
+        return view('admin.marks.index', compact('maxMark', 'passMark',
             'sessions', 'forms', 'sessionId', 'educationSystem', 'formId',
             'classSectionId', 'subjectId', 'termId', 'sequenceId',
             'classSections', 'subjects', 'terms', 'sequences',
             'enrollments', 'existingMarks', 'submission', 'gradeScales',
             'classSection', 'subject', 'sequence', 'filtered', 'coefficient',
             'recentSubmissions'
-        , 'nurseryClasses'));
+        , 'nurseryClasses', 'cards', 'cardsTerm', 'cardTerms', 'showDone', 'current'));
     }
 
     /**
@@ -181,8 +212,14 @@ class MarksController extends Controller implements HasMiddleware
      */
     public function subjectsByForm(Form $form)
     {
+        $scope = app(\App\Services\TeachingScope::class);
+        $user = auth()->user();
+        $sectionId = request()->integer('class_section_id');
         $subjects = Subject::where('is_active', true)
             ->whereHas('forms', fn ($q) => $q->where('forms.id', $form->id))
+            ->when($scope->restricted($user), fn ($q) => $q->whereIn('id', $sectionId
+                ? ($scope->subjectIdsIn($user, $sectionId) ?: [0])
+                : (collect($scope->sectionIds($user))->flatMap(fn ($id) => $scope->subjectIdsIn($user, $id))->unique()->all() ?: [0])))
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
@@ -227,7 +264,7 @@ class MarksController extends Controller implements HasMiddleware
      */
     public function sectionsByForm(Form $form)
     {
-        $sections = ClassSection::where('form_id', $form->id)
+        $sections = app(\App\Services\TeachingScope::class)->scopeSections(ClassSection::where('form_id', $form->id), auth()->user())
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);
@@ -254,12 +291,24 @@ class MarksController extends Controller implements HasMiddleware
             'marks.*.is_absent' => ['nullable'],
         ]);
 
+        if (! app(\App\Services\TeachingScope::class)->canMark(auth()->user(), (int) $validated['class_section_id'], (int) $validated['subject_id'])) {
+            abort(403, __('This subject in this class is not assigned to you.'));
+        }
+
+        // Every pupil in the batch must belong to the class being marked.
+        $foreign = StudentEnrollment::whereIn('id', collect($validated['marks'])->pluck('enrollment_id'))
+            ->where('class_section_id', '!=', $validated['class_section_id'])->exists();
+        if ($foreign) {
+            return back()->with('error', __('Some of these pupils are not in this class. Reload the page and try again.'));
+        }
+
         // Marks that have cleared review are not editable here. Saving used to
         // overwrite approved and published marks and reset them to draft, while
         // the submission still read "published" — the two then disagreed about
         // what state the class's results were in, and report cards silently
         // changed underneath parents who had already seen them.
-        $existing = MarksSubmission::where('class_section_id', $validated['class_section_id'])
+        $existing = MarksSubmission::forSession()
+            ->where('class_section_id', $validated['class_section_id'])
             ->where('subject_id', $validated['subject_id'])
             ->where('sequence_id', $validated['sequence_id'])
             ->first();
@@ -283,8 +332,10 @@ class MarksController extends Controller implements HasMiddleware
                 $grade = null;
 
                 if ($score !== null) {
+                    // Scales are ordered by min_mark descending: the first
+                    // band the score reaches is its band.
                     foreach ($gradeScales as $gs) {
-                        if ($score >= $gs->min_mark && $score <= $gs->max_mark) {
+                        if ($score >= $gs->min_mark) {
                             $grade = $gs->grade;
                             break;
                         }
@@ -317,6 +368,7 @@ class MarksController extends Controller implements HasMiddleware
             $submission = MarksSubmission::firstOrCreate(
                 [
                     'class_section_id' => $validated['class_section_id'],
+                    'academic_session_id' => AcademicSession::current()?->id,
                     'subject_id' => $validated['subject_id'],
                     'sequence_id' => $validated['sequence_id'],
                 ],
@@ -350,6 +402,8 @@ class MarksController extends Controller implements HasMiddleware
      */
     public function submit(MarksSubmission $submission, MarksWorkflowService $workflow)
     {
+        abort_unless(app(\App\Services\TeachingScope::class)->canMark(auth()->user(), (int) $submission->class_section_id, (int) $submission->subject_id), 403);
+
         try {
             $workflow->apply($submission, 'submitted');
         } catch (RuntimeException $e) {

@@ -45,9 +45,64 @@
     </div>
     @endif
 
-    {{-- Filter Bar --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <form method="GET" action="{{ route('admin.marks.index') }}" id="filterForm">
+
+    {{-- My assigned subjects, as cards. A tap on a sequence opens its grid. --}}
+    @if($cards->isNotEmpty())
+    @php $finished = $cards->where('done', true)->count(); @endphp
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" x-data="{ open: {{ $filtered ? 'false' : 'true' }}, showDone: {{ $showDone ? 'true' : 'false' }} }">
+        <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0">
+                <h2 class="font-semibold">{{ __('My assigned subjects') }}</h2>
+                <p class="text-xs text-indigo-100">{{ $current?->name ?? '' }} · {{ trans_choice('{1} :count subject|[2,*] :count subjects', $cards->count(), ['count' => $cards->count()]) }}@if($finished) · {{ trans_choice('{1} :count finished|[2,*] :count finished', $finished, ['count' => $finished]) }}@endif</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                @if($cardTerms->count() > 1)
+                    <div class="flex rounded-lg bg-white/10 p-0.5 text-xs">
+                        @foreach($cardTerms as $t)
+                            <a href="{{ route('admin.marks.index', ['cards_term' => $t->id]) }}" class="px-2.5 py-1 rounded-md {{ $cardsTerm?->id === $t->id ? 'bg-white text-indigo-800 font-semibold' : 'text-white/90 hover:bg-white/10' }}">{{ $t->name }}</a>
+                        @endforeach
+                    </div>
+                @endif
+                @if($finished)
+                    <button type="button" @click="showDone = !showDone" class="text-xs px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20" x-text="showDone ? @js(__('Hide finished')) : @js(__('Show finished'))"></button>
+                @endif
+                <button type="button" @click="open = !open" class="text-xs px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20" x-text="open ? @js(__('Hide')) : @js(__('Show'))"></button>
+            </div>
+        </div>
+        <div x-show="open" x-cloak class="p-4 sm:p-5">
+            @if($finished === $cards->count())
+                <div x-show="!showDone" class="text-center py-6">
+                    <p class="font-semibold text-emerald-700">{{ __('All your marks for :term are approved.', ['term' => $cardsTerm?->name]) }}</p>
+                    <button type="button" @click="showDone = true" class="mt-2 text-sm text-indigo-700 hover:underline">{{ __('Show finished') }}</button>
+                </div>
+            @endif
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                @foreach($cards as $card)
+                    <div @if($card['done']) x-show="showDone" x-cloak @endif class="flex min-w-0">
+                        @include('admin.marks._subject-card', ['card' => $card, 'term' => $cardsTerm])
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Filter Bar: folds to one line once a grid is open, so a teacher on a
+         phone lands on the pupils, not on seven dropdowns. With cards above,
+         it starts folded: the filters are the way to anything else. --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6" x-data="{ open: {{ ($filtered && $classSection && $subject && $sequence) || $cards->isNotEmpty() ? 'false' : 'true' }} }">
+        @if($filtered && $classSection && $subject && $sequence)
+        <div x-show="!open" class="flex items-center justify-between gap-3">
+            <p class="text-sm text-gray-700 min-w-0 truncate"><span class="font-semibold">{{ $classSection->name }}</span> · {{ $subject->name }} · {{ $sequence->name }}</p>
+            <button type="button" @click="open = true" class="shrink-0 text-sm font-medium text-teal-700 hover:text-teal-900">{{ __('Change') }}</button>
+        </div>
+        @elseif($cards->isNotEmpty())
+        <div x-show="!open" class="flex items-center justify-between gap-3">
+            <p class="text-sm text-gray-500">{{ __('Or choose a class, subject and sequence with the filters.') }}</p>
+            <button type="button" @click="open = true" class="shrink-0 text-sm font-medium text-teal-700 hover:text-teal-900">{{ __('Filters') }}</button>
+        </div>
+        @endif
+        <form method="GET" action="{{ route('admin.marks.index') }}" id="filterForm" x-show="open" x-cloak>
             {{-- Row 1: Session, Educational System, Form, Section --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 {{-- Session --}}
@@ -65,8 +120,8 @@
                     </select>
                 </div>
 
-                {{-- Educational System --}}
-                <div>
+                {{-- Educational System: only when the school has classes in both --}}
+                <div class="{{ $forms->pluck('education_system')->unique()->count() <= 1 ? 'hidden' : '' }}">
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Educational System') }} <span class="text-red-500">*</span></label>
                     <select name="education_system" id="eduSystemSelect" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
@@ -183,7 +238,9 @@
                     <p class="text-sm text-gray-500 mt-0.5">
                         {{ $sessions->firstWhere('id', $sessionId)->name ?? '' }} &bull;
                         {{ $sequence->name }} &bull;
+                        @if((float) $coefficient !== 1.0)
                         {{ __('Coefficient') }}: <strong>{{ $coefficient }}</strong> &bull;
+                        @endif
                         {{ $enrollments->count() }} {{ __('student(s)') }}
                     </p>
                 </div>
@@ -232,12 +289,12 @@
                     <thead>
                         <tr style="background-color: #1e293b; color: #fff;">
                             <th class="px-4 py-3 text-left w-12 font-medium">{{ __('S/N') }}</th>
-                            <th class="px-4 py-3 text-left font-medium">{{ __('Student ID') }}</th>
+                            <th class="hidden sm:table-cell px-4 py-3 text-left font-medium">{{ __('Matricule') }}</th>
                             <th class="px-4 py-3 text-left font-medium">{{ __('Student Name') }}</th>
-                            <th class="px-4 py-3 text-center w-36 font-medium">{{ __('Marks') }} (/20)</th>
+                            <th class="px-4 py-3 text-center w-36 font-medium">{{ __('Marks') }} (/{{ number_format($maxMark, 0) }})</th>
                             <th class="px-4 py-3 text-center w-20 font-medium">{{ __('Absent') }}</th>
-                            <th class="px-4 py-3 text-center w-20 font-medium">{{ __('Grade') }}</th>
-                            <th class="px-4 py-3 text-center w-24 font-medium">{{ __('Note') }}</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center w-20 font-medium">{{ __('Grade') }}</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center w-24 font-medium">{{ __('Note') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -250,7 +307,7 @@
                         @endphp
                         <tr style="{{ $rowBg }}" id="row-{{ $enrollment->id }}">
                             <td class="px-4 py-2.5 text-gray-400 font-medium">{{ $i + 1 }}</td>
-                            <td class="px-4 py-2.5 text-gray-500 font-mono text-xs">{{ $enrollment->student->student_id }}</td>
+                            <td class="hidden sm:table-cell px-4 py-2.5 text-gray-500 font-mono text-xs">{{ $enrollment->student->student_id }}</td>
                             <td class="px-4 py-2.5 font-medium text-gray-800">
                                 {{ $enrollment->student->last_name }} {{ $enrollment->student->first_name }}
                             </td>
@@ -260,10 +317,11 @@
                                        name="marks[{{ $i }}][score]"
                                        id="score-{{ $enrollment->id }}"
                                        value="{{ $score }}"
-                                       min="0" max="20" step="0.5"
+                                       min="0" max="{{ $maxMark }}" step="0.25" inputmode="decimal"
                                        class="w-24 px-2 py-1.5 border border-gray-300 rounded text-center text-sm focus:ring-2 focus:ring-blue-500 outline-none score-input"
                                        data-row="{{ $enrollment->id }}"
-                                       placeholder="0 - 20"
+                                       placeholder="0 - {{ number_format($maxMark, 0) }}"
+                                       aria-label="{{ __('Mark for :name', ['name' => $enrollment->student->last_name.' '.$enrollment->student->first_name]) }}"
                                        {{ $isLocked ? 'disabled' : '' }}
                                        {{ $mark && $mark->is_absent ? 'disabled' : '' }}>
                             </td>
@@ -272,22 +330,23 @@
                                        name="marks[{{ $i }}][is_absent]"
                                        value="1"
                                        id="absent-{{ $enrollment->id }}"
-                                       class="w-4 h-4 border-gray-300 rounded absent-checkbox"
+                                       class="w-5 h-5 border-gray-300 rounded absent-checkbox"
+                                       aria-label="{{ __('Absent') }}"
                                        style="accent-color: #dc2626;"
                                        data-row="{{ $enrollment->id }}"
                                        {{ $mark && $mark->is_absent ? 'checked' : '' }}
                                        {{ $isLocked ? 'disabled' : '' }}>
                             </td>
-                            <td class="px-4 py-2.5 text-center">
+                            <td class="hidden md:table-cell px-4 py-2.5 text-center">
                                 <span id="grade-{{ $enrollment->id }}"
                                       class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full"
                                       style="{{ $mark && $mark->is_absent ? 'background-color: #fee2e2; color: #b91c1c;' : ($mark && $mark->grade ? 'background-color: #dbeafe; color: #1d4ed8;' : 'color: #9ca3af;') }}">
                                     {{ $mark && $mark->is_absent ? 'ABS' : ($mark->grade ?? '—') }}
                                 </span>
                             </td>
-                            <td class="px-4 py-2.5 text-center" id="note-{{ $enrollment->id }}">
+                            <td class="hidden md:table-cell px-4 py-2.5 text-center" id="note-{{ $enrollment->id }}">
                                 @if($mark && $mark->score !== null && !$mark->is_absent)
-                                    @if($mark->score >= 10)
+                                    @if($mark->score >= $passMark)
                                     <span class="text-xs font-medium" style="color: #15803d;">{{ __('Pass') }}</span>
                                     @else
                                     <span class="text-xs font-medium" style="color: #b91c1c;">{{ __('Fail') }}</span>
@@ -404,8 +463,8 @@
     </div>
     @endif
 
-    @else
-    {{-- Not filtered yet --}}
+    @elseif($cards->isEmpty())
+    {{-- Not filtered yet, and no cards to start from --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
         <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
         <h3 class="text-lg font-medium text-gray-600 mb-1">{{ __('Select filters to begin') }}</h3>
@@ -465,6 +524,8 @@
                             <a href="{{ route('admin.marks.index', [
                                 'academic_session_id' => $sessionId,
                                 'form_id' => $subFormId,
+                                'term_id' => $sub->sequence?->term_id,
+                                'education_system' => $sub->classSection?->form?->education_system ?? 'english',
                                 'class_section_id' => $sub->class_section_id,
                                 'subject_id' => $sub->subject_id,
                                 'sequence_id' => $sub->sequence_id,
@@ -593,7 +654,7 @@
         if (isAbsent) {
             noteTd.innerHTML = '<span class="text-xs font-medium" style="color: #d97706;">{{ __("Absent") }}</span>';
         } else if (score !== null && !isNaN(score)) {
-            noteTd.innerHTML = score >= 10
+            noteTd.innerHTML = score >= {{ $passMark }}
                 ? '<span class="text-xs font-medium" style="color: #15803d;">{{ __("Pass") }}</span>'
                 : '<span class="text-xs font-medium" style="color: #b91c1c;">{{ __("Fail") }}</span>';
         } else {
@@ -642,6 +703,34 @@
         });
     });
     @endif
+</script>
+@endpush
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('marksForm');
+    if (!form) return;
+    const inputs = [...form.querySelectorAll('.score-input')];
+    let dirty = false;
+
+    inputs.forEach((input, i) => {
+        // Enter goes down the column like on paper, instead of submitting
+        // a half-entered class.
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const next = inputs.slice(i + 1).find((el) => !el.disabled);
+                if (next) { next.focus(); next.select(); }
+            }
+        });
+        // A French keyboard types 12,5; the field wants 12.5.
+        input.addEventListener('change', () => { input.value = input.value.replace(',', '.'); });
+        input.addEventListener('input', () => { dirty = true; });
+    });
+    form.querySelectorAll('.absent-checkbox').forEach((c) => c.addEventListener('change', () => { dirty = true; }));
+    form.addEventListener('submit', () => { dirty = false; });
+    window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+});
 </script>
 @endpush
 @endsection

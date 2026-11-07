@@ -29,6 +29,10 @@ class PaymentAllocationObserver
 
     public function created(PaymentAllocation $allocation): void
     {
+        if ($this->fromOldSystem($allocation)) {
+            return;
+        }
+
         $this->mapper->autoMap(
             $this->mappingType($allocation),
             $allocation->id,
@@ -39,7 +43,7 @@ class PaymentAllocationObserver
 
     public function updated(PaymentAllocation $allocation): void
     {
-        if ($allocation->wasChanged('amount')) {
+        if ($allocation->wasChanged('amount') && ! $this->fromOldSystem($allocation)) {
             $this->mapper->remap(
                 $this->mappingType($allocation),
                 $allocation->id,
@@ -51,7 +55,21 @@ class PaymentAllocationObserver
 
     public function deleted(PaymentAllocation $allocation): void
     {
+        if ($this->fromOldSystem($allocation)) {
+            return;
+        }
+
         $this->mapper->reverse($this->mappingType($allocation), $allocation->id);
+    }
+
+    /**
+     * Paid before the school moved to this system: the cash was received,
+     * banked and booked there. The year's opening entry carries it, so a
+     * posting here would count it twice.
+     */
+    private function fromOldSystem(PaymentAllocation $allocation): bool
+    {
+        return $allocation->payment?->payment_method === 'prior_system';
     }
 
     /**
@@ -64,8 +82,16 @@ class PaymentAllocationObserver
      */
     private function mappingType(PaymentAllocation $allocation): string
     {
-        return $allocation->payment?->payment_method === 'student_credit'
-            ? 'credit_applied'
+        if ($allocation->payment?->payment_method === 'student_credit') {
+            return 'credit_applied';
+        }
+
+        // A fee billed in a year from before the system was that year's
+        // revenue, carried into the opening balances as money owed to the
+        // school. Collecting it clears the receivable (DR Cash -> CR 411);
+        // crediting revenue again would count it twice.
+        return $allocation->studentFee?->enrollment?->academicSession?->is_recorded
+            ? 'arrears_collected'
             : 'fee_payment';
     }
 

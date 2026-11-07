@@ -213,6 +213,10 @@ class AdmissionController extends Controller implements HasMiddleware
         $overrideFormId = $request->input('form_id', $application->form_id);
         $formModel = Form::find($overrideFormId);
         $hasStreams = $formModel && $formModel->has_streams;
+        // A class that is one stream (Lower Sixth Science) decides the pupil's stream.
+        if ($sectionStream = \App\Models\ClassSection::whereKey((int) $request->input('class_section_id'))->value('stream_id')) {
+            $request->merge(['stream_id' => $sectionStream]);
+        }
 
         $validated = $request->validate([
             'form_id'           => ['required', 'exists:forms,id'],

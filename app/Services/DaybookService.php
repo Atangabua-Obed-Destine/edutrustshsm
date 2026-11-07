@@ -38,7 +38,7 @@ class DaybookService
     public const OUT = 'out';
 
     /** Receipts paid from a pupil's credit balance move no cash. */
-    private const NON_CASH_METHODS = ['student_credit'];
+    private const NON_CASH_METHODS = \App\Models\Payment::NON_CASH_METHODS;
 
     /**
      * Every cash movement between two dates, in date order.
@@ -57,6 +57,8 @@ class DaybookService
             ->merge($this->incomeRows($from, $to))
             ->merge($this->expenseRows($from, $to))
             ->merge($this->payrollRows($from, $to))
+            ->merge($this->refundRows($from, $to))
+            ->merge($this->remittanceRows($from, $to))
             ->sortBy([['date', 'asc'], ['source', 'asc'], ['source_id', 'asc']])
             ->values();
     }
@@ -589,6 +591,57 @@ class DaybookService
                 'source' => 'payroll',
                 'source_id' => (int) $p->id,
                 'split' => [__('Salaries') => (float) $p->net_salary],
+            ])->all();
+    }
+
+    /**
+     * Credit refunds paid back to families. Cash left the school, so it is in
+     * the book; without it the running balance stood above the cash actually
+     * held by every refund ever made.
+     */
+    private function refundRows(string $from, string $to): array
+    {
+        return DB::table('student_credit_refunds as r')
+            ->where('r.status', 'processed')
+            ->whereNotNull('r.processed_at')
+            ->whereDate('r.processed_at', '>=', $from)->whereDate('r.processed_at', '<=', $to)
+            ->select('r.id', 'r.amount', 'r.processed_at', 'r.method', 'r.reference')
+            ->get()
+            ->map(fn ($r) => [
+                'date' => substr((string) $r->processed_at, 0, 10),
+                'ref' => $r->reference ?: __('REF-:id', ['id' => $r->id]),
+                'description' => __('Credit refunded to a family'),
+                'party' => null,
+                'method' => $r->method,
+                'direction' => self::OUT,
+                'amount' => (float) $r->amount,
+                'heading' => __('Refunds'),
+                'source' => 'refund',
+                'source_id' => (int) $r->id,
+                'split' => [__('Refunds') => (float) $r->amount],
+            ])->all();
+    }
+
+    /** Payroll taxes and contributions paid over to the tax office and CNPS. */
+    private function remittanceRows(string $from, string $to): array
+    {
+        return DB::table('tax_remittances as t')
+            ->whereNull('t.voided_at')
+            ->whereDate('t.payment_date', '>=', $from)->whereDate('t.payment_date', '<=', $to)
+            ->select('t.id', 't.amount', 't.payment_date', 't.salary_month', 't.reference')
+            ->get()
+            ->map(fn ($t) => [
+                'date' => substr((string) $t->payment_date, 0, 10),
+                'ref' => $t->reference ?: __('TAX-:id', ['id' => $t->id]),
+                'description' => __('Taxes and contributions remitted — :month', ['month' => $t->salary_month]),
+                'party' => null,
+                'method' => null,
+                'direction' => self::OUT,
+                'amount' => (float) $t->amount,
+                'heading' => __('Taxes and contributions'),
+                'source' => 'remittance',
+                'source_id' => (int) $t->id,
+                'split' => [__('Taxes and contributions') => (float) $t->amount],
             ])->all();
     }
 }

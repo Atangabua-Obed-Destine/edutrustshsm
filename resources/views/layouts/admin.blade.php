@@ -7,7 +7,6 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') - {{ $__school->school_name ?? 'EduTrustSchool' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         .sidebar-link.active, .sidebar-link:hover { background-color: rgba(255,255,255,0.1); }
         .sidebar-submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
@@ -38,8 +37,26 @@
                     {{ __('Dashboard') }}
                 </a>
 
-                @if(auth()->user()->canAny(['academic-session.view', 'term.view', 'exam-sequence.view', 'form.view', 'stream.view', 'subject.view', 'class-section.view', 'classroom.view', 'batch.view', 'subject-enrollment.view', 'sequence-enrollment.view']))
+                @php $teachingOnly = app(\App\Services\TeachingScope::class)->restricted(auth()->user()); @endphp
+                @if($teachingOnly)
+                {{-- A teacher's menu: their own work, nothing else. --}}
+                <a href="{{ route('admin.marks.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.marks.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Marks Entry') }}</a>
+                @if(\App\Support\LevelContext::runsNurseryPrimary())
+                <a href="{{ route('admin.nursery.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.nursery.index', 'admin.nursery.edit') ? 'active text-white' : 'text-gray-300' }}">{{ __('Nursery Assessment') }}</a>
+                @endif
+                <a href="{{ route('admin.attendance.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.attendance.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Attendance') }}</a>
+                <a href="{{ route('admin.report-cards.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.report-cards.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Report Cards') }}</a>
+                @can('student.view')
+                <a href="{{ route('admin.class-list.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.class-list.*') ? 'active text-white' : 'text-gray-300' }}">{{ __('Class List') }}</a>
+                @endcan
+                <a href="{{ route('admin.timetable.teacher-schedule', ['teacher_id' => auth()->id()]) }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.timetable.teacher-schedule') ? 'active text-white' : 'text-gray-300' }}">{{ __('My Timetable') }}</a>
+                @endif
+                {{-- Everything below is shown by permission. A teacher who also holds
+                     another role (bursar, front desk) gets that role's sections after
+                     their own; the school-wide academic screens stay with administrators. --}}
+                @unless($teachingOnly)
                 <!-- Academic Config -->
+                @if(auth()->user()->canAny(['academic-session.view', 'term.view', 'exam-sequence.view', 'form.view', 'stream.view', 'subject.view', 'class-section.view', 'classroom.view', 'batch.view', 'subject-enrollment.view', 'sequence-enrollment.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('academic-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -48,9 +65,10 @@
                         </span>
                         <svg id="academic-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="academic-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.sessions.*', 'admin.terms.*', 'admin.sequences.*', 'admin.forms.*', 'admin.streams.*', 'admin.subjects.*', 'admin.subject-enrollments.*', 'admin.sequence-enrollments.*', 'admin.class-sections.*', 'admin.batches.*', 'admin.rooms.*') ? 'open' : '' }}">
+                    <div id="academic-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.sessions.*', 'admin.terms.*', 'admin.sequences.*', 'admin.forms.*', 'admin.streams.*', 'admin.subjects.*', 'admin.subject-enrollments.*', 'admin.sequence-enrollments.*', 'admin.class-sections.*', 'admin.batches.*', 'admin.rooms.*', 'admin.past-years.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.sessions.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.sessions.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Sessions') }}</a>
                         <a href="{{ route('admin.terms.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.terms.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Terms') }}</a>
+                        @can('past-year.view')<a href="{{ route('admin.past-years.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.past-years.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Past Years') }}</a>@endcan
                         <a href="{{ route('admin.sequences.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.sequences.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Exam Sequences') }}</a>
                         <a href="{{ route('admin.forms.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.forms.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Classes') }}</a>
                         @if(\App\Support\LevelContext::runsSecondary())
@@ -60,11 +78,14 @@
                         <a href="{{ route('admin.subject-enrollments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.subject-enrollments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Enroll Subjects') }}</a>
                         <a href="{{ route('admin.sequence-enrollments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.sequence-enrollments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Enrol Sequences') }}</a>
                         <a href="{{ route('admin.class-sections.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.class-sections.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class Sections') }}</a>
+                        <a href="{{ route('admin.teaching-assignments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.teaching-assignments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Who Teaches What') }}</a>
                         <a href="{{ route('admin.rooms.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.rooms.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Classrooms') }}</a>
                         <a href="{{ route('admin.batches.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.batches.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Batches') }}</a>
                     </div>
                 </div>
                 @endif
+
+                @endunless
 
                 <!-- Admissions -->
                 @if(auth()->user()->canAny(['admission.view', 'id-card.view']))
@@ -84,7 +105,7 @@
                 @endif
 
                 <!-- Students -->
-                @if(auth()->user()->canAny(['student.view', 'group-enrol.view', 'subject-add-drop.view', 'bulk-upload.view']))
+                @if(auth()->user()->canAny(['student.view', 'group-enrol.view', 'subject-add-drop.view', 'bulk-upload.view']) && (! $teachingOnly || auth()->user()->can('student.create')))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('admissions-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -93,25 +114,33 @@
                         </span>
                         <svg id="admissions-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="admissions-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.students.*', 'admin.bulk-upload.*', 'admin.subject-add-drop.*', 'admin.group-enrol.*') ? 'open' : '' }}">
+                    <div id="admissions-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.students.*', 'admin.class-list.*', 'admin.bulk-upload.*', 'admin.subject-add-drop.*', 'admin.group-enrol.*') ? 'open' : '' }}">
+                        @can('student.create')
                         <a href="{{ route('admin.students.create') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.create') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('New Registration') }}</a>
+                        @endcan
                         <a href="{{ route('admin.students.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.index') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student List') }}</a>
+                        <a href="{{ route('admin.class-list.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.class-list.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class List') }}</a>
                         @if(app(\App\Services\OutOfScopeService::class)->hasAny())
                         <a href="{{ route('admin.students.out-of-scope') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.out-of-scope') ? 'text-white bg-white/10' : 'text-amber-300 hover:text-white' }}">{{ __('Outside this level') }}</a>
                         @endif
                         @can('student-exit.view')
                         <a href="{{ route('admin.students.archive') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.archive') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Former Pupils') }}</a>
                         @endcan
+                        @can('group-enrol.view')
                         <a href="{{ route('admin.group-enrol.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.group-enrol.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Group Enrol') }}</a>
+                        @endcan
                         @if(\App\Support\LevelContext::runsSecondary())
                         <a href="{{ route('admin.subject-add-drop.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.subject-add-drop.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Subject Add/Drop') }}</a>
                         @endif
+                        @can('bulk-upload.view')
                         <a href="{{ route('admin.bulk-upload.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.bulk-upload.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Bulk Upload') }}</a>
+                        @endcan
                     </div>
                 </div>
                 @endif
 
                 <!-- Examinations -->
+                @if(! $teachingOnly && auth()->user()->canAny(['exam-schedule.view', 'marks-entry.view', 'exam-publishing.view', 'report-card.view', 'academic-analytics.view', 'class-council.view', 'gce-registration.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('exams-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -145,7 +174,10 @@
                     </div>
                 </div>
 
+                @endif
+
                 <!-- Fees Collection -->
+                @if(auth()->user()->canAny(['fee-collection.view', 'payment-plan.view', 'quick-assign-fee.view', 'assignment-history.view', 'fee-structure.view', 'fee-category.view', 'payment.view', 'fee-discount.view', 'fee-report.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('fees-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -154,7 +186,7 @@
                         </span>
                         <svg id="fees-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    <div id="fees-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.fee-structures.*', 'admin.payments.*', 'admin.student-fees', 'admin.fee-categories.*', 'admin.fee-discounts.*', 'admin.fee-reports.*', 'admin.collect-fees.*', 'admin.quick-assign.*', 'admin.assignment-history.*', 'admin.payment-plans.*') ? 'open' : '' }}">
+                    <div id="fees-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.fee-structures.*', 'admin.payments.*', 'admin.student-fees', 'admin.fee-categories.*', 'admin.fee-discounts.*', 'admin.fee-reports.*', 'admin.collect-fees.*', 'admin.quick-assign.*', 'admin.assignment-history.*', 'admin.payment-plans.*', 'admin.prior-payments.*', 'admin.student-credits.*', 'admin.fee-fines.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.collect-fees.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.collect-fees.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Collect Fees') }}</a>
                         <a href="{{ route('admin.payment-plans.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payment-plans.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payment Plans') }}</a>
                         <a href="{{ route('admin.quick-assign.create') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.quick-assign.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Quick Assign') }}</a>
@@ -169,11 +201,19 @@
                         @can('student-credit.view')
                         <a href="{{ route('admin.student-credits.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.student-credits.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Student Credits') }}</a>
                         @endcan
-                        <a href="{{ route('admin.fee-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Reports') }}</a>
+                        <a href="{{ route('admin.fee-reports.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.index', 'admin.fee-reports.partial*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Reports') }}</a>
+                        <a href="{{ route('admin.fee-reports.defaulters') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.fee-reports.defaulters*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Fee Defaulters') }}</a>
+                        @can('fee-collection.view')
+                        <a href="{{ route('admin.prior-payments.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.prior-payments.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Paid Before the Switch') }}</a>
+                        @endcan
                     </div>
                 </div>
 
+                @endif
+
+                @unless($teachingOnly)
                 <!-- Attendance -->
+                @if(auth()->user()->canAny(['attendance.view', 'attendance.mark', 'attendance.report']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('attendance-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -188,7 +228,10 @@
                     </div>
                 </div>
 
+                @endif
+
                 <!-- Routines -->
+                @if(auth()->user()->canAny(['class-schedule.view', 'teacher-routine.view']))
                 <div class="sidebar-group">
                     <button onclick="toggleSubmenu('routines-menu')" class="sidebar-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
                         <span class="flex items-center">
@@ -203,6 +246,8 @@
                     </div>
                 </div>
 
+                @endif
+
                 <!-- Promotion -->
                 @if(auth()->user()->canAny(['promotion.view']))
                 <a href="{{ route('admin.promotion.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.promotion.*') ? 'active bg-white/10' : 'hover:bg-white/5' }}">
@@ -212,10 +257,12 @@
                 @endif
 
                 <!-- Reports -->
+                @can('report-and-analytics.view')
                 <a href="{{ route('admin.reports.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.reports.*') ? 'active bg-white/10' : 'hover:bg-white/5' }}">
                     <svg class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                     {{ __('Reports & Analytics') }}
                 </a>
+                @endcan
 
                 @if(auth()->user()->canAny(['staff.view', 'role-and-permission.view']))
                 <!-- User Accounts -->
@@ -264,6 +311,8 @@
                     </div>
                 </div>
                 @endif
+
+                @endunless
 
                 <!-- Income & Expense -->
                 @if(auth()->user()->canAny(['daybook.view', 'income.view', 'expense.view', 'outcome.view', 'payment-account.view', 'fund-transfer.view', 'budget.view', 'chart-of-accounts.view', 'journal-entry.view', 'general-ledger.view', 'payroll.view']))
@@ -365,7 +414,9 @@
                         <svg id="hr-menu-chevron" class="sidebar-chevron w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
                     <div id="hr-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.staff.*', 'admin.payroll.*', 'admin.designations.*', 'admin.work-shifts.*', 'admin.allowance-types.*', 'admin.deduction-types.*', 'admin.tax-groups.*', 'admin.tax-settings.*', 'admin.tax-report.*', 'admin.tax-remittances.*') ? 'open' : '' }}">
+                        @can('staff.view')
                         <a href="{{ route('admin.staff.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.staff.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff List') }}</a>
+                        @endcan
                         <a href="{{ route('admin.payroll.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payroll.index', 'admin.payroll.generate', 'admin.payroll.store') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payrolls') }}</a>
                         @can('staff-leave.view')
                         <a href="{{ route('admin.leaves.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.leaves.*') || request()->routeIs('admin.leave-types.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff Leave') }}</a>
@@ -374,8 +425,12 @@
                         <a href="{{ route('admin.staff-attendance.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.staff-attendance.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Staff Attendance') }}</a>
                         @endcan
                         <a href="{{ route('admin.payroll.report') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.payroll.report') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Payroll Reports') }}</a>
+                        @can('work-shift-type.view')
                         <a href="{{ route('admin.work-shifts.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.work-shifts.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Work Shift Types') }}</a>
+                        @endcan
+                        @can('designation.view')
                         <a href="{{ route('admin.designations.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.designations.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Designations') }}</a>
+                        @endcan
                         <a href="{{ route('admin.allowance-types.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.allowance-types.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Allowance Type') }}</a>
                         <a href="{{ route('admin.deduction-types.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.deduction-types.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Deduction Type') }}</a>
                         <a href="{{ route('admin.tax-groups.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.tax-groups.*', 'admin.tax-settings.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Tax Groups') }}</a>
@@ -433,32 +488,40 @@
                     </div>
                     <div class="ml-3 flex-1 min-w-0">
                         <p class="text-sm font-medium truncate">{{ auth()->user()->full_name }}</p>
-                        <p class="text-xs text-gray-400 capitalize">{{ str_replace('_', ' ', auth()->user()->role) }}</p>
+                        <p class="text-xs text-gray-400">{{ collect(auth()->user()->roleNames())->map(fn ($r) => __(\Illuminate\Support\Str::headline($r)))->join(' · ') }}</p>
                     </div>
                 </div>
             </div>
         </aside>
 
         <!-- Main Content -->
-        <div id="main-content" class="flex-1 lg:ml-64 transition-all duration-300" style="min-width: 0; overflow-x: hidden;">
+        <div id="main-content" class="flex-1 lg:ml-64 transition-all duration-300" style="min-width: 0;">
             <!-- Top Bar -->
             <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-20">
-                <div class="flex items-center justify-between px-4 lg:px-6 py-3">
-                    <div class="flex items-center">
+                <div class="flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 py-3">
+                    <div class="flex items-center min-w-0">
                         <!-- Sidebar toggle -->
                         <button id="sidebar-toggle" class="mr-3 p-2 rounded-lg hover:bg-gray-100">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                         </button>
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-800">@yield('title', 'Dashboard')</h2>
+                        <div class="min-w-0">
+                            <h2 class="text-base sm:text-lg font-semibold text-gray-800 truncate">@yield('title', 'Dashboard')</h2>
                             @hasSection('breadcrumb')
-                                <div class="text-sm text-gray-500">@yield('breadcrumb')</div>
+                                <div class="hidden sm:block text-sm text-gray-500 truncate">@yield('breadcrumb')</div>
                             @endif
                         </div>
                     </div>
 
-                    <div class="flex items-center space-x-4">
-                        <span class="hidden md:block text-sm text-gray-500">{{ now()->format('l, F j, Y') }}</span>
+                    <div class="flex items-center gap-2 sm:gap-4 shrink-0">
+                        @can('student.view')
+                        <form method="GET" action="{{ route('admin.students.index') }}" class="hidden sm:block" role="search">
+                            <label for="global-pupil-search" class="sr-only">{{ __('Find a pupil') }}</label>
+                            <input id="global-pupil-search" type="search" name="search" value="{{ request()->routeIs('admin.students.index') ? request('search') : '' }}"
+                                   placeholder="{{ __('Find a pupil — name or matricule') }}"
+                                   class="w-56 lg:w-72 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none">
+                        </form>
+                        @endcan
+                        <span class="hidden xl:block text-sm text-gray-500">{{ now()->translatedFormat('l j F Y') }}</span>
 
                         {{-- Branch Switcher — only when the user can access more than one branch --}}
                         @if(\App\Support\BranchContext::showSwitcher())
@@ -495,7 +558,7 @@
                              every screen is still filtered by it. Without this
                              the filter is invisible, and a school whose mode is
                              set wrongly looks like a school with no pupils. --}}
-                        <span class="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-gray-50"
+                        <span class="hidden md:inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-gray-50"
                               title="{{ __('This school runs one level. Every list is filtered to it.') }}">
                             <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                             {{ \App\Support\LevelContext::currentLabel() }}
@@ -512,9 +575,9 @@
 
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="text-sm text-gray-600 hover:text-red-600 transition flex items-center">
+                            <button type="submit" class="text-sm text-gray-600 hover:text-red-600 transition flex items-center p-1" title="{{ __('Logout') }}" aria-label="{{ __('Logout') }}">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                                {{ __('Logout') }}
+                                <span class="hidden sm:inline">{{ __('Logout') }}</span>
                             </button>
                         </form>
                     </div>
@@ -522,7 +585,8 @@
             </header>
 
             <!-- Page Content -->
-            <main class="p-4 lg:p-6">
+            {{-- Wide tables scroll inside the page instead of being cut off on a phone. --}}
+            <main class="p-4 lg:p-6 overflow-x-auto">
                 <!-- Flash Messages -->
                 @if(session('success'))
                     <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 flex items-center justify-between" id="flash-success">

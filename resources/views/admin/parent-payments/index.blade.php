@@ -62,7 +62,7 @@
                                     <div class="text-xs text-teal-600 mt-0.5">{{ __('For') }}: {{ $s->studentFee->feeCategory->name ?? __('fee') }}</div>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-gray-600 capitalize">{{ str_replace('_', ' ', $s->payment_method) }}</td>
+                            <td class="px-6 py-4 text-gray-600">{{ \App\Models\Payment::methodLabel($s->payment_method) }}</td>
                             <td class="px-6 py-4 text-right font-semibold text-gray-800">{{ number_format($s->amount, 0) }} {{ $currency }}</td>
                             <td class="px-6 py-4 text-center">
                                 <span class="px-2.5 py-1 rounded-full {{ $sc[0] }} {{ $sc[1] }} text-xs font-medium capitalize">{{ $s->status }}</span>

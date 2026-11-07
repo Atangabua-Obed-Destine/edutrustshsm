@@ -50,20 +50,32 @@ class StaffController extends Controller implements HasMiddleware
     {
         $data = $this->validateStaff($request);
 
-        $user = DB::transaction(function () use ($data, $request) {
-            $user = new User($data);
-            $user->staff_id = $data['staff_id'] ?: $this->generateStaffId();
-            $user->password = Hash::make($request->input('password') ?: 'password');
+        // Every account left without a password used to open with the word
+        // "password". Generate a temporary one instead and show it once.
+        $temporary = $request->filled('password') ? null : \Illuminate\Support\Str::password(10, symbols: false);
+
+        $user = DB::transaction(function () use ($data, $request, $temporary) {
+            $roles = $data['roles'];
+            unset($data['roles']);
+            $user = new User($data + ['role' => User::primaryRoleFor($roles)]);
+            $user->staff_id = ($data['staff_id'] ?? null) ?: $this->generateStaffId();
+            $user->password = Hash::make($request->input('password') ?: $temporary);
             if ($request->hasFile('profile_photo')) {
                 $user->profile_photo = $request->file('profile_photo')->store('staff/photos', 'public');
             }
             $user->save();
+            $user->joinWorkingBranch();
+            $this->syncRoles($user, $roles);
             $this->syncBankAccounts($user, $request);
             return $user;
         });
 
 
-        return redirect()->route('admin.staff.index')->with('success', __('Staff member created.'));
+        $message = $temporary
+            ? __('Staff member created. Their temporary password is :password — give it to them privately; it is not shown again.', ['password' => $temporary])
+            : __('Staff member created.');
+
+        return redirect()->route('admin.staff.index')->with('success', $message);
     }
 
     public function show(User $staff)
@@ -87,7 +99,10 @@ class StaffController extends Controller implements HasMiddleware
                 $data['profile_photo'] = $request->file('profile_photo')->store('staff/photos', 'public');
             }
             unset($data['staff_id']); // immutable after creation
+            $roles = $data['roles'];
+            unset($data['roles']);
             $staff->update($data);
+            $this->syncRoles($staff, $roles);
             if ($request->filled('password')) {
                 $staff->update(['password' => Hash::make($request->password)]);
             }
@@ -115,9 +130,29 @@ class StaffController extends Controller implements HasMiddleware
         return back()->with('success', __('Staff member deleted.'));
     }
 
+    /** The roles this screen gives; administrators are made on User Accounts. */
+    public const ROLES = ['teacher', 'accountant', 'receptionist', 'librarian', 'staff'];
+
+    /**
+     * Put the person in the roles ticked, keeping any this screen does not
+     * offer (an administrator edited here stays an administrator), and write
+     * the most senior one on the account.
+     */
+    private function syncRoles(User $user, array $ticked): void
+    {
+        $kept = $user->roles()->whereNotIn('name', self::ROLES)->pluck('roles.id');
+        $chosen = \App\Models\Role::whereIn('name', $ticked)->pluck('id');
+        $user->roles()->sync($kept->merge($chosen)->unique()->all());
+        $user->forgetPermissions();
+
+        $names = $user->roles()->pluck('name')->all();
+        $user->forceFill(['role' => User::primaryRoleFor($names)])->save();
+    }
+
     private function formData(): array
     {
         return [
+            'roleChoices' => \App\Models\Role::whereIn('name', self::ROLES)->get()->sortBy(fn ($r) => array_search($r->name, self::ROLES))->values(),
             'departments' => Department::orderBy('name')->get(),
             'designations' => Designation::orderBy('title')->get(),
             'workShifts' => WorkShiftType::orderBy('title')->get(),
@@ -167,7 +202,10 @@ class StaffController extends Controller implements HasMiddleware
             'date_of_birth' => ['nullable', 'date'],
             'national_id' => ['nullable', 'string', 'max:100'],
             'marital_status' => ['nullable', 'string', 'max:50'],
-            'role' => ['required', 'in:teacher,staff'],
+            // Several roles, as in the reference system: a teacher may also be
+            // the bursar or keep the front desk.
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['in:'.implode(',', self::ROLES)],
             'department_id' => ['nullable', 'exists:departments,id'],
             'designation_id' => ['nullable', 'exists:designations,id'],
             'work_shift_id' => ['nullable', 'exists:work_shift_types,id'],

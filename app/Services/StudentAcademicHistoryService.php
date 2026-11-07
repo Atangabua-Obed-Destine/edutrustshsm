@@ -32,7 +32,11 @@ class StudentAcademicHistoryService
         $results = $this->results($student);
         $councils = $this->councilDecisions($student);
 
-        $years = $enrollments->map(fn (StudentEnrollment $enrollment) => $this->year($enrollment, $results, $councils))
+        // A pupil has one enrolment row per term, so a year is the rows that
+        // share it. One block per row showed the same year two or three times.
+        $years = $enrollments
+            ->groupBy('academic_session_id')
+            ->map(fn (Collection $rows) => $this->year($rows, $results, $councils))
             ->values()
             ->all();
 
@@ -49,7 +53,7 @@ class StudentAcademicHistoryService
     private function enrollments(Student $student): Collection
     {
         return StudentEnrollment::where('student_id', $student->id)
-            ->with(['academicSession', 'classSection.form', 'stream'])
+            ->with(['academicSession', 'classSection.form', 'stream', 'term'])
             ->get()
             ->sortBy(fn (StudentEnrollment $e) => $e->academicSession?->start_date ?? $e->enrollment_date)
             ->values();
@@ -67,16 +71,19 @@ class StudentAcademicHistoryService
     }
 
     /**
-     * What each class council decided about this pupil, by term.
+     * What each class council decided about this pupil, by year and term.
      *
-     * @return Collection<int, ClassCouncilEntry> keyed by term id
+     * Terms are shared by every year, so keyed by the term alone last year's
+     * First Term council answered for this year's too.
+     *
+     * @return Collection<string, ClassCouncilEntry> keyed "session:term"
      */
     private function councilDecisions(Student $student): Collection
     {
         return ClassCouncilEntry::where('student_id', $student->id)
             ->with('council.term')
             ->get()
-            ->keyBy(fn (ClassCouncilEntry $entry) => $entry->council?->term_id);
+            ->keyBy(fn (ClassCouncilEntry $entry) => $entry->council?->academic_session_id.':'.$entry->council?->term_id);
     }
 
     /**
@@ -86,10 +93,15 @@ class StudentAcademicHistoryService
      * @param  Collection<int, ClassCouncilEntry>  $councils
      * @return array<string, mixed>
      */
-    private function year(StudentEnrollment $enrollment, Collection $results, Collection $councils): array
+    private function year(Collection $rows, Collection $results, Collection $councils): array
     {
+        // The year's last row carries where it ended: the class, the
+        // decision and the annual figures.
+        $enrollment = $rows->sortBy(fn (StudentEnrollment $e) => [$e->term?->term_number ?? 0, $e->id])->last();
+        $sessionId = $enrollment->academic_session_id;
+
         $terms = $results
-            ->filter(fn (TermResult $r) => $r->student_enrollment_id === $enrollment->id)
+            ->filter(fn (TermResult $r) => $rows->contains('id', $r->student_enrollment_id))
             ->map(fn (TermResult $r) => [
                 'term' => $r->term?->name,
                 'term_number' => $r->term?->term_number,
@@ -105,7 +117,8 @@ class StudentAcademicHistoryService
                 'teacher_remark' => $r->class_teacher_remark,
                 'principal_remark' => $r->principal_remark,
                 'published' => (bool) $r->is_published,
-                'council' => $this->councilFor($councils, $r->term_id),
+                'recorded' => $r->isRecorded(),
+                'council' => $this->councilFor($councils, $sessionId, $r->term_id),
                 'result_id' => $r->id,
             ])
             ->sortBy('term_number')
@@ -120,6 +133,8 @@ class StudentAcademicHistoryService
             'status' => $enrollment->status,
             'final_average' => $enrollment->final_average !== null ? (float) $enrollment->final_average : null,
             'final_rank' => $enrollment->final_rank,
+            'recorded' => (bool) $enrollment->academicSession?->is_recorded,
+            'session_id' => $sessionId,
             'terms' => $terms,
             // Said plainly rather than left as an empty row: a year with no
             // published result is a fact about the record, not a rendering gap.
@@ -128,9 +143,11 @@ class StudentAcademicHistoryService
     }
 
     /** @param Collection<int, ClassCouncilEntry> $councils */
-    private function councilFor(Collection $councils, ?int $termId): ?array
+    private function councilFor(Collection $councils, ?int $sessionId, ?int $termId): ?array
     {
-        $entry = $termId ? $councils->get($termId) : null;
+        // A council held before councils carried their year has none: it
+        // can only be this term's.
+        $entry = $termId ? ($councils->get($sessionId.':'.$termId) ?? $councils->get(':'.$termId)) : null;
 
         if (! $entry || ! $entry->council?->isConcluded()) {
             return null;

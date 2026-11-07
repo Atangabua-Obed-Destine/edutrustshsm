@@ -10,7 +10,9 @@ class CheckRole
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!$request->user() || !in_array($request->user()->role, $roles)) {
+        // Any role the person holds opens the section; what they may do
+        // inside it is each screen's own permission check.
+        if (! $request->user() || ! $request->user()->holdsRole(...$roles)) {
             abort(403, 'Unauthorized access.');
         }
 

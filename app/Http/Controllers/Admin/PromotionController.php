@@ -10,6 +10,7 @@ use App\Models\SchoolSetting;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
 use App\Services\PromotionEligibilityService;
+use App\Services\StudentExitService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -175,7 +176,16 @@ class PromotionController extends Controller implements HasMiddleware
 
                     case 'graduate':
                         $enrollment->update(['status' => 'completed']);
-                        $enrollment->student->update(['status' => 'graduated']);
+                        // Leaving school is an exit like any other: dated (the
+                        // year's last day) and with a reason, so the student is
+                        // found among former students and can be given a
+                        // leaving certificate.
+                        app(StudentExitService::class)->record(
+                            $enrollment->student,
+                            StudentExitService::GRADUATED,
+                            ($enrollment->academicSession?->end_date ?? now())->toDateString(),
+                            __('Completed :class in :year.', ['class' => $enrollment->classSection?->form?->name, 'year' => $enrollment->academicSession?->name]),
+                        );
                         $counts['graduated']++;
                         break;
 

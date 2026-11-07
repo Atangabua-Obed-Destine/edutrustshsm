@@ -95,7 +95,23 @@ class FeeCollectionController extends Controller implements HasMiddleware
 
             $studentFees = $query
                 ->orderBy('fee_category_id')
-                ->get()
+                ->get();
+
+            // What these pupils left unpaid in earlier years is collected at
+            // the same counter: it sits beside this year's fees, marked.
+            if ($sessionId && $studentFees->isNotEmpty()) {
+                $arrears = StudentFee::with($query->getEagerLoads())
+                    ->where('balance', '>', 0)
+                    ->whereHas('enrollment', fn ($q) => $q
+                        ->whereIn('student_id', $studentFees->pluck('enrollment.student_id')->unique())
+                        ->where('academic_session_id', '!=', $sessionId))
+                    ->when($categoryId, fn ($q) => $q->where('fee_category_id', $categoryId))
+                    ->when($status, fn ($q) => $q->where('status', $status))
+                    ->get();
+                $studentFees = $studentFees->concat($arrears);
+            }
+
+            $studentFees = $studentFees
                 ->sortBy([
                     fn ($a, $b) => ($a->enrollment->student->last_name ?? '') <=> ($b->enrollment->student->last_name ?? ''),
                     fn ($a, $b) => ($a->enrollment->student->first_name ?? '') <=> ($b->enrollment->student->first_name ?? ''),
@@ -107,11 +123,22 @@ class FeeCollectionController extends Controller implements HasMiddleware
         $totalPaid = $studentFees->sum('paid_amount');
         $totalBalance = $studentFees->sum('balance');
 
+        // Everything each pupil owes, whatever the filters show and from any
+        // year, so a parent paying one lump sum is taken in one receipt.
+        $owedByStudent = $studentFees->isEmpty() ? collect() : StudentFee::query()
+            ->join('student_enrollments as se', 'se.id', '=', 'student_fees.student_enrollment_id')
+            ->whereIn('se.student_id', $studentFees->pluck('enrollment.student_id')->unique())
+            ->selectRaw('se.student_id, SUM(student_fees.balance) as owed')
+            ->groupBy('se.student_id')
+            ->pluck('owed', 'se.student_id');
+        $outstandingByEnrollment = $studentFees
+            ->mapWithKeys(fn ($f) => [$f->student_enrollment_id => (float) ($owedByStudent[$f->enrollment?->student_id] ?? $f->balance)]);
+
         return view('admin.fees.collect.index', compact(
             'sessions', 'forms', 'categories', 'streams', 'sections',
             'sessionId', 'formId', 'streamId', 'sectionId', 'categoryId', 'status',
             'studentFees', 'loaded',
-            'totalExpected', 'totalPaid', 'totalBalance'
+            'totalExpected', 'totalPaid', 'totalBalance', 'outstandingByEnrollment'
         ));
     }
 
@@ -141,13 +168,20 @@ class FeeCollectionController extends Controller implements HasMiddleware
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $studentFee = StudentFee::findOrFail($validated['student_fee_id']);
+        $studentFee = StudentFee::with('enrollment')->findOrFail($validated['student_fee_id']);
+
+        // An arrear from last year is paid on the enrolment the pupil is on
+        // now, so the receipt carries this year's class.
+        $enrollmentId = StudentEnrollment::where('student_id', $studentFee->enrollment?->student_id)
+            ->where('status', 'active')
+            ->orderByDesc('id')
+            ->value('id') ?? $studentFee->student_enrollment_id;
 
         // Recording, allocation, balances and payment-plan advancement all live
         // in PaymentRecorder so this screen, the payments screen and parent
         // portal approval cannot drift apart.
         $payment = $recorder->record([
-            'student_enrollment_id' => $studentFee->student_enrollment_id,
+            'student_enrollment_id' => $enrollmentId,
             'target_fee_id'         => $studentFee->id,
             'amount'                => $validated['amount'],
             'payment_method'        => $validated['payment_method'],
@@ -203,6 +237,7 @@ class FeeCollectionController extends Controller implements HasMiddleware
             'enrollment.term',
             'receivedBy',
             'allocations.studentFee.feeCategory',
+            'allocations.studentFee.enrollment.academicSession',
             'allocations.studentFee.paymentPlan.installments',
         ]);
 
@@ -223,13 +258,27 @@ class FeeCollectionController extends Controller implements HasMiddleware
             ->orderBy('id')
             ->get();
 
+        // What has been paid against the fees, receipt by receipt up to this
+        // one. Summing whole receipts counted money held as credit as if it
+        // paid fees: a receipt could read "paid 180,000" on 125,000 of fees.
         $totalFees = $allFees->sum('net_amount');
-        $totalPaidToDate = $allPayments->sum('amount');
+        $totalPaidToDate = (float) \App\Models\PaymentAllocation::whereIn('payment_id', $allPayments->pluck('id'))
+            ->whereIn('student_fee_id', $allFees->pluck('id'))
+            ->sum('amount');
         $overallBalance = $totalFees - $totalPaidToDate;
+
+        // The part of this receipt that settled no fee is held as credit.
+        $heldAsCredit = $payment->payment_method === 'student_credit'
+            ? 0.0
+            : max(0.0, round((float) $payment->amount - (float) $payment->allocations->sum('amount'), 2));
+
+        // Earlier years' fees still unpaid, as of now: the family is told
+        // on every receipt, not only when the bursar remembers.
+        $arrearsOwed = (float) StudentFee::arrearsOf($payment->enrollment?->student_id, $payment->enrollment?->academic_session_id)->sum('balance');
 
         return view('admin.fees.collect.receipt', compact(
             'payment', 'school', 'allFees', 'allPayments',
-            'totalFees', 'totalPaidToDate', 'overallBalance'
+            'totalFees', 'totalPaidToDate', 'overallBalance', 'heldAsCredit', 'arrearsOwed'
         ));
     }
 }

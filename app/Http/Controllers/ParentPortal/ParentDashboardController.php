@@ -27,7 +27,7 @@ class ParentDashboardController extends Controller
             $paidTotal = 0;
 
             if ($enrollment) {
-                $fees = StudentFee::where('student_enrollment_id', $enrollment->id)->get();
+                $fees = StudentFee::owedOn($enrollment)->get();
                 $netTotal = $fees->sum('net_amount');
                 $paidTotal = $fees->sum('paid_amount');
                 $balance = $fees->sum('balance');

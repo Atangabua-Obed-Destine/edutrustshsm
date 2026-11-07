@@ -57,6 +57,11 @@ class DefaultDataSeeder extends Seeder
             $superAdmin->roles()->sync([$superAdminRole->id]);
         }
 
+        // And to the school's branch, as the user screens do for anyone else.
+        if ($branchId = \App\Support\BranchContext::onlyBranch()) {
+            $superAdmin->branches()->syncWithoutDetaching([$branchId => ['is_default' => true]]);
+        }
+
         // Secondary forms (Form 1-5 = First Cycle, Lower/Upper Sixth = Second Cycle)
         $forms = [
             ['name' => 'Form 1', 'short_name' => 'F1', 'school_level' => 'secondary', 'level' => 'first_cycle', 'education_system' => 'english', 'display_order' => 1, 'has_streams' => true],

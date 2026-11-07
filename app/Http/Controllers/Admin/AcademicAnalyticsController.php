@@ -26,6 +26,14 @@ class AcademicAnalyticsController extends Controller implements HasMiddleware
 
     protected static string $access = 'academic-analytics';
 
+    /** @return array<int, \Illuminate\Routing\Controllers\Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [
+            static::can('academic-analytics.export', ['export']),
+        ];
+    }
+
     public function __construct(private AcademicAnalyticsService $analytics) {}
 
     public function index(Request $request)

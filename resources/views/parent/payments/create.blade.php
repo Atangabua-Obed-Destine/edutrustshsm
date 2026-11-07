@@ -62,7 +62,7 @@
             <div style="font-size:0.72rem; color:#64748b; text-transform:uppercase; margin-bottom:6px;">{{ __('Outstanding for') }} {{ $selectedStudent->first_name }}</div>
             @foreach($fees as $fee)
                 <div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:3px 0;">
-                    <span style="color:#475569;">{{ $fee->feeCategory->name ?? '—' }}</span>
+                    <span style="color:#475569;">{{ $fee->feeCategory->name ?? '—' }}@if($fee->enrollment && $fee->enrollment->status !== 'active')<span style="display:block; font-size:0.72rem; color:#dc2626; font-weight:600;">{{ __('Arrears :year', ['year' => $fee->enrollment->academicSession?->name]) }}</span>@endif</span>
                     <span style="color:#dc2626; font-weight:600;">{{ number_format($fee->balance, 0) }} {{ $currency }}</span>
                 </div>
             @endforeach

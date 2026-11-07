@@ -59,6 +59,9 @@ class User extends Authenticatable
     /** @var array<int, string>|null Memoized permission names for this request. */
     protected ?array $permissionNames = null;
 
+    /** @var array<int, string>|null */
+    protected ?array $roleNames = null;
+
     protected function casts(): array
     {
         return [
@@ -125,6 +128,21 @@ class User extends Authenticatable
      * accessible branch). Used for branch-aware staff/teacher counts on reports.
      * Users belong to branches via the branch_user pivot.
      */
+    /**
+     * Put a newly made staff account in the branch it was made in (in a
+     * one-branch school, that branch). Accounts made on the staff screens
+     * belonged to no branch, so the branch's counts and lists left them out.
+     */
+    public function joinWorkingBranch(): void
+    {
+        $branchId = \App\Support\BranchContext::onlyBranch()
+            ?? (\App\Support\BranchContext::isActive() && ! \App\Support\BranchContext::isAllBranches() ? \App\Support\BranchContext::current() : null);
+
+        if ($branchId) {
+            $this->branches()->syncWithoutDetaching([$branchId => ['is_default' => ! $this->branches()->exists()]]);
+        }
+    }
+
     public function scopeInBranchContext($query)
     {
         if (! \App\Support\BranchContext::isActive()) {
@@ -151,6 +169,58 @@ class User extends Authenticatable
         return preg_replace('/\s+/', ' ', $names);
     }
 
+    /**
+     * Every role this person holds: those ticked on their account and the one
+     * named on it. A teacher who is also the bursar holds both, as in the
+     * reference system, and each opens its part of the school.
+     *
+     * @return array<int, string>
+     */
+    public function roleNames(): array
+    {
+        return $this->roleNames ??= collect($this->roles()->pluck('name'))
+            ->push($this->role)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The one role written on the account, from the roles held: the most
+     * senior. Kept for the reports and lists that count by it; access itself
+     * follows every role held.
+     *
+     * @param  array<int, string>  $names
+     */
+    public static function primaryRoleFor(array $names): string
+    {
+        foreach (['super_admin', 'admin', 'accountant', 'teacher'] as $role) {
+            if (in_array($role, $names, true)) {
+                return $role;
+            }
+        }
+
+        return 'staff';
+    }
+
+    /**
+     * People holding any of the given roles, whether it is the one written on
+     * the account or one held alongside it: the teacher who keeps the bursary
+     * has "accountant" written on the account and is still a teacher.
+     */
+    public function scopeHoldingRole($query, string ...$names)
+    {
+        return $query->where(fn ($q) => $q->whereIn('role', $names)
+            ->orWhereHas('roles', fn ($r) => $r->whereIn('name', $names)));
+    }
+
+    /** Whether this person holds any of the given roles. */
+    public function holdsRole(string ...$names): bool
+    {
+        return array_intersect($names, $this->roleNames()) !== [];
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->role === 'super_admin';
@@ -158,12 +228,12 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin']);
+        return $this->holdsRole('super_admin', 'admin');
     }
 
     public function isTeacher(): bool
     {
-        return $this->role === 'teacher';
+        return $this->holdsRole('teacher');
     }
 
     public function isAccountant(): bool
@@ -186,7 +256,7 @@ class User extends Authenticatable
     public function homeRoute(): ?string
     {
         return match ($this->role) {
-            'super_admin', 'admin' => 'admin.dashboard',
+            'super_admin', 'admin', 'teacher' => 'admin.dashboard',
             'accountant' => 'admin.account.income.index',
             'staff' => 'admin.students.index',
             default => null,
@@ -245,9 +315,15 @@ class User extends Authenticatable
      */
     public function permissionNames(): array
     {
+        // A staff member created on the HR screen carries the role name but
+        // was never attached to the role record, so had no permissions at
+        // all. The role named on the account counts as one of its roles.
         return $this->permissionNames ??= $this->roles()
             ->with('permissions:id,name')
             ->get()
+            ->pipe(fn ($roles) => $this->role && ! $roles->contains('name', $this->role)
+                ? $roles->merge(Role::where('name', $this->role)->whereNotIn('id', $roles->pluck('id'))->with('permissions:id,name')->get())
+                : $roles)
             ->pluck('permissions')
             ->flatten()
             ->pluck('name')
@@ -260,6 +336,7 @@ class User extends Authenticatable
     public function forgetPermissions(): void
     {
         $this->permissionNames = null;
+        $this->roleNames = null;
     }
 
     /**

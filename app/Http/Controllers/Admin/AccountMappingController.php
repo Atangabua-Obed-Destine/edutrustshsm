@@ -56,6 +56,9 @@ class AccountMappingController extends Controller implements HasMiddleware
             // Both are catch-all rules — they do not vary by fee category.
             'student_credit' => collect(),
             'credit_applied' => collect(),
+            // Last year's unpaid fees, from before the system, as they are
+            // collected: DR Cash/Bank -> CR pupils' receivables.
+            'arrears_collected' => collect(),
             // Paying credit back to a family: DR Student Advances → CR Cash/Bank.
             'credit_refund' => collect(),
         ];
@@ -67,7 +70,7 @@ class AccountMappingController extends Controller implements HasMiddleware
     public function save(Request $request)
     {
         $validated = $request->validate([
-            'mapping_type' => ['required', 'in:income,expense,fee_payment,student_credit,credit_applied,credit_refund'],
+            'mapping_type' => ['required', 'in:income,expense,fee_payment,student_credit,credit_applied,credit_refund,arrears_collected'],
             'category_id' => ['nullable', 'integer'],
             'debit_account_id' => ['required', 'exists:chart_of_accounts,id'],
             'credit_account_id' => ['required', 'exists:chart_of_accounts,id', 'different:debit_account_id'],
@@ -109,7 +112,7 @@ class AccountMappingController extends Controller implements HasMiddleware
         $skipped = 0;
 
         foreach ($this->unmappedFacts() as $fact) {
-            $ok = $this->mapper->autoMap($fact->type, $fact->id, $fact->category_id, [
+            $ok = $this->mapper->autoMap($fact->posting_type ?? $fact->type, $fact->id, $fact->category_id, [
                 'amount' => $fact->amount,
                 'date' => $fact->date ? Carbon::parse($fact->date)->toDateString() : now()->toDateString(),
                 'description' => $fact->label,
@@ -138,8 +141,11 @@ class AccountMappingController extends Controller implements HasMiddleware
      */
     private function unmappedFacts()
     {
-        $mappedIds = fn (string $type) => TransactionMapping::where('transaction_type', $type)
-            ->where('status', 'active')->pluck('transaction_id');
+        // A fact whose posting was reversed was undone on purpose (a reversed
+        // receipt, a deleted expense) and must not be posted again; only
+        // facts that never reached the ledger are unmapped.
+        $mappedIds = fn (string ...$types) => TransactionMapping::whereIn('transaction_type', $types)
+            ->whereIn('status', ['active', 'reversed'])->pluck('transaction_id');
 
         $rows = collect();
 
@@ -161,13 +167,24 @@ class AccountMappingController extends Controller implements HasMiddleware
         }
 
         // Fee revenue is posted per allocation, so that is the unit here too.
-        PaymentAllocation::with(['payment', 'studentFee.feeCategory'])
-            ->whereNotIn('id', $mappedIds('fee_payment'))
+        // Only allocations of receipts that still stand: a reversed or
+        // unverified receipt brought no money. One paid from a pupil's credit
+        // brought no new cash either, so it posts as credit applied
+        // (DR 419 → CR revenue), as the live observer does.
+        PaymentAllocation::with(['payment', 'studentFee.feeCategory', 'studentFee.enrollment.academicSession'])
+            ->whereNotIn('id', $mappedIds('fee_payment', 'credit_applied', 'arrears_collected'))
+            // Paid in the old system: booked there, never posted here.
+            ->whereHas('payment', fn ($q) => $q->where('verification_status', 'verified')->where('payment_method', '!=', 'prior_system'))
             ->orderBy('id')
             ->get()
             ->each(function (PaymentAllocation $a) use (&$rows) {
                 $rows->push((object) [
                     'type' => 'fee_payment',
+                    'posting_type' => match (true) {
+                        $a->payment?->payment_method === 'student_credit' => 'credit_applied',
+                        (bool) $a->studentFee?->enrollment?->academicSession?->is_recorded => 'arrears_collected',
+                        default => 'fee_payment',
+                    },
                     'id' => $a->id,
                     'label' => trim(($a->studentFee?->feeCategory?->name ?? __('Fee'))
                         .' - '.($a->payment?->receipt_number ?? ''), ' -'),

@@ -57,6 +57,10 @@ class TermResultCalculator
             ->where('academic_session_id', $sessionId)
             ->where('term_id', $term->id)
             ->whereIn('status', ['active', 'completed'])
+            // A recorded year's results are the ones proclaimed at the time.
+            // There are no marks to compute from, and computing would
+            // overwrite them with blanks: such a class has no one to compute.
+            ->whereHas('academicSession', fn ($q) => $q->where('is_recorded', false))
             ->with([
                 'student:id,student_id,first_name,last_name',
                 'studentSubjects.subject.forms' => fn ($q) => $q->where('form_id', $classSection->form_id),
@@ -179,11 +183,25 @@ class TermResultCalculator
     /** @return array<int, string> subject_id => teacher name */
     private function teacherNames(ClassSection $classSection): array
     {
-        return $classSection->teacherAssignments()
+        $sessionId = \App\Models\AcademicSession::current()?->id;
+
+        $names = $classSection->teacherAssignments()
+            ->when($sessionId, fn ($q) => $q->where('academic_session_id', $sessionId))
             ->with('teacher:id,first_name,last_name')
             ->get()
             ->mapWithKeys(fn ($a) => [$a->subject_id => $a->teacher?->full_name])
             ->all();
+
+        // At nursery and primary the class teacher teaches every subject not
+        // given to someone else, so the card names them.
+        $classSection->loadMissing('form', 'classTeacher');
+        if ($classSection->form?->school_level === 'nursery_primary' && $classSection->classTeacher) {
+            foreach (DB::table('form_subject')->where('form_id', $classSection->form_id)->pluck('subject_id') as $subjectId) {
+                $names[$subjectId] ??= $classSection->classTeacher->full_name;
+            }
+        }
+
+        return $names;
     }
 
     /** @param array<int, string> $teachers */
@@ -214,26 +232,48 @@ class TermResultCalculator
 
             $scores = [];
             $weights = [];
+            $absent = [];
+            $sat = false;
             $weightedSum = 0.0;
             $totalWeight = 0.0;
 
+            // Absence follows paxhitestbed. Only approved or published marks
+            // reach here, so an absence has been finalised by the teacher and
+            // the head, never an empty default. A finalised absence counts as
+            // 0 for that sequence and prints "ABS". A mark nobody entered is
+            // not submitted and stays out. Absent from every sequence of the
+            // subject, the subject itself is ABS: no average, and it is left
+            // out of the term average, as pax leaves an ABS course out of
+            // the GPA.
             foreach ($sequences as $sequence) {
                 $mark = $marks->get($subject->id.':'.$sequence->id);
-                $score = ($mark && ! $mark->is_absent && $mark->score !== null)
-                    ? (float) $mark->score
-                    : null;
-
-                $scores[$sequence->id] = $score;
                 $weight = (float) ($sequence->weight ?: 1);
                 $weights[$sequence->id] = $weight;
 
+                if ($mark && $mark->is_absent) {
+                    $absent[] = $sequence->id;
+                    $scores[$sequence->id] = 0.0;
+                    $totalWeight += $weight;
+
+                    continue;
+                }
+
+                $score = ($mark && $mark->score !== null) ? (float) $mark->score : null;
+                $scores[$sequence->id] = $score;
+
                 if ($score !== null) {
+                    $sat = true;
                     $weightedSum += $score * $weight;
                     $totalWeight += $weight;
                 }
             }
 
-            $average = $totalWeight > 0 ? round($weightedSum / $totalWeight, 2) : null;
+            $absentThroughout = ! $sat && $absent !== [];
+            if ($absentThroughout) {
+                $scores = array_map(fn () => null, $scores);
+            }
+
+            $average = (! $absentThroughout && $totalWeight > 0) ? round($weightedSum / $totalWeight, 2) : null;
             $weightedScore = $average !== null ? round($average * $coefficient, 2) : null;
 
             if ($average !== null) {
@@ -247,9 +287,10 @@ class TermResultCalculator
                 'coefficient' => $coefficient,
                 'scores' => $scores,
                 'weights' => $weights,
+                'absent' => $absent,
                 'term_average' => $average,
                 'weighted_score' => $weightedScore,
-                'grade' => $average !== null ? $this->gradeFor($average, $grades) : '-',
+                'grade' => $absentThroughout ? 'ABS' : ($average !== null ? $this->gradeFor($average, $grades) : '-'),
                 'teacher_name' => $teachers[$subject->id] ?? null,
             ];
         }
@@ -337,6 +378,8 @@ class TermResultCalculator
             'resolved_weights' => [
                 'sequences' => $subject['weights'],
                 'coefficient' => $subject['coefficient'],
+                // Sequences the pupil was absent from, so the card prints ABS.
+                'absent' => $subject['absent'] ?? [],
             ],
             'term_average' => $subject['term_average'],
             'weighted_score' => $subject['weighted_score'],
@@ -401,12 +444,11 @@ class TermResultCalculator
 
     private function gradeFor(float $score, Collection $grades): string
     {
-        foreach ($grades as $grade) {
-            if ($score >= (float) $grade->min_mark && $score <= (float) $grade->max_mark) {
-                return $grade->grade;
-            }
-        }
+        // The highest band whose minimum the score reaches. Bands are stored
+        // to one decimal (15.0–15.9, 16.0–17.9), so testing the maximum left
+        // 15.95 in no band at all and printed "-" on the card.
+        $band = $grades->filter(fn ($g) => $score >= (float) $g->min_mark)->sortByDesc(fn ($g) => (float) $g->min_mark)->first();
 
-        return '-';
+        return $band?->grade ?? '-';
     }
 }

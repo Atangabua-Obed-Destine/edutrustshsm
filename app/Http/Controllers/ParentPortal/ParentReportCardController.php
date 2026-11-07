@@ -38,6 +38,13 @@ class ParentReportCardController extends Controller
         abort_if($termResult->enrollment->student_id !== $studentModel->id, 403);
         abort_if(! $termResult->is_published, 403, __('This report card has not been published yet.'));
 
+        // A year from before the system has no report card of its own here:
+        // its results are shown as recorded from the school's paper ones.
+        if ($termResult->isRecorded()) {
+            return view('parent.report-cards.recorded', app(\App\Services\RecordedResults::class)
+                ->recordFor($termResult->enrollment->academicSession, $studentModel, publishedOnly: true));
+        }
+
         $termResult->load([
             'enrollment.student',
             'enrollment.classSection.form',
