@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use EdutrustPay\Contract\Capability;
 use EdutrustPay\Contract\Money;
 use EdutrustPay\Contract\PayloadBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Assembles one branch's contract payload for one calendar month.
@@ -65,7 +66,79 @@ class PeriodReportBuilder
             $this->addReceivables($builder, $branchId, $fees->endDate());
         }
 
+        if (in_array(Capability::FEES_CHARGED, $capabilities, true)) {
+            $this->addFeesCharged($builder, $branchId, $fees->endDate());
+        }
+
         return $builder->build();
+    }
+
+    /**
+     * What each form is charged, so the body can compare it with the fees it has
+     * set. Amounts and head counts only: no student is named.
+     *
+     * Both the fee structure and the amounts really billed are reported. A bill
+     * can differ from the structure, and that difference is exactly what the body
+     * wants to see, while a structure nobody has been billed on yet still says
+     * what the school intends to charge. The billed amount is before discounts
+     * and waivers, so a bursary does not read as a cheaper fee.
+     *
+     * Queried by branch directly: the branch scope is inactive in the console.
+     * With nothing to report the block is omitted, and the console says it cannot
+     * check. A zero would look like a fee of nothing.
+     */
+    private function addFeesCharged(PayloadBuilder $builder, int $branchId, string $asOf): void
+    {
+        $session = DB::table('academic_sessions')
+            ->where('branch_id', $branchId)
+            ->whereDate('start_date', '<=', $asOf)
+            ->orderByDesc('start_date')
+            ->first();
+
+        if (! $session) {
+            return;
+        }
+
+        $billed = DB::table('student_fees as sf')
+            ->join('student_enrollments as e', 'e.id', '=', 'sf.student_enrollment_id')
+            ->join('class_sections as cs', 'cs.id', '=', 'e.class_section_id')
+            ->join('forms as f', 'f.id', '=', 'cs.form_id')
+            ->join('fee_categories as c', 'c.id', '=', 'sf.fee_category_id')
+            ->where('sf.branch_id', $branchId)
+            ->where('e.academic_session_id', $session->id)
+            ->whereDate('sf.created_at', '<=', $asOf)
+            ->selectRaw('f.name as level, c.name as category, sf.original_amount as amount, COUNT(DISTINCT e.student_id) as students')
+            ->groupBy('f.name', 'c.name', 'sf.original_amount')
+            ->get();
+
+        $set = DB::table('fee_structures as s')
+            ->join('forms as f', 'f.id', '=', 's.form_id')
+            ->join('fee_categories as c', 'c.id', '=', 's.fee_category_id')
+            ->where('s.branch_id', $branchId)
+            ->where('s.academic_session_id', $session->id)
+            ->whereDate('s.created_at', '<=', $asOf)
+            ->selectRaw('f.name as level, c.name as category, s.amount as amount, 0 as students')
+            ->get();
+
+        // Billed rows first, so a structure that was billed keeps its head count.
+        $rows = [];
+
+        foreach ($billed->concat($set) as $row) {
+            $amount = Money::of(number_format((float) $row->amount, 2, '.', ''));
+
+            $rows[$row->level."\0".$row->category."\0".$amount->value()] ??= [
+                'level' => $row->level,
+                'category' => $row->category,
+                'amount' => $amount,
+                'students' => (int) $row->students,
+            ];
+        }
+
+        if ($rows === []) {
+            return;
+        }
+
+        $builder->feesCharged($session->name, array_values($rows));
     }
 
     private function addEnrolment(PayloadBuilder $builder, FeeSummaryService $fees): void

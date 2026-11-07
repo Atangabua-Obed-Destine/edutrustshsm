@@ -62,7 +62,7 @@ class EdutrustPayReport extends Command
 
                     // A month already delivered is refiled only if it changed.
                     if ($latest?->status === EdutrustPayOutbox::DELIVERED) {
-                        if (Fingerprint::ofJson($latest->payload) === Fingerprint::of($payload)) {
+                        if (! Fingerprint::needsRefiling($latest->payload, $payload)) {
                             $rows[] = [$branch->name, $period, $payload['status'], '—', '—', '—', '—', 'unchanged'];
 
                             continue;

@@ -79,6 +79,7 @@ return [
     'capabilities' => [
         'enrolment',    // student_enrollments + student_fees + payments
         'receivables',  // AgingReportService::studentFees()
+        'fees_charged', // fee_structures + student_fees, per form, no student named
 
         /*
          * NOT DECLARED, with reasons:
