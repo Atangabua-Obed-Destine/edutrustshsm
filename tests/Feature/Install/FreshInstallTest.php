@@ -5,6 +5,7 @@ namespace Tests\Feature\Install;
 use App\Models\Branch;
 use App\Models\Form;
 use App\Models\User;
+use App\Services\SchoolInstaller;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -22,11 +23,11 @@ class FreshInstallTest extends TestCase
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
         $branch = Branch::sole();
 
-        foreach (['forms', 'streams', 'subjects', 'departments', 'grade_scales', 'fee_categories', 'school_settings'] as $table) {
+        foreach (['forms', 'streams', 'subjects', 'departments', 'grade_scales', 'fee_categories'] as $table) {
             $this->assertSame(0, DB::table($table)->whereNull('branch_id')->count(), "$table rows without a branch");
         }
 
-        $admin = User::where('email', 'admin@edutrustschool.local')->firstOrFail();
+        $admin = $this->firstAccount();
         $this->assertTrue($admin->branches()->whereKey($branch->id)->exists());
 
         $form1 = Form::withoutGlobalScopes()->where('short_name', 'F1')->firstOrFail();
@@ -37,6 +38,7 @@ class FreshInstallTest extends TestCase
     public function test_an_install_already_made_that_way_is_repaired(): void
     {
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->firstAccount();
         DB::table('forms')->update(['branch_id' => null]);
         DB::table('subjects')->update(['branch_id' => null]);
         DB::table('branch_user')->delete();
@@ -47,5 +49,13 @@ class FreshInstallTest extends TestCase
         $this->assertSame(0, DB::table('forms')->whereNull('branch_id')->count());
         $this->assertSame(0, DB::table('subjects')->whereNull('branch_id')->count());
         $this->assertSame(1, DB::table('branch_user')->count());
+    }
+
+    private function firstAccount(): User
+    {
+        $school = ['school_name' => 'Trial College', 'school_code' => 'TC', 'school_level_mode' => 'both'];
+        $admin = ['first_name' => 'Ada', 'last_name' => 'Admin', 'email' => 'ada@example.test', 'password' => 'a-long-password'];
+
+        return app(SchoolInstaller::class)->finish($school, $admin);
     }
 }

@@ -6,62 +6,18 @@ use App\Models\Department;
 use App\Models\FeeCategory;
 use App\Models\Form;
 use App\Models\GradeScale;
-use App\Models\Role;
-use App\Models\SchoolSetting;
 use App\Models\Stream;
 use App\Models\Subject;
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
+/**
+ * The curriculum every school starts from. The school itself and its first
+ * account come from the install page (App\Services\SchoolInstaller).
+ */
 class DefaultDataSeeder extends Seeder
 {
     public function run(): void
     {
-        // School Settings
-        SchoolSetting::create([
-            'school_name' => 'LONGLA COMPREHENSIVE COLLEGE BAMENDA',
-            'school_short_name' => 'LCC Bamenda',
-            'school_code' => 'LCC',
-            'address' => 'Bamenda',
-            'city' => 'Bamenda',
-            'region' => 'North West Region',
-            'phone' => '+237 000 000 000',
-            'email' => 'info@longlacc.com',
-            'motto' => 'Knowledge, Discipline, Excellence',
-            'student_id_prefix' => 'LCC',
-            'receipt_prefix' => 'RCP',
-            'max_terms_per_session' => 3,
-            'max_sequences_per_term' => 2,
-            'pass_mark' => 10.00,
-            'promotion_threshold' => 10.00,
-            'min_attendance_percent' => 80,
-            'max_mark' => 20.00,
-            'currency' => 'XAF',
-        ]);
-
-        // Super Admin
-        $superAdmin = User::create([
-            'first_name' => 'Super',
-            'last_name' => 'Admin',
-            'email' => 'admin@edutrustschool.local',
-            'password' => Hash::make('password'),
-            'role' => 'super_admin',
-            'gender' => 'male',
-            'is_active' => true,
-        ]);
-
-        // Attach the matching RBAC role so permission checks resolve for this
-        // user exactly as they do for anyone created through the UI.
-        if ($superAdminRole = Role::where('name', 'super_admin')->first()) {
-            $superAdmin->roles()->sync([$superAdminRole->id]);
-        }
-
-        // And to the school's branch, as the user screens do for anyone else.
-        if ($branchId = \App\Support\BranchContext::onlyBranch()) {
-            $superAdmin->branches()->syncWithoutDetaching([$branchId => ['is_default' => true]]);
-        }
-
         // Secondary forms (Form 1-5 = First Cycle, Lower/Upper Sixth = Second Cycle)
         $forms = [
             ['name' => 'Form 1', 'short_name' => 'F1', 'school_level' => 'secondary', 'level' => 'first_cycle', 'education_system' => 'english', 'display_order' => 1, 'has_streams' => true],

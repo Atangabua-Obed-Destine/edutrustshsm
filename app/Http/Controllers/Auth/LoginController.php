@@ -3,15 +3,21 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\SchoolInstaller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
-    public function showLoginForm()
+    public function showLoginForm(SchoolInstaller $installer)
     {
         if (Auth::check()) {
             return redirect()->route(Auth::user()->homeRoute() ?? 'login');
+        }
+
+        // No account can log in yet: the school still has to create its first.
+        if (! $installer->isInstalled()) {
+            return redirect()->route('install.show');
         }
 
         return view('auth.login');

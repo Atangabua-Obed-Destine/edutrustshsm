@@ -4,7 +4,7 @@ namespace Tests\Feature\Authorization;
 
 use App\Models\Permission;
 use App\Models\Role;
-use App\Models\User;
+use App\Services\SchoolInstaller;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,21 +25,27 @@ class FreshInstallTest extends TestCase
         $this->assertNotNull(Role::where('name', 'accountant')->first());
     }
 
-    public function test_the_seeded_admin_has_its_rbac_role_attached(): void
+    public function test_the_first_account_has_its_rbac_role_attached(): void
     {
         $this->seed();
 
-        $admin = User::where('email', 'admin@edutrustschool.local')->firstOrFail();
+        $admin = app(SchoolInstaller::class)->finish(
+            ['school_name' => 'Trial College', 'school_code' => 'TC', 'school_level_mode' => 'both'],
+            ['first_name' => 'Ada', 'last_name' => 'Admin', 'email' => 'ada@example.test', 'password' => 'a-long-password']
+        );
 
         $this->assertTrue($admin->roles()->where('name', 'super_admin')->exists());
         $this->assertNotEmpty($admin->permissionNames());
     }
 
-    public function test_the_seeded_admin_can_reach_the_dashboard(): void
+    public function test_the_first_account_can_reach_the_dashboard(): void
     {
         $this->seed();
 
-        $admin = User::where('email', 'admin@edutrustschool.local')->firstOrFail();
+        $admin = app(SchoolInstaller::class)->finish(
+            ['school_name' => 'Trial College', 'school_code' => 'TC', 'school_level_mode' => 'both'],
+            ['first_name' => 'Ada', 'last_name' => 'Admin', 'email' => 'ada@example.test', 'password' => 'a-long-password']
+        );
 
         $this->actingAs($admin)->get(route('admin.dashboard'))->assertSuccessful();
     }

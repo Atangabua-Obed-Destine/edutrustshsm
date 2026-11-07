@@ -8,7 +8,7 @@
     $staffCount = \App\Models\User::query()->whereNotIn('role', ['super_admin', 'admin', 'parent', 'student'])->count();
     $deptCount = \App\Models\Department::count();
 
-    $emailPlaceholder = 'staff@edutrust.i-nnovacmr.com';
+    $emailPlaceholder = 'name@school.com';
 
     $features = [
         ['title' => __('Academic Management'), 'desc' => __('Sessions, forms, students, exams and report cards'),
@@ -178,6 +178,9 @@
 
                 <p class="text-center text-gray-400 text-xs mt-6">
                     &copy; {{ date('Y') }} {{ $schoolShort }} · {{ __('Management System') }}
+                </p>
+                <p class="text-center text-gray-400 text-xs mt-1">
+                    EduTrust · {{ __('powered by') }} <span class="font-semibold">I-NNOVA</span>
                 </p>
             </div>
         </main>

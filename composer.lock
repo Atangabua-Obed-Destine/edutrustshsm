@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7377ce6807104d0fe3a8a6c3db17dd7f",
+    "content-hash": "772a8a53c3cfb02f7fb9fb9698e38c50",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -678,8 +678,8 @@
             "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "../edutrustpay/packages/reporting-contract",
-                "reference": "b204ca2cbeb09e96fc46eec2c2896b6537b7ee2b"
+                "url": "packages/reporting-contract",
+                "reference": "2da03ea15018accb01b03c828a55abfd730d3d66"
             },
             "require": {
                 "ext-bcmath": "*",
@@ -706,7 +706,6 @@
             ],
             "description": "The EdutrustPay Reporting Contract - the shared, versioned agreement by which institutions push signed monthly figures to a body.",
             "transport-options": {
-                "symlink": true,
                 "relative": true
             }
         },

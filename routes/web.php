@@ -122,6 +122,10 @@ Route::get('/', fn () => auth()->check()
     ? redirect()->route(auth()->user()->homeRoute() ?? 'login')
     : redirect()->route('login'));
 
+// First run: the school's details and its first account
+Route::get('/install/{token?}', [\App\Http\Controllers\InstallController::class, 'show'])->name('install.show');
+Route::post('/install/{token}', [\App\Http\Controllers\InstallController::class, 'store'])->name('install.store');
+
 // Language switcher
 Route::get('/lang/{locale}', function (string $locale) {
     if (in_array($locale, ['en', 'fr'])) {
