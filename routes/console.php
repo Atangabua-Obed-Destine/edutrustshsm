@@ -70,6 +70,11 @@ Schedule::command('edutrustpay:daybook --months=3')
     ->withoutOverlapping()
     ->onOneServer();
 
+Schedule::command('edutrustpay:budget-sheet --months=3')
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Delivery retries on its own schedule; the outbox decides what is due.
 Schedule::command('edutrustpay:flush')
     ->hourly()
