@@ -178,7 +178,7 @@ class EdutrustPayReport extends Command
 
         $this->newLine();
         $this->line('<comment>Not declared:</comment> '.implode(', ', $missing));
-        $this->line('These show on the console as "not yet reporting" rather than as zero, which is the intent.');
+        $this->line('These show on the console as "doesn\'t send this" rather than as zero, which is the intent.');
 
         if (in_array('ledger', $missing, true)) {
             $this->line('  ledger, integrity — journal_entries is empty here. The chart of accounts is seeded');
