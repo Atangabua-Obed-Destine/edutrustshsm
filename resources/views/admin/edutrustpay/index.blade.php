@@ -7,7 +7,7 @@
 <div class="mb-6">
     <h1 class="text-xl font-semibold text-gray-900">{{ __('EdutrustPay Reporting') }}</h1>
     <p class="mt-1 max-w-3xl text-sm text-gray-600">
-        {{ __('This school PUSHES a signed summary of each month to its body\'s console. Nothing reaches in here: outbound only, no inbound endpoint, no access to this database from that side.') }}
+        {{ __('This school PUSHES a signed summary of each month, and its full daybook, to its body\'s console. The daybook includes the names of the people on each line, so pupils\' and suppliers\' names leave this system. Nothing reaches in here: outbound only, no inbound endpoint, no access to this database from that side.') }}
     </p>
 </div>
 

@@ -64,6 +64,12 @@ Schedule::command('edutrustpay:report --months=3')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Its own job, so a large daybook failing cannot hold the report back.
+Schedule::command('edutrustpay:daybook --months=3')
+    ->dailyAt('03:15')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Delivery retries on its own schedule; the outbox decides what is due.
 Schedule::command('edutrustpay:flush')
     ->hourly()

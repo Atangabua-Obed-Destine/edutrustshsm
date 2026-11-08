@@ -72,6 +72,19 @@ class OutboxService
     }
 
     /**
+     * The newest daybook held for a month, in any state.
+     */
+    public function latestDaybookFor(int $branchId, string $period): ?EdutrustPayOutbox
+    {
+        return EdutrustPayOutbox::query()
+            ->where('branch_id', $branchId)
+            ->where('kind', 'daybook')
+            ->where('period', $period)
+            ->orderByDesc('sequence')
+            ->first();
+    }
+
+    /**
      * File a correction after the console said it already holds other figures.
      *
      * Happens when this outbox has lost its history (a restored database, a
@@ -83,11 +96,19 @@ class OutboxService
     {
         $current = json_decode($body, true)['current_sequence'] ?? null;
 
-        if ($item->kind !== 'report' || ! is_int($current)) {
+        if (! in_array($item->kind, ['report', 'daybook'], true) || ! is_int($current)) {
             return null;
         }
 
         try {
+            if ($item->kind === 'daybook') {
+                return $this->enqueue(
+                    (int) $item->branch_id,
+                    app(DaybookExporter::class)->document((int) $item->branch_id, $item->period, $current + 1),
+                    'daybook'
+                );
+            }
+
             return $this->enqueue(
                 (int) $item->branch_id,
                 app(PeriodReportBuilder::class)->build((int) $item->branch_id, $item->period, $current + 1)
@@ -146,7 +167,11 @@ class OutboxService
         }
 
         $endpoint = rtrim($settings['endpoint'], '/');
-        $path = $item->kind === 'heartbeat' ? '/api/v1/heartbeat' : '/api/v1/reports';
+        $path = match ($item->kind) {
+            'heartbeat' => '/api/v1/heartbeat',
+            'daybook' => '/api/v1/daybook',
+            default => '/api/v1/reports',
+        };
 
         $timestamp = gmdate('Y-m-d\TH:i:s\Z');
         $signature = Signer::signRaw($item->payload, $timestamp, $settings['secret']);

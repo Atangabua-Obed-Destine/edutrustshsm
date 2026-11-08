@@ -7,8 +7,9 @@ return [
     | EdutrustPay reporting client
     |--------------------------------------------------------------------------
     |
-    | This school PUSHES a signed summary of each calendar month to its body's
-    | EdutrustPay console. Nothing reaches in here: outbound HTTPS only, no
+    | This school PUSHES a signed summary of each calendar month, and its full
+    | daybook with the names on each line, to its body's EdutrustPay console.
+    | Nothing reaches in here: outbound HTTPS only, no
     | inbound endpoint, no database access from that side.
     |
     */
