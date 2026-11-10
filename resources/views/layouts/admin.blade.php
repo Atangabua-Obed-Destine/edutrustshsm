@@ -251,6 +251,10 @@
                     <div id="routines-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.timetable.*') ? 'open' : '' }}">
                         <a href="{{ route('admin.timetable.class-schedule') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.timetable.class-schedule') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Class Schedules') }}</a>
                         <a href="{{ route('admin.timetable.teacher-schedule') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.timetable.teacher-schedule') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Teacher Routines') }}</a>
+                        {{-- Setting the day's periods is set-up, not a teacher's screen. --}}
+                        @if(auth()->user()->can('class-schedule.create') && auth()->user()->holdsRole('super_admin', 'admin', 'accountant', 'receptionist'))
+                        <a href="{{ route('admin.timetable.slots') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.timetable.slots') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Periods') }}</a>
+                        @endif
                     </div>
                 </div>
 
