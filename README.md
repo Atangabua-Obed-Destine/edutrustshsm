@@ -6,7 +6,7 @@ This guide is for the technician installing EduTrust on a school's server.
 
 ## What the server needs
 
-- PHP 8.2 or newer, with these extensions on: `bcmath`, `ctype`, `dom`, `fileinfo`, `gd`, `mbstring`, `openssl`, `pdo_mysql`, `tokenizer`, `xml`, `zip`
+- PHP 8.2 or newer, with these extensions on: `bcmath`, `ctype`, `dom`, `fileinfo`, `gd`, `iconv`, `mbstring`, `openssl`, `pdo_mysql`, `simplexml`, `tokenizer`, `xml`, `xmlreader`, `xmlwriter`, `zip`, `zlib`
 - MySQL or MariaDB
 - Apache or Nginx
 - Composer, Node.js and Git

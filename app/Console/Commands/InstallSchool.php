@@ -34,7 +34,8 @@ class InstallSchool extends Command
     protected $description = 'Install EduTrust for a new school on this server';
 
     private const REQUIRED_EXTENSIONS = [
-        'bcmath', 'ctype', 'dom', 'fileinfo', 'gd', 'mbstring', 'openssl', 'pdo_mysql', 'tokenizer', 'xml', 'zip',
+        'bcmath', 'ctype', 'dom', 'fileinfo', 'gd', 'iconv', 'mbstring', 'openssl', 'pdo_mysql', 'simplexml',
+        'tokenizer', 'xml', 'xmlreader', 'xmlwriter', 'zip', 'zlib',
     ];
 
     public function handle(SchoolInstaller $installer): int
