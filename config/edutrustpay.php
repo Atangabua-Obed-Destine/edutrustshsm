@@ -81,6 +81,8 @@ return [
         'enrolment',    // student_enrollments + student_fees + payments
         'receivables',  // AgingReportService::studentFees()
         'fees_charged', // fee_structures + student_fees, per form, no student named
+        'students',     // student_enrollments, each student once, per form
+        'staff',        // users on the Staff screen: number, name, department, post. Never pay.
 
         /*
          * NOT DECLARED, with reasons:

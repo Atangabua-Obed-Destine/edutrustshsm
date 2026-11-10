@@ -70,6 +70,23 @@ class PeriodReportBuilder
             $this->addFeesCharged($builder, $branchId, $fees->endDate());
         }
 
+        $people = new PeopleSummaryService($branchId, $period);
+
+        // Students per form, in the session the month falls in. Before the first
+        // session there is nothing to count, so the part is left out and the
+        // console says it was not sent; a zero would read as an empty school.
+        if (in_array(Capability::STUDENTS, $capabilities, true) && ($session = $people->session())) {
+            $builder->students($session->name, collect($people->studentsByForm())
+                ->map(fn (int $students, string $form) => ['level' => $form, 'students' => $students])
+                ->values()
+                ->all());
+        }
+
+        // Number, name, department and post. Never pay.
+        if (in_array(Capability::STAFF, $capabilities, true)) {
+            $builder->staff($people->staff());
+        }
+
         return $builder->build();
     }
 

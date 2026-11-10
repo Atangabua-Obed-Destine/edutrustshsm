@@ -43,20 +43,16 @@ class FeeSummaryService
     }
 
     /**
-     * Students on the roll at the end of the month.
+     * Students on the roll at the end of the month, each counted once.
      *
-     * Counts enrolments that were active, not students who ever existed: a
-     * withdrawn student is not somebody the school should be billing, and
-     * including them would inflate expected fees and manufacture a collection
-     * gap that is not there.
+     * The same count as the students-per-class part, so the two always agree.
+     * It used to count enrolment rows, which are per term and carry today's
+     * status: that counted last year's promoted students again in every month
+     * of the new session. See PeopleSummaryService for how a student counts.
      */
     public function enrolment(): int
     {
-        return (int) StudentEnrollment::withoutBranchScope()
-            ->where('branch_id', $this->branchId)
-            ->whereIn('status', ['active', 'promoted', 'repeated'])
-            ->whereDate('enrollment_date', '<=', $this->end)
-            ->count();
+        return (new PeopleSummaryService($this->branchId, substr($this->start, 0, 7)))->studentCount();
     }
 
     /**
