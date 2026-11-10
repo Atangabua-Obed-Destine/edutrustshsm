@@ -658,11 +658,20 @@ class DaybookService
     {
         $date ??= now();
 
+        // The year that holds the date, else the one that holds any of its
+        // month: the book is asked for by month, on the 1st, and a year that
+        // opens on 7 September must still own September's book.
         $session = AcademicSession::query()
             ->whereDate('start_date', '<=', $date)
             ->whereDate('end_date', '>=', $date)
             ->orderByDesc('start_date')
-            ->first() ?? AcademicSession::current();
+            ->first()
+            ?? AcademicSession::query()
+                ->whereDate('start_date', '<=', $date->copy()->endOfMonth())
+                ->whereDate('end_date', '>=', $date->copy()->startOfMonth())
+                ->orderByDesc('start_date')
+                ->first()
+            ?? AcademicSession::current();
 
         if ($session && $session->start_date && $session->end_date) {
             return [

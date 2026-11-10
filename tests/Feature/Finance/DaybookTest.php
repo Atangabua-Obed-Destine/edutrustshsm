@@ -533,4 +533,15 @@ class DaybookTest extends TestCase
         $this->post(route('admin.daybook.analysis.pdf', ['month' => '2025-10']))->assertForbidden();
         $this->get(route('admin.daybook.excel', ['month' => '2025-10']))->assertForbidden();
     }
+
+    public function test_a_year_that_opens_mid_month_still_owns_that_months_book(): void
+    {
+        AcademicSession::query()->update(['is_current' => false]);
+        AcademicSession::create(['branch_id' => $this->branch->id, 'name' => '2026/2027', 'start_date' => '2026-09-07', 'end_date' => '2027-07-02', 'status' => 'active', 'is_current' => false]);
+        AcademicSession::create(['branch_id' => $this->branch->id, 'name' => '2027/2028', 'start_date' => '2027-09-06', 'end_date' => '2028-07-01', 'status' => 'active', 'is_current' => true]);
+
+        // Asked for on the 1st, before the year's first day: still that year's book.
+        $this->assertSame('2026/2027', app(DaybookService::class)->yearFor(Carbon::parse('2026-09-01'))['label']);
+        $this->assertSame('2027/2028', app(DaybookService::class)->yearFor(Carbon::parse('2027-09-01'))['label']);
+    }
 }
