@@ -134,6 +134,19 @@
                     <p class="text-gray-400 text-xs">{{ __('Residence Type') }}</p>
                     <p class="font-medium capitalize">{{ str_replace('_', ' ', $enrollment->residence_type) }}</p>
                 </div>
+                @php $bed = \App\Models\BoardingAllocation::current()->with('room.house')->where('student_id', $student->id)->first(); @endphp
+                @if($bed || $enrollment->residence_type === 'boarding')
+                <div>
+                    <p class="text-gray-400 text-xs">{{ __('Boarding') }}</p>
+                    @if($bed)
+                        <p class="font-medium">
+                            @can('boarding.view')<a href="{{ route('admin.boarding.show', $bed->room->house) }}" class="text-blue-600 hover:underline">@endcan{{ $bed->room->house->name }} · {{ __('Room :room', ['room' => $bed->room->name]) }}{{ $bed->bed ? ' · '.__('Bed :bed', ['bed' => $bed->bed]) : '' }}@can('boarding.view')</a>@endcan
+                        </p>
+                    @else
+                        <p class="font-medium text-amber-700">{{ __('No bed yet') }}</p>
+                    @endif
+                </div>
+                @endif
                 <div>
                     <p class="text-gray-400 text-xs">{{ __('Enrollment Date') }}</p>
                     <p class="font-medium">{{ $enrollment->enrollment_date?->format('d M Y') ?? '—' }}</p>

@@ -230,6 +230,14 @@
 
                 @endif
 
+                <!-- Boarding -->
+                @if(auth()->user()->canAny(['boarding.view']))
+                <a href="{{ route('admin.boarding.index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('admin.boarding.*') ? 'active bg-white/10' : 'hover:bg-white/5' }}">
+                    <svg class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v11m0-4h18m0 4v-7a3 3 0 00-3-3h-8v7M7 10.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
+                    {{ __('Boarding') }}
+                </a>
+                @endif
+
                 <!-- Routines -->
                 @if(auth()->user()->canAny(['class-schedule.view', 'teacher-routine.view']))
                 <div class="sidebar-group">
@@ -326,7 +334,8 @@
                 </button>
                 <div id="accounts-menu" class="sidebar-submenu ml-8 space-y-1 {{ request()->routeIs('admin.account.*', 'admin.daybook.*') ? 'open' : '' }}">
                     @can('daybook.view')
-                    <a href="{{ route('admin.daybook.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.daybook.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Cash Book') }}</a>
+                    <a href="{{ route('admin.daybook.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.daybook.index', 'admin.daybook.pdf', 'admin.daybook.csv', 'admin.daybook.excel') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Cash Book') }}</a>
+                    <a href="{{ route('admin.daybook.analysis') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.daybook.analysis*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Trends & Analysis') }}</a>
                     <a href="{{ route('admin.daybook.summary') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.daybook.summary') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Monthly Summary') }}</a>
                     @endcan
                     <a href="{{ route('admin.account.income.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.account.income.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Income List') }}</a>

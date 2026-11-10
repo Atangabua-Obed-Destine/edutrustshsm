@@ -259,7 +259,8 @@
 
 @if($term && $report && $report['headline']['students'] > 0)
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{{-- Served from the app: a school server may have no internet. --}}
+<script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
 <script>
 const sequenceData = @json($report['sequence_trend']);
 const termData = @json($report['term_trend']);

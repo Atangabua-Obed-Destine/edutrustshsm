@@ -4,7 +4,11 @@ namespace Tests\Feature\Finance;
 
 use App\Models\AcademicSession;
 use App\Models\Branch;
+use App\Models\Budget;
+use App\Models\BudgetAllocation;
+use App\Models\BudgetLine;
 use App\Models\ClassSection;
+use App\Models\DefaultAccountMapping;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\FeeCategory;
@@ -21,6 +25,8 @@ use App\Models\Term;
 use App\Models\User;
 use App\Services\DaybookService;
 use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -300,8 +306,11 @@ class DaybookTest extends TestCase
             ->assertSee(__('Balance brought forward'));
 
         $this->get(route('admin.daybook.year', ['month' => '2025-10']))
+            ->assertRedirect(route('admin.daybook.analysis', ['month' => '2025-10']));
+        $this->get(route('admin.daybook.analysis', ['month' => '2025-10']))
             ->assertSuccessful()
-            ->assertSee(__('Month by month'));
+            ->assertSee(__('Cash position, month by month'))
+            ->assertSee(__('Who has paid, and who has not'));
 
         $csv = $this->get(route('admin.daybook.csv', ['month' => '2025-10']))->assertSuccessful();
         $this->assertStringContainsString('Canteen takings', $csv->streamedContent());
@@ -316,5 +325,212 @@ class DaybookTest extends TestCase
         $this->get(route('admin.daybook.index', ['month' => 'garbage']))
             ->assertSuccessful()
             ->assertSee(now()->translatedFormat('F Y'));
+    }
+
+    // ------------------------------------------------------------ trends & analysis
+
+    private function analysis(?Budget $sheet = null): array
+    {
+        return app(DaybookService::class)->analysis(Carbon::parse('2025-09-01'), Carbon::parse('2026-07-31')->endOfDay(), $sheet);
+    }
+
+    private function sheet(float $opening = 0): Budget
+    {
+        return Budget::create([
+            'branch_id' => $this->branch->id, 'title' => 'I&E 2025/2026', 'type' => 'annual', 'is_institutional' => true,
+            'fiscal_year' => '2025', 'start_date' => '2025-09-01', 'end_date' => '2026-07-31',
+            'total_amount' => 0, 'opening_balance' => $opening, 'status' => 'draft', 'created_by' => $this->admin->id,
+        ]);
+    }
+
+    private function pupil(string $name): StudentEnrollment
+    {
+        $student = Student::create([
+            'branch_id' => $this->branch->id, 'student_id' => 'MAIN'.str_pad((string) (Student::count() + 1), 4, '0', STR_PAD_LEFT),
+            'first_name' => $name, 'last_name' => 'Pupil', 'date_of_birth' => '2016-01-01', 'gender' => 'male',
+            'status' => 'active', 'admission_date' => '2025-09-01',
+        ]);
+
+        return StudentEnrollment::create([
+            'branch_id' => $this->branch->id, 'student_id' => $student->id,
+            'academic_session_id' => $this->enrollment->academic_session_id, 'term_id' => $this->enrollment->term_id,
+            'class_section_id' => $this->enrollment->class_section_id, 'residence_type' => 'day',
+            'enrollment_date' => '2025-09-01', 'status' => 'active',
+        ]);
+    }
+
+    private function billed(StudentEnrollment $enrollment, FeeCategory $category, float $net, float $paid): StudentFee
+    {
+        return StudentFee::create([
+            'branch_id' => $this->branch->id, 'student_enrollment_id' => $enrollment->id, 'fee_category_id' => $category->id,
+            'original_amount' => $net, 'discount_amount' => 0, 'waiver_amount' => 0,
+            'net_amount' => $net, 'paid_amount' => $paid, 'balance' => $net - $paid,
+            'status' => $paid <= 0 ? 'unpaid' : ($paid >= $net ? 'paid' : 'partial'),
+        ]);
+    }
+
+    private function line(string $code): int
+    {
+        return (int) BudgetLine::where('code', $code)->value('id');
+    }
+
+    public function test_the_cash_curve_starts_from_the_sheets_opening_balance(): void
+    {
+        $this->income('2025-09-10', 50000);
+        $this->expense('2025-10-05', 80000);
+        $this->income('2025-11-03', 10000);
+
+        $a = $this->analysis($this->sheet(opening: 100000));
+        $months = collect($a['months'])->keyBy('month');
+
+        $this->assertSame(150000.0, $months['2025-09']['balance']);
+        $this->assertSame(70000.0, $months['2025-10']['balance']);
+        $this->assertSame(80000.0, $months['2025-11']['balance']);
+        $this->assertSame(70000.0, $a['lowest']['balance']);
+        $this->assertSame(80000.0, $a['closing']);
+    }
+
+    public function test_fees_are_shown_apart_inside_the_money_in(): void
+    {
+        $this->receipt('2025-09-15', 30000, [[$this->fee($this->tuition, 30000), 30000]]);
+        $this->income('2025-09-20', 5000);
+
+        $september = collect($this->analysis()['months'])->firstWhere('month', '2025-09');
+
+        $this->assertSame(35000.0, $september['in']);
+        $this->assertSame(30000.0, $september['fees']);
+    }
+
+    public function test_what_changed_is_measured_against_the_last_month_that_moved(): void
+    {
+        $this->income('2025-09-10', 40000);
+        // October is quiet; November is compared with September, not with nothing.
+        $this->income('2025-11-10', 10000);
+
+        $movers = $this->analysis()['movers'];
+
+        $this->assertSame(Carbon::parse('2025-09-01')->translatedFormat('M Y'), $movers['from']);
+        $this->assertSame(Carbon::parse('2025-11-01')->translatedFormat('M Y'), $movers['to']);
+        $this->assertSame(-30000.0, $movers['rows'][0]['change']);
+    }
+
+    public function test_spending_ahead_of_the_year_is_said_before_the_money_runs_out(): void
+    {
+        app(\App\Services\BudgetLineTemplate::class)->load();
+        DefaultAccountMapping::updateOrCreate(['mapping_type' => 'expense', 'category_id' => $this->chalk->id], ['budget_line_id' => $this->line('461'), 'status' => 'active']);
+        $sheet = $this->sheet();
+        BudgetAllocation::create(['branch_id' => $this->branch->id, 'budget_id' => $sheet->id, 'budget_line_id' => $this->line('461'), 'title' => 'Materials', 'allocated_amount' => 100000, 'period' => 'yearly']);
+
+        $this->expense('2025-09-20', 60000);
+        Carbon::setTestNow('2025-11-01');
+
+        $pacing = $this->analysis($sheet)['pacing'];
+
+        // Two months of eleven gone, sixty per cent of the budget gone.
+        $this->assertEqualsWithDelta(18.0, $pacing['elapsed'], 1);
+        $this->assertSame(60.0, $pacing['consumed']);
+        $this->assertSame('critical', $pacing['status']);
+        $this->assertSame(100.0, $pacing['coverage']);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_a_sheet_nobody_finished_is_not_called_an_overspend(): void
+    {
+        app(\App\Services\BudgetLineTemplate::class)->load();
+        $sheet = $this->sheet();
+        // One small figure on one line, and the spending on a line with none.
+        BudgetAllocation::create(['branch_id' => $this->branch->id, 'budget_id' => $sheet->id, 'budget_line_id' => $this->line('461'), 'title' => 'Fuel', 'allocated_amount' => 1000, 'period' => 'yearly']);
+        DefaultAccountMapping::updateOrCreate(['mapping_type' => 'expense', 'category_id' => $this->chalk->id], ['budget_line_id' => $this->line('413'), 'status' => 'active']);
+        $this->expense('2025-09-20', 60000);
+
+        $this->assertSame('incomplete', $this->analysis($sheet)['pacing']['status']);
+    }
+
+    public function test_who_has_paid_counts_pupils_not_fees(): void
+    {
+        // Bih, the fixture pupil: tuition paid, PTA owed. One pupil, paid in part.
+        $this->billed($this->enrollment, $this->tuition, 50000, 50000);
+        $this->billed($this->enrollment, $this->pta, 5000, 0);
+        $this->billed($this->pupil('Ewane'), $this->tuition, 50000, 50000);
+        $this->billed($this->pupil('Kum'), $this->tuition, 50000, 0);
+        // Money paid beyond one fee does not settle another that is owed.
+        $tabe = $this->pupil('Tabe');
+        $this->billed($tabe, $this->tuition, 50000, 60000);
+        $this->billed($tabe, $this->pta, 5000, 0);
+
+        $c = app(\App\Services\FeeCollectionService::class)->forSession(AcademicSession::first());
+
+        $this->assertSame(4, $c['pupils']['pupils']);
+        $this->assertSame(1, $c['pupils']['full']);
+        $this->assertSame(2, $c['pupils']['part']);
+        $this->assertSame(1, $c['pupils']['nothing']);
+        $this->assertSame(150000.0, $c['pupils']['collected']);
+        $this->assertSame(60000.0, $c['pupils']['outstanding']);
+        $this->assertSame('Kum Pupil', $c['debtors'][0]['name']);
+    }
+
+    public function test_the_checks_say_what_is_not_in_the_book_yet(): void
+    {
+        $this->receipt('2025-10-01', 20000, [], 'cash', 'pending');
+        $this->income('2025-10-02', 5000);
+
+        $a = $this->analysis();
+        $list = app(\App\Services\BookConfidence::class)->checks(Carbon::parse('2025-09-01'), Carbon::parse('2026-07-31'), null, $a['unanalysed']);
+        $checks = collect($list)->keyBy('key');
+
+        $this->assertFalse($checks['waiting']['ok']);
+        $this->assertStringContainsString('20,000', $checks['waiting']['detail']);
+        $this->assertFalse($checks['unanalysed']['ok']);
+        $this->assertFalse($checks['sheet']['ok']);
+        $this->assertTrue($checks['ledger']['ok']);
+        $this->assertFalse($list[0]['ok'], 'what needs doing comes first');
+    }
+
+    public function test_the_meeting_pack_carries_the_charts_and_refuses_anything_else(): void
+    {
+        $this->income('2025-10-02', 5000);
+        $png = 'data:image/png;base64,'.base64_encode(UploadedFile::fake()->image('c.png', 20, 10)->get());
+
+        $this->post(route('admin.daybook.analysis.pdf', ['month' => '2025-10']), [
+            'charts' => ['cash' => $png, 'monthly' => 'javascript:alert(1)', 'other' => $png],
+        ])->assertSuccessful()->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_the_workbook_has_the_month_the_year_and_the_summary(): void
+    {
+        $this->sheet();
+        $this->income('2025-10-02', 5000);
+        $this->expense('2025-10-05', 3000);
+
+        $response = $this->get(route('admin.daybook.excel', ['month' => '2025-10']))->assertSuccessful();
+        $path = tempnam(sys_get_temp_dir(), 'book').'.xlsx';
+        file_put_contents($path, file_get_contents($response->baseResponse->getFile()->getPathname()));
+
+        $book = IOFactory::load($path);
+        $this->assertCount(3, $book->getAllSheets());
+        $this->assertSame(Carbon::parse('2025-10-01')->translatedFormat('F Y'), $book->getSheet(0)->getTitle());
+
+        $canteen = collect($book->getSheet(0)->toArray())->first(fn ($r) => in_array('Canteen takings', $r, true));
+        $this->assertNotNull($canteen);
+        $this->assertSame(5000.0, (float) str_replace(',', '', (string) $canteen[7]));
+
+        @unlink($path);
+    }
+
+    public function test_someone_who_may_view_but_not_export_gets_the_page_without_the_pack(): void
+    {
+        $role = \App\Models\Role::create(['name' => 'cash-viewer', 'display_name' => 'Cash viewer', 'is_system' => false]);
+        $role->permissions()->sync([\App\Models\Permission::firstOrCreate(['name' => 'daybook.view'], ['display_name' => 'daybook.view', 'group_name' => 'Daybook'])->id]);
+        // An accountant by title, held back to viewing by the role actually given.
+        $viewer = User::create(['first_name' => 'Vi', 'last_name' => 'Ewer', 'email' => 'viewer@example.test', 'password' => 'password', 'role' => 'accountant', 'is_active' => true]);
+        $viewer->roles()->sync([$role->id]);
+        $viewer->branches()->attach($this->branch->id, ['is_default' => true]);
+        $this->income('2025-10-02', 5000);
+
+        $this->actingAs($viewer)->get(route('admin.daybook.analysis', ['month' => '2025-10']))
+            ->assertSuccessful()->assertDontSee(__('Meeting pack (PDF)'));
+        $this->post(route('admin.daybook.analysis.pdf', ['month' => '2025-10']))->assertForbidden();
+        $this->get(route('admin.daybook.excel', ['month' => '2025-10']))->assertForbidden();
     }
 }

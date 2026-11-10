@@ -56,7 +56,8 @@
 </div>
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{{-- Served from the app: a school server may have no internet. --}}
+<script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
 <script>
     const palette = ['#34d399','#a5b4fc','#38bdf8','#1e293b','#f59e0b','#ef4444','#10b981','#8b5cf6','#06b6d4','#64748b','#f97316','#0ea5e9'];
 

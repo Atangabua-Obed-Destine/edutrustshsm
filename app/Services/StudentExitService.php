@@ -75,6 +75,9 @@ class StudentExitService
                 ->where('status', 'active')
                 ->update(['status' => self::ENROLMENT_STATUS[$type] ?? 'withdrawn']);
 
+            // And out of the boarding house: a pupil who has left holds no bed.
+            app(BoardingService::class)->release($student, __('Left the school'), $date);
+
             return $student->fresh();
         });
     }

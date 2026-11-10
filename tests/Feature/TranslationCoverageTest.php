@@ -97,4 +97,30 @@ class TranslationCoverageTest extends TestCase
 
         $this->assertSame([], $broken, "placeholders differ between English and French in:\n  - ".implode("\n  - ", array_slice($broken, 0, 20)));
     }
+
+    /**
+     * A level's word list swaps "student" for "pupil" in the words, never in a
+     * placeholder: renaming :student to :pupil left the cash book printing
+     * "Fees — :pupil" on every fee for a nursery and primary school.
+     */
+    public function test_level_word_lists_keep_their_placeholders(): void
+    {
+        $broken = [];
+
+        foreach (glob(lang_path('*/*.json')) as $file) {
+            foreach (json_decode(file_get_contents($file), true) as $key => $value) {
+                preg_match_all('/:[a-zA-Z_]+/', $key, $inKey);
+                preg_match_all('/:[a-zA-Z_]+/', (string) $value, $inValue);
+
+                sort($inKey[0]);
+                sort($inValue[0]);
+
+                if ($inKey[0] !== $inValue[0]) {
+                    $broken[] = basename(dirname($file)).'/'.basename($file).': '.$key;
+                }
+            }
+        }
+
+        $this->assertSame([], $broken, "a word list renames a placeholder in:\n  - ".implode("\n  - ", $broken));
+    }
 }

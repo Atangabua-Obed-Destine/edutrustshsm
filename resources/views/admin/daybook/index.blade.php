@@ -11,10 +11,11 @@
             <p class="text-sm text-gray-500">{{ __('Every franc in and out, in date order, from the fees, incomes, expenses and salaries already recorded. Nothing here is typed twice.') }}</p>
         </div>
         <div class="flex items-center gap-2 text-sm">
-            <a href="{{ route('admin.daybook.year', ['month' => $month->format('Y-m')]) }}" class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg">{{ __('The year') }}</a>
+            <a href="{{ route('admin.daybook.analysis', ['month' => $month->format('Y-m')]) }}" class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg">{{ __('Trends & Analysis') }}</a>
             @can('daybook.export')
             <a href="{{ route('admin.daybook.pdf', ['month' => $month->format('Y-m')]) }}" class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg">PDF</a>
             <a href="{{ route('admin.daybook.csv', ['month' => $month->format('Y-m')]) }}" class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg">CSV</a>
+            <a href="{{ route('admin.daybook.excel', ['month' => $month->format('Y-m')]) }}" class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg">Excel</a>
             @endcan
         </div>
     </div>

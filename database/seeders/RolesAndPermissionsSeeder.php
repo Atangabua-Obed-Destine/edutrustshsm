@@ -122,6 +122,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // A school year from before the system: recorded from the paper,
             // and verified against it by someone other than who entered it.
             'Past Year' => ['view', 'record', 'verify'],
+            // Boarding houses: viewing, setting up houses and rooms, and placing
+            // boarders are separate, so a house master can place without redrawing.
+            'Boarding' => ['view', 'manage', 'allocate'],
             'Audit Log' => ['view', 'export'],
 
             // Connection settings for the body's EdutrustPay console. Viewing,

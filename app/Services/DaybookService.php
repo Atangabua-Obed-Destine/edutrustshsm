@@ -411,6 +411,241 @@ class DaybookService
     }
 
     /**
+     * The year read for a meeting: where the cash stood each month, whether
+     * spending is running ahead of the year, what the money rests on, what
+     * changed, and what the sheet cannot place.
+     *
+     * Follows the reference system's Trends & Analysis. One fetch, bucketed:
+     * every figure below comes from the same rows, so none can disagree with
+     * the book.
+     *
+     * @return array<string, mixed>
+     */
+    public function analysis(Carbon $yearStart, Carbon $yearEnd, ?Budget $sheet = null): array
+    {
+        $rows = $this->analyse($this->rows($yearStart->toDateString(), $yearEnd->toDateString()));
+        $opening = (float) ($sheet?->opening_balance ?? 0);
+
+        $months = [];
+        foreach (CarbonPeriod::create($yearStart->copy()->startOfMonth(), '1 month', $yearEnd) as $start) {
+            $months[] = [
+                'label' => $start->translatedFormat('M Y'),
+                'short' => $start->translatedFormat('M'),
+                'month' => $start->format('Y-m'),
+                'start' => $start->toDateString(),
+                'end' => $start->copy()->endOfMonth()->toDateString(),
+                'in' => 0.0, 'out' => 0.0, 'fees' => 0.0, 'net' => 0.0, 'balance' => 0.0,
+                'headings' => [self::IN => [], self::OUT => []],
+            ];
+        }
+
+        $byHeading = [self::IN => [], self::OUT => []];
+        $totals = [self::IN => 0.0, self::OUT => 0.0];
+
+        foreach ($rows as $row) {
+            $dir = $row['direction'];
+            $totals[$dir] += $row['amount'];
+
+            foreach ($months as $i => $m) {
+                if ($row['date'] >= $m['start'] && $row['date'] <= $m['end']) {
+                    $months[$i][$dir] += $row['amount'];
+                    if ($row['source'] === 'payment') {
+                        $months[$i]['fees'] += $row['amount'];
+                    }
+                    foreach ($row['split'] as $heading => $amount) {
+                        $months[$i]['headings'][$dir][$heading] = ($months[$i]['headings'][$dir][$heading] ?? 0) + $amount;
+                    }
+                    break;
+                }
+            }
+
+            foreach ($row['split'] as $heading => $amount) {
+                $byHeading[$dir][$heading] = ($byHeading[$dir][$heading] ?? 0) + $amount;
+            }
+        }
+
+        // The balance starts from the sheet's opening cash, so the curve is a
+        // balance and not merely a running difference.
+        $balance = $opening;
+        $cumIn = 0.0;
+        $cumOut = 0.0;
+        foreach ($months as $i => $m) {
+            $cumIn += $m['in'];
+            $cumOut += $m['out'];
+            $months[$i]['net'] = $m['in'] - $m['out'];
+            $balance += $months[$i]['net'];
+            $months[$i]['balance'] = $balance;
+            $months[$i]['cum_in'] = $cumIn;
+            $months[$i]['cum_out'] = $cumOut;
+        }
+
+        $lowest = collect($months)->sortBy('balance')->first();
+
+        return [
+            'months' => collect($months)->map(fn ($m) => collect($m)->except('headings')->all())->all(),
+            'opening' => $opening,
+            'total_in' => $totals[self::IN],
+            'total_out' => $totals[self::OUT],
+            'net' => $totals[self::IN] - $totals[self::OUT],
+            'closing' => $balance,
+            'lowest' => $lowest ? ['label' => $lowest['label'], 'balance' => $lowest['balance']] : null,
+            'top_in' => $this->ranked($byHeading[self::IN], $totals[self::IN]),
+            'top_out' => $this->ranked($byHeading[self::OUT], $totals[self::OUT]),
+            'concentration' => [
+                self::IN => $this->concentration($byHeading[self::IN], $totals[self::IN]),
+                self::OUT => $this->concentration($byHeading[self::OUT], $totals[self::OUT]),
+            ],
+            'movers' => $this->movers($months),
+            'largest' => $rows->sortByDesc('amount')->take(10)->values(),
+            'unanalysed' => $this->unanalysedSummary($rows),
+            'pacing' => $sheet ? $this->pacing($sheet, $rows) : null,
+            'has_data' => $rows->isNotEmpty(),
+        ];
+    }
+
+    /**
+     * Is spending running ahead of the year?
+     *
+     * Two percentages, how much of the year has gone and how much of the
+     * budget has, and the gap between them. A sheet nobody finished is told
+     * apart from a real overspend by coverage: how many of the lines that
+     * spent were given a figure at all.
+     *
+     * @return array<string, mixed>
+     */
+    private function pacing(Budget $sheet, Collection $rows): array
+    {
+        $start = $sheet->start_date->copy()->startOfDay();
+        $end = $sheet->end_date->copy()->endOfDay();
+        $span = max(1, $end->getTimestamp() - $start->getTimestamp());
+        $elapsed = max(0.0, min(1.0, (now()->getTimestamp() - $start->getTimestamp()) / $span)) * 100;
+
+        $allocated = DB::table('budget_allocations as a')
+            ->join('budget_lines as l', 'l.id', '=', 'a.budget_line_id')
+            ->where('a.budget_id', $sheet->id)
+            ->where('l.is_header', false)
+            ->get(['a.budget_line_id', 'a.allocated_amount', 'l.section']);
+
+        $budgetOut = (float) $allocated->whereIn('section', [BudgetLine::SECTION_EXPENDITURE, BudgetLine::SECTION_CAPITAL])->sum('allocated_amount');
+        $budgetIn = (float) $allocated->where('section', BudgetLine::SECTION_INCOME)->sum('allocated_amount');
+
+        $inWindow = $rows->filter(fn ($r) => $r['date'] >= $start->toDateString() && $r['date'] <= $end->toDateString());
+        $spent = (float) $inWindow->where('direction', self::OUT)->sum('amount');
+        $received = (float) $inWindow->where('direction', self::IN)->sum('amount');
+
+        $spendingLines = $inWindow->where('direction', self::OUT)
+            ->flatMap(fn ($r) => array_keys(array_filter($r['lines'], fn ($v, $k) => $k !== '', ARRAY_FILTER_USE_BOTH)))
+            ->unique();
+        $withFigure = $allocated->where('allocated_amount', '>', 0)->pluck('budget_line_id')->flip();
+        $covered = $spendingLines->filter(fn ($id) => $withFigure->has($id))->count();
+        $coverage = $spendingLines->isEmpty() ? 100.0 : (float) ($covered / $spendingLines->count() * 100);
+
+        $consumed = $budgetOut > 0 ? $spent / $budgetOut * 100 : 0.0;
+        $gap = $consumed - $elapsed;
+
+        $status = match (true) {
+            $budgetOut <= 0 => 'none',
+            $consumed > 150 || $coverage < 60 => 'incomplete',
+            $gap > 15 => 'critical',
+            $gap > 5 => 'warning',
+            default => 'good',
+        };
+
+        return [
+            'sheet' => $sheet,
+            'elapsed' => $elapsed,
+            'consumed' => $consumed,
+            'gap' => $gap,
+            'status' => $status,
+            'spent' => $spent,
+            'budgeted' => $budgetOut,
+            'projected' => $elapsed > 0 ? $spent / ($elapsed / 100) : 0.0,
+            'received' => $received,
+            'budgeted_in' => $budgetIn,
+            'received_share' => $budgetIn > 0 ? $received / $budgetIn * 100 : 0.0,
+            'coverage' => $coverage,
+            'lines_spending' => $spendingLines->count(),
+            'lines_budgeted' => $covered,
+        ];
+    }
+
+    /**
+     * How much one side rests on its three biggest headings: the exposure if
+     * one of them moves, as a single number rather than a pie.
+     *
+     * @param  array<string, float>  $totals
+     * @return array{top: float, total: float, share: float, count: int}
+     */
+    private function concentration(array $totals, float $sideTotal, int $top = 3): array
+    {
+        arsort($totals);
+        $sum = array_sum(array_slice($totals, 0, $top));
+
+        return [
+            'top' => (float) $sum,
+            'total' => $sideTotal,
+            'share' => $sideTotal > 0 ? $sum / $sideTotal * 100 : 0.0,
+            'count' => min($top, count($totals)),
+        ];
+    }
+
+    /**
+     * What changed between the last two months that had any movement. Not the
+     * previous calendar month: after a quiet holiday month, measuring against
+     * zero makes every heading look as if it exploded.
+     *
+     * @param  array<int, array>  $months
+     * @return array{from: string, to: string, rows: array<int, array>}|null
+     */
+    private function movers(array $months, int $limit = 8): ?array
+    {
+        $active = array_values(array_filter($months, fn ($m) => $m['in'] > 0 || $m['out'] > 0));
+        if (count($active) < 2) {
+            return null;
+        }
+
+        [$previous, $current] = array_slice($active, -2);
+
+        $changes = [];
+        foreach ([self::IN, self::OUT] as $dir) {
+            $headings = array_unique(array_merge(array_keys($current['headings'][$dir]), array_keys($previous['headings'][$dir])));
+            foreach ($headings as $heading) {
+                $then = (float) ($previous['headings'][$dir][$heading] ?? 0);
+                $now = (float) ($current['headings'][$dir][$heading] ?? 0);
+                $changes[] = ['heading' => $heading, 'direction' => $dir, 'previous' => $then, 'current' => $now, 'change' => $now - $then];
+            }
+        }
+
+        usort($changes, fn ($a, $b) => abs($b['change']) <=> abs($a['change']));
+
+        return [
+            'from' => $previous['label'],
+            'to' => $current['label'],
+            'rows' => array_slice(array_values(array_filter($changes, fn ($c) => abs($c['change']) > 0.009)), 0, $limit),
+        ];
+    }
+
+    /**
+     * The money the Income & Expenditure sheet cannot place, itemised enough
+     * to fix: the fix is pointing a category at a line, not a hunt.
+     *
+     * @return array{amount: float, count: int, share: float, rows: Collection}
+     */
+    private function unanalysedSummary(Collection $rows): array
+    {
+        $unplaced = $rows->where('unanalysed', '>', 0);
+        $total = (float) $rows->sum('amount');
+        $amount = (float) $unplaced->sum('unanalysed');
+
+        return [
+            'amount' => $amount,
+            'count' => $unplaced->count(),
+            'share' => $total > 0 ? $amount / $total * 100 : 0.0,
+            'rows' => $unplaced->sortByDesc('unanalysed')->take(15)->values(),
+        ];
+    }
+
+    /**
      * The financial year the book is kept in.
      *
      * A school's money year is its academic year — fees arrive in September,

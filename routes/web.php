@@ -259,6 +259,21 @@ Route::middleware('auth')->group(function () {
         Route::get('report-cards/remarks', [ReportCardController::class, 'remarks'])->name('report-cards.remarks');
         Route::post('report-cards/remarks', [ReportCardController::class, 'saveRemarks'])->name('report-cards.remarks.save');
         Route::get('report-cards/{termResult}', [ReportCardController::class, 'show'])->name('report-cards.show')->whereNumber('termResult');
+
+        // Boarding: here so that a teacher who is a house master can be given it.
+        Route::controller(\App\Http\Controllers\Admin\BoardingController::class)->prefix('boarding')->name('boarding.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('houses', 'storeHouse')->name('houses.store');
+            Route::get('houses/{house}', 'show')->name('show');
+            Route::get('houses/{house}/print', 'print')->name('print');
+            Route::put('houses/{house}', 'updateHouse')->name('houses.update');
+            Route::delete('houses/{house}', 'destroyHouse')->name('houses.destroy');
+            Route::post('houses/{house}/rooms', 'storeRoom')->name('rooms.store');
+            Route::put('rooms/{room}', 'updateRoom')->name('rooms.update');
+            Route::delete('rooms/{room}', 'destroyRoom')->name('rooms.destroy');
+            Route::post('allocations', 'allocate')->name('allocate');
+            Route::post('allocations/{allocation}/check-out', 'checkOut')->name('check-out');
+        });
     });
 
     Route::middleware('role:super_admin,admin,accountant,receptionist')->prefix('admin')->name('admin.')->group(function () {
@@ -723,6 +738,9 @@ Route::middleware(['auth', 'role:super_admin,admin,accountant'])->prefix('admin'
     // ── Cash Book ──
     Route::get('daybook', [DaybookController::class, 'index'])->name('daybook.index');
     Route::get('daybook/year', [DaybookController::class, 'year'])->name('daybook.year');
+    Route::get('daybook/analysis', [DaybookController::class, 'analysis'])->name('daybook.analysis');
+    Route::post('daybook/analysis/pdf', [DaybookController::class, 'analysisPdf'])->name('daybook.analysis.pdf');
+    Route::get('daybook/excel', [DaybookController::class, 'excel'])->name('daybook.excel');
     Route::get('daybook/summary', [DaybookController::class, 'summary'])->name('daybook.summary');
     Route::get('daybook/pdf', [DaybookController::class, 'pdf'])->name('daybook.pdf');
     Route::get('daybook/csv', [DaybookController::class, 'csv'])->name('daybook.csv');

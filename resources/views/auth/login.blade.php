@@ -4,198 +4,217 @@
     $schoolShort = $setting->school_short_name ?? $schoolName;
     $logo = ($setting && $setting->logo) ? \Illuminate\Support\Facades\Storage::url($setting->logo) : null;
 
-    $studentCount = \App\Models\Student::count();
-    $staffCount = \App\Models\User::query()->whereNotIn('role', ['super_admin', 'admin', 'parent', 'student'])->count();
-    $deptCount = \App\Models\Department::count();
-
-    $emailPlaceholder = 'name@school.com';
-
+    // The same look as the EdutrustPay console: ink on parchment, one gold accent.
     $features = [
-        ['title' => __('Academic Management'), 'desc' => __('Sessions, forms, students, exams and report cards'),
-         'icon' => 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z'],
-        ['title' => __('Finance & Accounting'), 'desc' => __('Fees, payroll, budgets and the OHADA ledger'),
-         'icon' => 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z'],
-        ['title' => __('Analytics & Reports'), 'desc' => __('Dashboards, statements and performance metrics'),
-         'icon' => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'],
-        ['title' => __('Admissions & Communication'), 'desc' => __('Applications, enrolment, staff and guardians'),
-         'icon' => 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'],
+        ['M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.42A12 12 0 0119 17.5 12 12 0 0112 20a12 12 0 01-7-2.5 12 12 0 01.84-6.92L12 14z',
+         __('Academic Management'), __('Sessions, forms, students, exams and report cards')],
+        ['M9 7h6 M9 11h.01 M12 11h.01 M15 11h.01 M9 14h.01 M12 14h.01 M15 14h.01 M9 17h.01 M12 17h3 M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z',
+         __('Finance & Accounting'), __('Fees, payroll, budgets and the OHADA ledger')],
+        ['M17 20h5v-2a3 3 0 00-5.36-1.86 M17 20H7 M17 20v-2c0-.66-.13-1.28-.36-1.86 M7 20H2v-2a3 3 0 015.36-1.86 M7 20v-2c0-.66.13-1.28.36-1.86 M7.36 16.14a5 5 0 019.28 0 M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+         __('Admissions & Communication'), __('Applications, enrolment, staff and guardians')],
     ];
 @endphp
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ __('Login') }} - {{ $schoolShort }}</title>
+    <meta name="robots" content="noindex">
+    <title>{{ __('Sign in') }} — {{ $schoolShort }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen">
-    <div class="min-h-screen flex flex-col lg:flex-row">
-
-        {{-- ── Left: branded panel ── --}}
-        <aside class="hidden lg:flex lg:w-1/2 xl:w-7/12 flex-col justify-between p-10 xl:p-14 text-white relative overflow-hidden"
-               style="background:linear-gradient(160deg,#0b2a6b 0%,#13439e 45%,#1d4ed8 100%);">
-            <div class="absolute -top-24 -right-24 w-80 h-80 rounded-full opacity-10" style="background:#ffffff;"></div>
-            <div class="absolute -bottom-32 -left-20 w-96 h-96 rounded-full opacity-5" style="background:#ffffff;"></div>
-
-            <div class="relative">
-                {{-- Logo --}}
-                <div class="flex items-center gap-3 mb-10">
-                    @if($logo)
-                        <img src="{{ $logo }}" alt="logo" class="h-14 w-14 object-contain rounded-lg bg-white/10 p-1">
-                    @else
-                        <div class="h-14 w-14 rounded-xl flex items-center justify-center" style="background:rgba(255,255,255,0.12);">
-                            <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
-                        </div>
-                    @endif
-                    <span class="text-xl font-extrabold tracking-tight uppercase leading-tight">{{ $schoolShort }}</span>
-                </div>
-
-                <h1 class="text-4xl xl:text-5xl font-extrabold leading-tight">{{ __('Welcome to') }}<br>{{ $schoolName }}</h1>
-                <p class="mt-3 text-blue-100/80 text-lg">{{ __('Staff Portal Access') }}</p>
-
-                {{-- Feature cards --}}
-                <div class="mt-9 space-y-4 max-w-xl">
-                    @foreach($features as $f)
-                    <div class="flex items-start gap-4 rounded-2xl p-4 transition" style="background:rgba(255,255,255,0.08);">
-                        <div class="shrink-0 h-12 w-12 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#fb923c,#f97316);">
-                            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $f['icon'] }}"/></svg>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-white">{{ $f['title'] }}</h3>
-                            <p class="text-sm text-blue-100/70 mt-0.5">{{ $f['desc'] }}</p>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-            </div>
-
-            {{-- Stats --}}
-            <div class="relative mt-10 pt-6 border-t border-white/15">
-                <div class="grid grid-cols-3 gap-6 max-w-md">
-                    <div>
-                        <p class="text-3xl font-extrabold" style="color:#fb923c;">{{ number_format($staffCount) }}+</p>
-                        <p class="text-sm text-blue-100/70 mt-1">{{ __('Staff Members') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-3xl font-extrabold" style="color:#fb923c;">{{ number_format($deptCount) }}+</p>
-                        <p class="text-sm text-blue-100/70 mt-1">{{ __('Departments') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-3xl font-extrabold" style="color:#fb923c;">{{ number_format($studentCount) }}+</p>
-                        <p class="text-sm text-blue-100/70 mt-1">{{ __('Students') }}</p>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        {{-- ── Right: login form ── --}}
-        <main class="flex-1 flex items-center justify-center p-6 sm:p-10 bg-gray-50">
-            <div class="w-full max-w-md">
-                {{-- Mobile brand header --}}
-                <div class="lg:hidden text-center mb-8">
-                    @if($logo)
-                        <img src="{{ $logo }}" alt="logo" class="h-16 mx-auto object-contain">
-                    @endif
-                    <h1 class="text-2xl font-extrabold text-slate-800 mt-2">{{ $schoolName }}</h1>
-                    <p class="text-sm text-gray-500">{{ __('Staff Portal Access') }}</p>
-                </div>
-
-                <div class="text-center mb-7">
-                    <div class="inline-flex h-16 w-16 rounded-2xl items-center justify-center mb-4" style="background:linear-gradient(135deg,#1d4ed8,#0b2a6b);">
-                        <svg class="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    </div>
-                    <h2 class="text-2xl font-extrabold text-slate-800">{{ __('Login Into Your Dashboard') }}</h2>
-                    <p class="text-sm text-gray-500 mt-1">{{ __('Access your staff dashboard and management tools') }}</p>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-7">
-                    @if ($errors->any())
-                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-5">
-                            @foreach ($errors->all() as $error)
-                                <p class="text-sm">{{ $error }}</p>
-                            @endforeach
-                        </div>
-                    @endif
-
-                    <form method="POST" action="{{ route('login') }}">
-                        @csrf
-
-                        <div class="mb-4">
-                            <label for="email" class="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                                <svg class="h-4 w-4" style="color:#1d4ed8;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                                {{ __('Email') }}
-                            </label>
-                            <input type="email" name="email" id="email" value="{{ old('email') }}"
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                                   placeholder="{{ $emailPlaceholder }}" required autofocus>
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="password" class="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                                <svg class="h-4 w-4" style="color:#1d4ed8;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                                {{ __('Password') }}
-                            </label>
-                            <div class="relative">
-                                <input type="password" name="password" id="password"
-                                       class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                                       placeholder="{{ __('Enter your password') }}" required>
-                                <button type="button" onclick="togglePassword()" class="absolute inset-y-0 right-0 px-4 flex items-center text-gray-400 hover:text-gray-600">
-                                    <svg id="eye-open" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                    <svg id="eye-closed" class="h-5 w-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between mb-6">
-                            <label class="flex items-center">
-                                <input type="checkbox" name="remember" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                <span class="ml-2 text-sm text-gray-600">{{ __('Remember Me') }}</span>
-                            </label>
-                            <span class="text-sm font-semibold" style="color:#1d4ed8;">{{ __('Forgot Your Password?') }}</span>
-                        </div>
-
-                        <button type="submit"
-                                class="w-full text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg flex items-center justify-center gap-2"
-                                style="background:linear-gradient(to right,#1d4ed8,#0b2a6b);">
-                            {{ __('Login') }}
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                        </button>
-                    </form>
-                </div>
-
-                <div class="flex items-center justify-center gap-6 mt-6 text-sm text-gray-500">
-                    <a href="{{ url('/') }}" class="flex items-center gap-1.5 hover:text-slate-700">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                        {{ __('Back to Website') }}
-                    </a>
-                    <span class="flex items-center gap-1.5">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                        {{ __('IT Support') }}
-                    </span>
-                </div>
-
-                <p class="text-center text-gray-400 text-xs mt-6">
-                    &copy; {{ date('Y') }} {{ $schoolShort }} · {{ __('Management System') }}
-                </p>
-                <p class="text-center text-gray-400 text-xs mt-1">
-                    EduTrust · {{ __('powered by') }} <span class="font-semibold">I-NNOVA</span>
-                </p>
-            </div>
-        </main>
-    </div>
-
-    <script>
-        function togglePassword() {
-            const input = document.getElementById('password');
-            const open = document.getElementById('eye-open');
-            const closed = document.getElementById('eye-closed');
-            const show = input.type === 'password';
-            input.type = show ? 'text' : 'password';
-            open.classList.toggle('hidden', show);
-            closed.classList.toggle('hidden', !show);
+    <style>
+        /* Ruled faintly, like a register page. */
+        .ledger-rule {
+            background-image:
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+                linear-gradient(to right, rgba(232, 181, 74, 0.10) 1px, transparent 1px);
+            background-size: 100% 34px, 100% 100%;
+            background-position: 0 0, 72px 0;
+            background-repeat: repeat, no-repeat;
         }
-    </script>
+        .glow { filter: blur(70px); }
+        @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        .rise { animation: rise .7s ease-out both; }
+        .rise-2 { animation-delay: .12s; }
+        .rise-3 { animation-delay: .24s; }
+        @media (prefers-reduced-motion: reduce) { .rise { animation: none; } }
+    </style>
+</head>
+<body class="h-full antialiased bg-[#f2efe9] text-[#16202e]" style="font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;">
+
+<div class="flex min-h-full flex-col lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]">
+
+    {{-- ═════════════ The school, before anyone is asked for anything. ═════════════ --}}
+    <aside class="relative overflow-hidden text-white lg:sticky lg:top-0 lg:h-screen"
+           style="background-color: #0b1a2e; background-image: linear-gradient(155deg, #0b1a2e 0%, #13294a 45%, #1f3a5f 100%);">
+        <div class="ledger-rule absolute inset-0" aria-hidden="true"></div>
+        <div class="glow absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#e8b54a]/20" aria-hidden="true"></div>
+        <div class="glow absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-[#3b6fb0]/30" aria-hidden="true"></div>
+
+        <div class="relative mx-auto flex h-full max-w-xl flex-col px-6 py-8 sm:px-10 lg:py-12">
+            <div class="rise flex items-center gap-3">
+                @if($logo)
+                    <img src="{{ $logo }}" alt="" class="h-11 w-11 shrink-0 rounded-xl bg-white p-1 object-contain">
+                @else
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#e8b54a]/40 bg-white/[0.06]">
+                        <svg viewBox="0 0 24 24" class="h-6 w-6 text-[#e8b54a]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.6v5.3c0 4.4-2.9 7.9-7 9.5-4.1-1.6-7-5.1-7-9.5V5.6L12 3z"/><path d="M9 12l2 2 4-4"/></svg>
+                    </span>
+                @endif
+                <div class="leading-tight">
+                    <p class="font-serif text-xl">{{ $schoolShort }}</p>
+                    <p class="text-xs text-white/65">EduTrust · {{ __('powered by') }} <span class="font-semibold tracking-[0.18em] text-[#e8b54a]">I-NNOVA</span></p>
+                </div>
+            </div>
+
+            <div class="rise rise-2 mt-8 lg:mt-14">
+                {{-- A school's full name can run to three lines, so it sits above the headline, small. --}}
+                <p class="max-w-md text-xs font-semibold uppercase tracking-[0.16em] text-white/55">{{ $schoolName }} · {{ __('Staff portal') }}</p>
+                <h2 class="mt-3 font-serif text-3xl leading-tight sm:text-4xl">
+                    {{ __('Welcome back.') }}<br>
+                    <span class="text-[#e8b54a]">{{ __('The whole school, in one place.') }}</span>
+                </h2>
+                <p class="mt-3 max-w-md text-sm leading-relaxed text-white/75 sm:text-[15px]">
+                    {{ __('Classes, marks, report cards, fees and the school\'s books, in one place for the people who run the school.') }}
+                </p>
+            </div>
+
+            <ul class="rise rise-3 mt-10 hidden space-y-3 lg:block">
+                @foreach($features as [$icon, $title, $text])
+                    <li class="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e8b54a] text-[#0b1a2e]">
+                            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $icon }}"/></svg>
+                        </span>
+                        <span>
+                            <span class="block text-sm font-semibold">{{ $title }}</span>
+                            <span class="mt-0.5 block text-[13px] leading-snug text-white/70">{{ $text }}</span>
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    </aside>
+
+    {{-- ═════════════ Signing in. ═════════════ --}}
+    <main class="relative flex flex-1 items-center justify-center px-4 py-10 sm:px-8"
+          style="background: radial-gradient(1100px 560px at 100% 0%, rgba(232, 181, 74, 0.09), transparent 60%), radial-gradient(900px 520px at 0% 100%, rgba(31, 58, 95, 0.07), transparent 60%);">
+
+        <div class="absolute right-4 top-4 flex overflow-hidden rounded-lg border border-[#c8c0b3] text-xs font-semibold sm:right-8">
+            @foreach(['en' => 'EN', 'fr' => 'FR'] as $code => $label)
+                <a href="{{ route('lang.switch', $code) }}"
+                   class="px-2.5 py-1.5 {{ app()->getLocale() === $code ? 'bg-[#1f3a5f] text-white' : 'text-[#46566b] hover:bg-white' }}">{{ $label }}</a>
+            @endforeach
+        </div>
+
+        <div class="w-full max-w-md">
+            <div class="text-center">
+                <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-white shadow-lg shadow-[#1f3a5f]/25"
+                      style="background: linear-gradient(145deg, #1f3a5f, #0b1a2e);">
+                    <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="9" cy="8" r="3.5"/>
+                        <path d="M2.5 20c.6-3.6 3.3-6 6.5-6 1.4 0 2.7.4 3.7 1.2"/>
+                        <path d="M18 12l3.5 1.3v2.6c0 2.2-1.5 4-3.5 4.8-2-.8-3.5-2.6-3.5-4.8v-2.6L18 12z" stroke="#e8b54a"/>
+                    </svg>
+                </span>
+                <h1 class="mt-5 font-serif text-3xl">{{ __('Sign in') }}</h1>
+                <p class="mt-2 text-sm text-[#6f8096]">{{ __('For the school\'s staff: administration, teachers and the bursary.') }}</p>
+            </div>
+
+            <form method="POST" action="{{ route('login') }}"
+                  class="mt-8 space-y-5 rounded-2xl border border-[#ded8cf] bg-white p-6 shadow-xl shadow-[#0b1a2e]/[0.06] sm:p-8">
+                @csrf
+
+                @if ($errors->any())
+                    <div class="flex gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-800" role="alert">
+                        <svg viewBox="0 0 24 24" class="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
+                        <span>{{ $errors->first() }}</span>
+                    </div>
+                @endif
+
+                <div>
+                    <label for="email" class="flex items-center gap-1.5 text-sm font-semibold">
+                        <svg viewBox="0 0 24 24" class="h-4 w-4 text-[#1f3a5f]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6 8.5-6"/></svg>
+                        {{ __('Email') }}
+                    </label>
+                    <input id="email" name="email" type="email" required autofocus autocomplete="username" value="{{ old('email') }}"
+                           placeholder="name@school.com"
+                           class="mt-1.5 w-full rounded-xl border border-[#c8c0b3] bg-white px-4 py-3 text-sm placeholder:text-[#6f8096]/70 focus:border-[#1f3a5f] focus:outline-none focus:ring-2 focus:ring-[#1f3a5f]/25">
+                </div>
+
+                <div>
+                    <label for="password" class="flex items-center gap-1.5 text-sm font-semibold">
+                        <svg viewBox="0 0 24 24" class="h-4 w-4 text-[#1f3a5f]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg>
+                        {{ __('Password') }}
+                    </label>
+                    <div class="relative mt-1.5">
+                        <input id="password" name="password" type="password" required autocomplete="current-password"
+                               placeholder="{{ __('Your password') }}"
+                               class="w-full rounded-xl border border-[#c8c0b3] bg-white py-3 pl-4 pr-12 text-sm placeholder:text-[#6f8096]/70 focus:border-[#1f3a5f] focus:outline-none focus:ring-2 focus:ring-[#1f3a5f]/25">
+                        <button type="button" id="toggle-password"
+                                class="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-[#6f8096] hover:text-[#16202e] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f3a5f]/40"
+                                aria-label="{{ __('Show password') }}" aria-controls="password" aria-pressed="false"
+                                data-show="{{ __('Show password') }}" data-hide="{{ __('Hide password') }}">
+                            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>
+                                <path data-slash d="M4 20L20 4" hidden/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <label class="flex items-center gap-2 text-[#46566b]">
+                        <input type="checkbox" name="remember" value="1" class="h-4 w-4 rounded border-[#c8c0b3] text-[#1f3a5f] focus:ring-[#1f3a5f]">
+                        {{ __('Stay signed in') }}
+                    </label>
+                    <button type="button" id="forgot" class="font-semibold text-[#1f3a5f] hover:underline" aria-controls="forgot-note" aria-expanded="false">
+                        {{ __('Forgot your password?') }}
+                    </button>
+                </div>
+                <p id="forgot-note" hidden class="-mt-2 rounded-lg bg-[#eef2f7] px-3 py-2 text-xs leading-relaxed text-[#46566b]">
+                    {{ __('There is no reset by email yet. Ask the school\'s administrator to set a new password for you.') }}
+                </p>
+
+                <button type="submit"
+                        class="group flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#1f3a5f]/30 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f3a5f]/50 focus-visible:ring-offset-2"
+                        style="background: linear-gradient(100deg, #1f3a5f 0%, #13294a 100%);">
+                    {{ __('Sign in') }}
+                    <svg viewBox="0 0 24 24" class="h-4 w-4 transition group-hover:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
+            </form>
+
+            <p class="mt-6 text-center text-xs text-[#6f8096]">
+                {{ __('Not staff?') }}
+                <a href="{{ route('parent.login') }}" class="font-semibold text-[#1f3a5f] hover:underline">{{ __('Parent portal') }}</a>
+                ·
+                <a href="{{ route('apply.login') }}" class="font-semibold text-[#1f3a5f] hover:underline">{{ __('Online admissions') }}</a>
+            </p>
+            <p class="mt-2 text-center text-xs text-[#6f8096]">
+                © {{ now()->year }} {{ $schoolShort }} · EduTrust, {{ __('powered by') }} <span class="font-semibold tracking-[0.14em] text-[#46566b]">I-NNOVA</span>
+            </p>
+        </div>
+    </main>
+</div>
+
+<script>
+    (() => {
+        const toggle = document.getElementById('toggle-password');
+        const field = document.getElementById('password');
+        toggle?.addEventListener('click', () => {
+            const showing = field.type === 'text';
+            field.type = showing ? 'password' : 'text';
+            toggle.setAttribute('aria-pressed', String(! showing));
+            toggle.setAttribute('aria-label', showing ? toggle.dataset.show : toggle.dataset.hide);
+            toggle.querySelector('[data-slash]').hidden = showing;
+        });
+
+        const forgot = document.getElementById('forgot');
+        const note = document.getElementById('forgot-note');
+        forgot?.addEventListener('click', () => {
+            note.hidden = ! note.hidden;
+            forgot.setAttribute('aria-expanded', String(! note.hidden));
+        });
+    })();
+</script>
 </body>
 </html>
