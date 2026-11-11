@@ -571,6 +571,7 @@ Route::middleware('auth')->group(function () {
         Route::get('edutrustpay', [EdutrustPayController::class, 'index'])->name('edutrustpay.index');
         Route::put('edutrustpay/{branch}', [EdutrustPayController::class, 'update'])->name('edutrustpay.update');
         Route::post('edutrustpay/{branch}/test', [EdutrustPayController::class, 'test'])->name('edutrustpay.test');
+        Route::post('edutrustpay/send-now', [EdutrustPayController::class, 'sendNow'])->name('edutrustpay.send-now');
 
         // Roles & Permissions
         Route::resource('roles', RoleController::class);

@@ -12,6 +12,93 @@
 </div>
 
 {{--
+    Is it sending?
+
+    Reports go out through scheduled jobs, and the scheduler only runs if this
+    computer has been told to start it every minute. If nobody did, nothing
+    fails and nothing is logged: the school just goes quiet on the console. This
+    says which it is, lets someone send everything now, and shows what each step
+    said. Each branch's own deliveries are shown on its card below.
+--}}
+@php $run = session('etp_run'); @endphp
+<div id="sending" class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
+    <h2 class="text-sm font-semibold text-gray-900">{{ __('Is it sending?') }}</h2>
+    <p class="mt-1 text-xs text-gray-500">{{ __('Reports go to the console on their own every night, if the scheduler is running on this computer. You can also send everything now.') }}</p>
+
+    @if ($run)
+        <div @class([
+            'mt-3 rounded border px-3 py-2 text-sm',
+            'border-emerald-200 bg-emerald-50 text-emerald-900' => $run['ok'],
+            'border-rose-200 bg-rose-50 text-rose-900' => ! $run['ok'],
+        ])>
+            <p class="font-semibold">{{ $run['ok'] ? __('Sent') : __('Something is wrong') }}</p>
+            <div class="mt-1 space-y-1">
+                @foreach ($run['steps'] as $step)
+                    <details>
+                        <summary class="cursor-pointer">
+                            @if ($step['ok'])
+                                <span class="text-emerald-700">&#10003;</span>
+                            @else
+                                <span class="text-rose-700">&#10007;</span>
+                            @endif
+                            {{ $step['label'] }}
+                        </summary>
+                        <pre class="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded border border-gray-200 bg-white p-2 text-xs text-gray-700">{{ $step['output'] !== '' ? $step['output'] : __('(nothing to say)') }}</pre>
+                    </details>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <span class="font-medium text-gray-700">{{ __('Automatic sending (scheduler)') }}</span>
+        @if ($scheduler === 'running')
+            <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">{{ __('Running') }}</span>
+            <span class="text-xs text-gray-500">{{ __('last ran :when', ['when' => $schedulerSeen->diffForHumans()]) }}</span>
+        @elseif ($scheduler === 'stopped')
+            <span class="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800">{{ __('Stopped') }}</span>
+            <span class="text-xs text-gray-500">{{ __('last ran :when. Nothing goes out on its own until it runs again.', ['when' => $schedulerSeen->diffForHumans()]) }}</span>
+        @else
+            <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">{{ __('Not set up on this computer') }}</span>
+            <span class="text-xs text-gray-500">{{ __('Reports only go out when someone presses “Send reports now”.') }}</span>
+        @endif
+    </div>
+
+    @if ($scheduler !== 'running')
+        <details class="mt-3 text-sm" @if ($scheduler === 'never') open @endif>
+            <summary class="cursor-pointer font-medium text-gray-800">{{ __('How to start the scheduler on this computer (once)') }}</summary>
+            <div class="mt-2 text-xs text-gray-600">
+                @if ($schedulerSetup['windows'])
+                    <p>{{ __('Open “Command Prompt” as Administrator (right-click, Run as administrator), paste this line and press Enter:') }}</p>
+                @else
+                    <p>{{ __('On the server, run “sudo crontab -u www-data -e”, add this line at the bottom and save:') }}</p>
+                @endif
+                <pre class="mt-1 select-all whitespace-pre-wrap rounded border border-gray-200 bg-gray-50 p-2 font-mono text-xs text-gray-800">{{ $schedulerSetup['command'] }}</pre>
+                <p class="mt-1">{{ __('It starts the scheduler every minute, and the scheduler decides what is due: reports at 03:00, delivery every hour, a check-in at 05:30. Come back here a minute later: this page should say “Running”.') }}</p>
+            </div>
+        </details>
+    @endif
+
+    @can('edutrustpay-reporting.test')
+        <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
+            @if ($reporting)
+                <form method="POST" action="{{ route('admin.edutrustpay.send-now') }}"
+                      onsubmit="var b=this.querySelector('button'); b.disabled=true; b.innerText=@js(__('Sending… this can take a minute'));">
+                    @csrf
+                    <button type="submit" class="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60">
+                        {{ __('Send reports now') }}
+                    </button>
+                </form>
+                <span class="max-w-2xl text-xs text-gray-500">{{ __('Runs the nightly jobs now for every branch that reports: builds the last 3 months’ reports, daybooks and budget sheets, sends a check-in and delivers everything waiting. Months that have not changed are not sent again.') }}</span>
+            @else
+                <button type="button" disabled class="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white opacity-50">{{ __('Send reports now') }}</button>
+                <span class="text-xs text-gray-500">{{ __('Fill in a branch’s connection below, tick “Send reports for this branch” and save first.') }}</span>
+            @endif
+        </div>
+    @endcan
+</div>
+
+{{--
     What this school can report, stated before the credentials.
 
     Somebody looking at the body's console will see "not yet reporting" against
@@ -78,6 +165,85 @@
                 <div class="mb-4 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
                     {{ __('This branch is currently using values from the .env file. Anything you save here takes precedence from the moment you save it.') }}
                 </div>
+            @endif
+
+            {{-- What this branch has sent, and what the console said. --}}
+            @php $send = $sending[$branch->id]; @endphp
+            @if ($current || $send['recent']->isNotEmpty())
+                <dl class="mb-4 grid gap-3 rounded border border-gray-200 bg-gray-50 p-3 text-xs sm:grid-cols-3">
+                    <div>
+                        <dt class="text-gray-500">{{ __('Last received by the console') }}</dt>
+                        <dd class="mt-0.5 font-medium text-gray-900">
+                            @if ($send['lastDelivered'])
+                                {{ \Illuminate\Support\Carbon::parse($send['lastDelivered'])->diffForHumans() }}
+                                <span class="font-normal text-gray-500">({{ \Illuminate\Support\Carbon::parse($send['lastDelivered'])->format('d M Y, H:i') }})</span>
+                            @else
+                                <span class="text-rose-700">{{ __('Never') }}</span>
+                            @endif
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">{{ __('Waiting to go') }}</dt>
+                        <dd class="mt-0.5 font-medium {{ $send['waiting'] ? 'text-amber-700' : 'text-gray-900' }}">
+                            {{ $send['waiting'] ?: __('Nothing') }}
+                            @if ($send['waiting'])
+                                <span class="block font-normal text-gray-500">{{ __('kept here and tried again on the next delivery, so nothing is lost') }}</span>
+                            @endif
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">{{ __('Refused by the console') }}</dt>
+                        <dd class="mt-0.5 font-medium {{ $send['problems']->isNotEmpty() ? 'text-rose-700' : 'text-gray-900' }}">
+                            {{ $send['problems']->count() ?: __('Nothing') }}
+                            @if ($send['problems']->isNotEmpty())
+                                <span class="block font-normal">{{ \App\Http\Controllers\Admin\EdutrustPayController::explain($send['problems']->first()) }}</span>
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
+
+                @if ($send['recent']->isNotEmpty())
+                    <details class="mb-4 text-xs">
+                        <summary class="cursor-pointer font-medium text-gray-700">{{ __('Last items sent') }}</summary>
+                        <div class="mt-2 overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 border border-gray-200">
+                                <thead class="bg-gray-50 text-left text-gray-600">
+                                    <tr>
+                                        <th class="px-2 py-1.5 font-medium">{{ __('What') }}</th>
+                                        <th class="px-2 py-1.5 font-medium">{{ __('Month') }}</th>
+                                        <th class="px-2 py-1.5 font-medium">{{ __('State') }}</th>
+                                        <th class="px-2 py-1.5 font-medium">{{ __('When') }}</th>
+                                        <th class="px-2 py-1.5 font-medium">{{ __('Console’s answer') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach ($send['recent'] as $item)
+                                        <tr>
+                                            <td class="px-2 py-1.5">
+                                                {{ \App\Http\Controllers\Admin\EdutrustPayController::kindLabel($item->kind) }}
+                                                @if ($item->sequence > 1 && $item->kind !== 'heartbeat')
+                                                    <span class="text-gray-400">{{ __('version :n', ['n' => $item->sequence]) }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-2 py-1.5">{{ $item->period ? \Illuminate\Support\Carbon::parse($item->period.'-01')->translatedFormat('F Y') : '—' }}</td>
+                                            <td class="px-2 py-1.5">
+                                                @if ($item->status === 'delivered')
+                                                    <span class="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-800">{{ __('received') }}</span>
+                                                @elseif ($item->status === 'pending')
+                                                    <span class="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">{{ __('waiting') }}</span>
+                                                @else
+                                                    <span class="rounded bg-rose-100 px-1.5 py-0.5 text-rose-800">{{ __('refused') }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="whitespace-nowrap px-2 py-1.5">{{ ($item->delivered_at ?? $item->updated_at)?->diffForHumans() }}</td>
+                                            <td class="px-2 py-1.5 text-gray-500">{{ $item->status === 'delivered' ? '' : \App\Http\Controllers\Admin\EdutrustPayController::explain($item) }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                @endif
             @endif
 
             @if ($setting?->last_tested_at)
