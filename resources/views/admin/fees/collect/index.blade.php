@@ -698,6 +698,11 @@ const CONFIRM_T = {!! json_encode([
     'others' => __(':amount is more than this fee. It goes to the student\'s other fees, oldest first.'),
     'noReference' => __('This was not paid in cash, and there is no note of the transaction reference. Add it in the notes so the payment can be traced.'),
 ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
+const PAY_ERR = {!! json_encode([
+    'unreachable' => __('The server could not be reached, so nothing was sent. Check the connection, then check whether this payment shows as recorded before trying again.'),
+    'notJson' => __('The server answered with an error page (HTTP :status) instead of a result. The payment may or may not have been recorded: reload the page and check this student\'s fees before trying again.'),
+    'expired' => __('Your session has expired. Reload the page, sign in again if asked, and record the payment again.'),
+], JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
 const PAY_T = {!! json_encode($payT, JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
 
 /** Say, as the bursar types, where the money will go. */
@@ -832,8 +837,24 @@ document.getElementById('paymentForm').addEventListener('submit', async function
 
     const formData = new FormData(this);
 
+    const resetButton = () => {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> {{ __("Record Payment") }}';
+    };
+    const fail = (text) => {
+        errorDiv.style.whiteSpace = 'pre-line';
+        errorDiv.textContent = text;
+        errorDiv.style.display = 'block';
+        resetButton();
+    };
+
+    // Three different failures, told apart, because the cashier's next step
+    // differs: a request that never left can be retried; one whose answer was
+    // lost may already be recorded, so check before paying it in twice.
+    let response;
     try {
-        const response = await fetch(storePaymentUrl, {
+        response = await fetch(storePaymentUrl, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': formData.get('_token'),
@@ -842,44 +863,52 @@ document.getElementById('paymentForm').addEventListener('submit', async function
             },
             body: formData,
         });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            let msg = data.message || '{{ __("An error occurred.") }}';
-            if (data.errors) {
-                msg = Object.values(data.errors).flat().join('<br>');
-            }
-            errorDiv.innerHTML = msg;
-            errorDiv.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.style.opacity = '1';
-            submitBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> {{ __("Record Payment") }}';
-            return;
-        }
-
-        // Success — update the table row
-        updateFeeRow(currentFeeRowId, data);
-
-        closePaymentModal();
-
-        // Show success toast
-        const toast = document.getElementById('successToast');
-        document.getElementById('toastReceipt').innerHTML = '{{ __("Receipt") }}: ' + data.receipt_number +
-            ' <a href="javascript:void(0)" onclick="printReceipt(' + data.payment_id + ')" style="color: #0ea5e9; text-decoration: underline; font-weight: 600;">Print Receipt</a>';
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 8000);
-
-        // Auto-print the receipt immediately
-        printReceipt(data.payment_id);
-
     } catch (err) {
-        errorDiv.textContent = '{{ __("Network error. Please try again.") }}';
-        errorDiv.style.display = 'block';
-        submitBtn.disabled = false;
-        submitBtn.style.opacity = '1';
-        submitBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> {{ __("Record Payment") }}';
+        fail(PAY_ERR.unreachable);
+        return;
     }
+
+    // A proxy or tunnel in front of the school's server (Cloudflare, say) can
+    // answer with its own HTML page instead of the app's JSON.
+    const raw = await response.text().catch(() => '');
+    let data = null;
+    try { data = JSON.parse(raw); } catch (err) { data = null; }
+
+    if (!data) {
+        fail(PAY_ERR.notJson.replace(':status', response.status + (response.statusText ? ' ' + response.statusText : '')));
+        console.error('store-payment answered HTTP ' + response.status, raw.slice(0, 2000));
+        return;
+    }
+
+    if (!response.ok) {
+        let msg = data.message || '{{ __("An error occurred.") }}';
+        if (response.status === 419) {
+            msg = PAY_ERR.expired;
+        } else if (data.errors) {
+            msg = Object.values(data.errors).flat().join('\n');
+        }
+        fail(msg);
+        return;
+    }
+
+    // Recorded. Whatever goes wrong drawing the page now, the payment stands,
+    // and the cashier must not be told to try again.
+    const feeRowId = currentFeeRowId;
+    closePaymentModal();
+    resetButton();
+    const toast = document.getElementById('successToast');
+    document.getElementById('toastReceipt').innerHTML = '{{ __("Receipt") }}: ' + data.receipt_number +
+        ' <a href="javascript:void(0)" onclick="printReceipt(' + data.payment_id + ')" style="color: #0ea5e9; text-decoration: underline; font-weight: 600;">Print Receipt</a>';
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 8000);
+    try {
+        updateFeeRow(feeRowId, data);
+    } catch (err) {
+        console.error(err);
+        window.location.reload();
+        return;
+    }
+    printReceipt(data.payment_id);
 });
 
 function updateFeeRow(feeId, data) {
