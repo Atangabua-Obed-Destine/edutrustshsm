@@ -16,6 +16,7 @@ use App\Observers\StudentCreditObserver;
 use App\Observers\StudentEnrollmentObserver;
 use App\Observers\StudentObserver;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -46,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->trustTheTunnel();
         $this->registerAuthorization();
         $this->registerRateLimiters();
 
@@ -118,5 +120,26 @@ class AppServiceProvider extends ServiceProvider
 
             return $user->hasPermission($ability) ? true : null;
         });
+    }
+
+    /**
+     * Believe the tunnel in front of the school's server about the scheme
+     * (https), port and visitor's address, so links come out https. The host
+     * header is not trusted: a forged one could put another domain into
+     * password-reset links. See config('app.trusted_proxies').
+     */
+    private function trustTheTunnel(): void
+    {
+        $proxies = array_values(array_filter(array_map('trim', explode(',', (string) config('app.trusted_proxies')))));
+        if ($proxies === []) {
+            return;
+        }
+
+        TrustProxies::at($proxies);
+        TrustProxies::withHeaders(
+            Request::HEADER_X_FORWARDED_FOR
+            | Request::HEADER_X_FORWARDED_PORT
+            | Request::HEADER_X_FORWARDED_PROTO
+        );
     }
 }

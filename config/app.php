@@ -69,6 +69,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Trusted Proxies
+    |--------------------------------------------------------------------------
+    |
+    | A school reached through a tunnel (Cloudflare Tunnel and the like) is
+    | served over https to the browser but over plain http to this server. The
+    | tunnel says so in X-Forwarded-Proto; trusting it lets the app write https
+    | links, without which the browser blocks the page's own requests as mixed
+    | content. Only the addresses listed here are believed. The default is this
+    | machine, where the tunnel program normally runs; list another address
+    | (comma separated) if the tunnel runs elsewhere on the network.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES', '127.0.0.1,::1'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
