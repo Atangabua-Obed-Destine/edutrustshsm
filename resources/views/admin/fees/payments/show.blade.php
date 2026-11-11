@@ -131,8 +131,16 @@
     @if($payment->verification_status === 'verified')
     <details class="mt-6 bg-white rounded-xl border border-red-200 p-4">
         <summary class="text-sm font-medium text-red-700 cursor-pointer">{{ __('Reverse this payment') }}</summary>
+        @php $__confirm1 = [
+                  'title' => __('Reverse this payment?'),
+                  'warning' => __('The fees, payment plan, credit, payment account and ledger are all put back. The receipt stays on record, marked reversed.'),
+                  'amountLabel' => __('Amount to reverse'), 'amount' => (float) $payment->amount,
+                  'rows' => [[__('Receipt'), $payment->receipt_number], [__('Student'), $payment->enrollment->student->full_name ?? '—'], [__('Paid on'), $payment->payment_date?->format('d/m/Y')], [__('Reason'), 'field:reason']],
+                  'tick' => __('I have checked this is the payment to reverse.'),
+                  'confirm' => __('Yes, reverse this payment'),
+              ]; @endphp
         <form method="POST" action="{{ route('admin.payments.reverse', $payment) }}" class="mt-3 space-y-3"
-              onsubmit="return confirm('{{ __('Reverse this payment? The fees, payment plan, credit, payment account and ledger will all be put back.') }}')">
+              data-confirm='@json($__confirm1)'>
             @csrf
             <p class="text-xs text-gray-500">{{ __('Use this for a payment recorded in error. The receipt stays on file, marked reversed, and every balance it changed is put back.') }}</p>
             <textarea name="reason" rows="3" required minlength="5" maxlength="500"

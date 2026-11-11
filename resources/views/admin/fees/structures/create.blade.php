@@ -37,7 +37,16 @@
     </div>
     @endif
 
-    <form id="feeStructureForm" method="POST" action="{{ route('admin.fee-structures.store') }}">
+    @php $__confirm1 = [
+              'title' => __('Save these fees?'),
+              'warning' => __('Saving bills every student already in this class for the year, and every student who joins it later. Check each amount now.'),
+              'amountLabel' => __('Total for one student'), 'amountFn' => 'feeStructureTotal',
+              'rows' => [[__('Class'), 'field:form_id'], [__('Stream'), 'field:stream_id']],
+              'tick' => __('I have checked every amount against the school\'s approved fees.'),
+              'confirm' => __('Yes, save and bill'),
+          ]; @endphp
+    <form id="feeStructureForm" method="POST" action="{{ route('admin.fee-structures.store') }}"
+          data-confirm='@json($__confirm1)'>
         @csrf
 
         {{-- Step 1: Form & Stream Selection --}}
@@ -172,6 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingDiv = document.getElementById('categoriesLoading');
     const emptyDiv = document.getElementById('emptyState');
     const grandTotalVal = document.getElementById('grandTotalValue');
+    window.feeStructureTotal = () => Number((grandTotalVal.textContent || '').replace(/[^0-9]/g, '')) || 0;
     const saveBtn = document.getElementById('saveBtn');
 
     let categoriesData = [];

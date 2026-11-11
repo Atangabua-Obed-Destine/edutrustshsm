@@ -3,14 +3,27 @@
 @section('title', __('Withdraw'))
 @section('breadcrumb', __('Payment Accounts > Withdraw'))
 
-@php($currency = \App\Models\SchoolSetting::current()->currency ?? 'CFA')
+@php $currency = \App\Models\SchoolSetting::current()->currency ?? 'CFA'; @endphp
 
 @section('content')
 <div class="max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 p-6">
     <h3 class="text-lg font-semibold text-gray-700 mb-1">{{ __('Withdraw from') }}: {{ $account->title }}</h3>
     <p class="text-sm text-gray-500 mb-6">{{ __('Current balance') }}: <span class="font-semibold text-amber-700">{{ number_format($account->current_balance, 2) }} {{ $currency }}</span></p>
 
-    <form method="POST" action="{{ route('admin.payment-account.withdraw', $account) }}" enctype="multipart/form-data" class="space-y-4">
+    @php $__confirm1 = [
+              'title' => __('Withdraw this money?'),
+              'warning' => __('The amount leaves this account at once, and the account book records it.'),
+              'amountLabel' => __('Amount to withdraw'), 'amountField' => 'amount',
+              'rows' => [[__('Account'), $account->title], [__('Date'), 'field:transaction_date']],
+              'rules' => [
+                  ['rule' => 'future', 'field' => 'transaction_date', 'level' => 'stop', 'text' => __('The date is in the future.')],
+                  ['rule' => 'max', 'field' => 'amount', 'max' => (float) $account->current_balance, 'level' => 'stop', 'text' => __('The account does not hold this much: :amount short.')],
+              ],
+              'tick' => __('I have checked the amount against the slip.'),
+              'confirm' => __('Yes, withdraw it'),
+          ]; @endphp
+    <form method="POST" action="{{ route('admin.payment-account.withdraw', $account) }}" enctype="multipart/form-data" class="space-y-4"
+          data-confirm='@json($__confirm1)'>
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

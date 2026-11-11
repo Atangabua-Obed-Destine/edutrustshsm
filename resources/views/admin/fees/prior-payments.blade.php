@@ -44,7 +44,15 @@
     </div>
 
     @can('fee-collection.collect')
-    <form action="{{ route('admin.prior-payments.upload') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+    @php $__confirm1 = [
+              'title' => __('Record these payments?'),
+              'warning' => __('Every row of the file is recorded against the student as already paid. Check the file against the old books first: a wrong row has to be reversed receipt by receipt.'),
+              'rows' => [[__('File'), 'field:csv_file']],
+              'tick' => __('I have checked this file against the old books.'),
+              'confirm' => __('Yes, record them'),
+          ]; @endphp
+    <form action="{{ route('admin.prior-payments.upload') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4"
+          data-confirm='@json($__confirm1)'>
         @csrf
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('CSV File') }} <span class="text-red-500">*</span></label>

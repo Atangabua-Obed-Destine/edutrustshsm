@@ -92,8 +92,30 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 class="text-sm font-semibold text-gray-800 mb-4">{{ __('Decision') }}</h3>
                     <div class="flex flex-wrap gap-3">
+                        @php
+                            $owedOnFee = $submission->studentFee ? (float) $submission->studentFee->balance : null;
+                            $confirmApprove = [
+                                'title' => __('Approve this payment?'),
+                                'warning' => __('Approving records the amount below as received and issues the official receipt the parent sees. Approve only once the money is in the school\'s account.'),
+                                'amountLabel' => __('Amount the parent says they paid'), 'amount' => (float) $submission->amount,
+                                'rows' => [
+                                    [__('Parent'), $submission->guardian->display_name ?? '—'],
+                                    [__('Child'), $submission->enrollment->student->full_name ?? '—'],
+                                    [__('Paying For'), $submission->studentFee ? ($submission->studentFee->feeCategory->name ?? '') : __('All outstanding fees')],
+                                    [__('Method'), \App\Models\Payment::methodLabel($submission->payment_method)],
+                                    [__('Reference'), $submission->transaction_ref ?: '—'],
+                                    [__('Payment Date'), $submission->payment_date?->format('d/m/Y')],
+                                ],
+                                'issues' => array_values(array_filter([
+                                    ! $submission->transaction_ref ? ['level' => 'warn', 'text' => __('There is no transaction reference to check against the statement.')] : null,
+                                    $owedOnFee !== null && (float) $submission->amount > $owedOnFee + 0.5 ? ['level' => 'warn', 'text' => __('This is more than the :owed still owed on that fee. The extra goes to the child\'s other fees, then to credit.', ['owed' => number_format($owedOnFee, 0)])] : null,
+                                ])),
+                                'tick' => __('I have seen this money arrive, and the amount matches.'),
+                                'confirm' => __('Yes, approve and issue the receipt'),
+                            ];
+                        @endphp
                         <form method="POST" action="{{ route('admin.parent-payments.approve', $submission) }}"
-                              onsubmit="return confirm('{{ __('Approve this payment and record an official receipt?') }}')">
+                              data-confirm='@json($confirmApprove)'>
                             @csrf
                             @if($sameReference->isNotEmpty())
                                 <div class="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
@@ -117,7 +139,9 @@
                     </div>
 
                     <div x-show="showReject" x-cloak class="mt-4 border-t border-gray-100 pt-4">
-                        <form method="POST" action="{{ route('admin.parent-payments.reject', $submission) }}">
+                        @php $__confirm1 = ['title' => __('Reject this payment?'), 'warning' => __('The parent sees that it was rejected, with your reason. Nothing is recorded as paid.'), 'rows' => [[__('Amount'), number_format($submission->amount, 0).' '.$currency], [__('Reason'), 'field:reason']], 'tick' => __('I have checked, and this payment did not arrive or does not match.'), 'confirm' => __('Yes, reject it')]; @endphp
+                        <form method="POST" action="{{ route('admin.parent-payments.reject', $submission) }}"
+                              data-confirm='@json($__confirm1)'>
                             @csrf
                             <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Reason for rejection') }} <span class="text-red-500">*</span></label>
                             <textarea name="review_notes" rows="2" required placeholder="{{ __('e.g. Receipt unclear, amount mismatch...') }}"

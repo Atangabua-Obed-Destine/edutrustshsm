@@ -685,6 +685,19 @@ const fmtXaf = (n) => Math.round(n).toLocaleString() + ' XAF';
         'credit' => __('is more than the pupil owes and will be kept as credit.'),
     ];
 @endphp
+const CONFIRM_T = {!! json_encode([
+    'warning' => __('This records the amount below as received from the family and prints the receipt. Reversing it later leaves a correction on the record, so confirm the figure now.'),
+    'amountLabel' => __('Amount to record as received'),
+    'student' => __('Student'), 'fee' => __('Fee'), 'method' => __('Method'), 'date' => __('Date'),
+    'paidBy' => __('Paid by'), 'after' => __('Still owed after this'),
+    'tick' => __('I have counted this and it matches the amount the family paid.'),
+    'confirm' => __('Yes, record this payment'),
+    'noAmount' => __('The amount must be more than zero.'),
+    'future' => __('The payment date is in the future.'),
+    'credit' => __('This is :amount more than the student owes in all. The extra is kept as the student\'s credit.'),
+    'others' => __(':amount is more than this fee. It goes to the student\'s other fees, oldest first.'),
+    'noReference' => __('This was not paid in cash, and there is no note of the transaction reference. Add it in the notes so the payment can be traced.'),
+], JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
 const PAY_T = {!! json_encode($payT, JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
 
 /** Say, as the bursar types, where the money will go. */
@@ -743,7 +756,7 @@ function openPaymentModal(feeId, studentName, studentId, className, feeCategory,
     explainAmount(planData);
 
     // Set today's date
-    const today = new Date().toISOString().split('T')[0];
+    const today = window.localToday();
     document.getElementById('modalPaymentDate').value = today;
 
     // Reset form state
@@ -777,6 +790,36 @@ document.addEventListener('keydown', function(e) {
 // Form submission
 document.getElementById('paymentForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+
+    // Read the payment back, with anything odd about it, before it is recorded.
+    const amount = Number(document.getElementById('modalAmount').value || 0);
+    const payDate = document.getElementById('modalPaymentDate').value;
+    const today = window.localToday();
+    const method = document.getElementById('modalPaymentMethod');
+    const issues = [];
+    if (!(amount > 0)) issues.push({ level: 'stop', text: CONFIRM_T.noAmount });
+    if (payDate > today) issues.push({ level: 'stop', text: CONFIRM_T.future });
+    if (amount > currentPupilOwes) issues.push({ level: 'warn', text: CONFIRM_T.credit.replace(':amount', fmtXaf(amount - currentPupilOwes)) });
+    else if (amount > currentLineBalance) issues.push({ level: 'warn', text: CONFIRM_T.others.replace(':amount', fmtXaf(amount - currentLineBalance)) });
+    if (method.value !== 'cash' && !document.getElementById('modalNotes').value.trim()) issues.push({ level: 'warn', text: CONFIRM_T.noReference });
+
+    const ok = await confirmAction({
+        warning: CONFIRM_T.warning,
+        amountLabel: CONFIRM_T.amountLabel,
+        amount, currency: 'XAF',
+        rows: [
+            [CONFIRM_T.student, document.getElementById('modalStudentName').textContent],
+            [CONFIRM_T.fee, document.getElementById('modalFeeCategory').textContent],
+            [CONFIRM_T.method, method.options[method.selectedIndex].text],
+            [CONFIRM_T.date, payDate],
+            [CONFIRM_T.paidBy, document.getElementById('modalPayerName').value.trim()],
+            [CONFIRM_T.after, fmtXaf(Math.max(0, currentPupilOwes - amount))],
+        ],
+        issues,
+        tick: CONFIRM_T.tick,
+        confirm: CONFIRM_T.confirm,
+    });
+    if (!ok) return;
 
     const submitBtn = document.getElementById('paymentSubmitBtn');
     const errorDiv = document.getElementById('paymentError');

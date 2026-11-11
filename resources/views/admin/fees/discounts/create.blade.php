@@ -16,7 +16,16 @@
         </div>
     @endif
 
-    <form action="{{ route('admin.fee-discounts.store') }}" method="POST" class="bg-white rounded-xl shadow-sm border border-gray-200">
+    @php $__confirm1 = [
+              'title' => __('Apply this discount?'),
+              'warning' => __('What the student owes goes down at once, and the discount is recorded with your name as the person who approved it.'),
+              'rows' => [[__('Student'), 'field:student_enrollment_id'], [__('Reason'), 'field:reason'], [__('Type'), 'field:discount_type'], [__('Value'), 'field:value'], [__('Applies to'), 'field:apply_to']],
+              'rules' => [['rule' => 'percent', 'field' => 'value', 'typeField' => 'discount_type', 'level' => 'stop', 'text' => __('A percentage cannot be more than 100.')]],
+              'tick' => __('I have checked the student, the reason and the value.'),
+              'confirm' => __('Yes, apply the discount'),
+          ]; @endphp
+    <form action="{{ route('admin.fee-discounts.store') }}" method="POST" class="bg-white rounded-xl shadow-sm border border-gray-200"
+          data-confirm='@json($__confirm1)'>
         @csrf
         <div class="p-6 space-y-5">
             {{-- Student --}}

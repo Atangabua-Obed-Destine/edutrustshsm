@@ -106,7 +106,8 @@
         <span style="font-size: 0.8rem; color: #6b7280;">{{ __('A nursery report is written on the assessment sheet; there is nothing to recalculate.') }}</span>
         @else
         {{-- Generate / Recalculate --}}
-        <form method="POST" action="{{ route('admin.report-cards.generate') }}" onsubmit="return confirm('{{ __('This will (re)calculate all report cards for this class and term. Proceed?') }}')">
+        @php $__confirm1 = ['title' => __('Calculate the report cards?'), 'warning' => __('Every report card for this class and term is worked out again from the approved marks. A card already published is recalculated too.'), 'tick' => __('The marks for this term are approved and ready.'), 'confirm' => __('Yes, calculate them')]; @endphp
+        <form method="POST" action="{{ route('admin.report-cards.generate') }}" data-confirm='@json($__confirm1)'>
             @csrf
             <input type="hidden" name="academic_session_id" value="{{ $sessionId }}">
             <input type="hidden" name="form_id" value="{{ $formId }}">
@@ -127,7 +128,8 @@
         </a>
 
         @if(session('incomplete'))
-        <form method="POST" action="{{ route('admin.report-cards.publish') }}" onsubmit="return confirm('{{ __('Publish with these subjects missing from every average?') }}')">
+        @php $__confirm2 = ['title' => __('Publish with subjects missing?'), 'warning' => __('Parents see these report cards in the portal at once.'), 'issues' => [['level' => 'warn', 'text' => __('Some subjects have no approved marks, so they are left out of every average on these cards.')]], 'tick' => __('I know these subjects are missing, and the school has decided to publish anyway.'), 'confirm' => __('Yes, publish anyway')]; @endphp
+        <form method="POST" action="{{ route('admin.report-cards.publish') }}" data-confirm='@json($__confirm2)'>
             @csrf
             <input type="hidden" name="class_section_id" value="{{ $classSectionId }}">
             <input type="hidden" name="term_id" value="{{ $termId }}">
@@ -139,7 +141,8 @@
 
         @if($results->count() > 0)
         {{-- Publish All --}}
-        <form method="POST" action="{{ route('admin.report-cards.publish') }}">
+        @php $__confirm3 = ['title' => __('Publish these report cards?'), 'warning' => __('Parents see them in the portal at once, and they print for the class.'), 'rows' => [[__('Report cards'), $results->count()]], 'tick' => __('I have checked these report cards and they are ready for parents.'), 'confirm' => __('Yes, publish them')]; @endphp
+        <form method="POST" action="{{ route('admin.report-cards.publish') }}" data-confirm='@json($__confirm3)'>
             @csrf
             <input type="hidden" name="class_section_id" value="{{ $classSectionId }}">
             <input type="hidden" name="term_id" value="{{ $termId }}">

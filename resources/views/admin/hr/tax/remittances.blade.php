@@ -105,7 +105,22 @@
                     <td colspan="8" class="px-5 pb-4">
                         <details>
                             <summary class="text-sm text-blue-600 cursor-pointer">{{ __('Record payment for :month', ['month' => $row['month_label']]) }}</summary>
-                            <form method="POST" action="{{ route('admin.tax-remittances.store') }}" class="mt-3 grid grid-cols-1 md:grid-cols-6 gap-3 bg-gray-50 rounded-lg p-3">
+                            @php $__confirm1 = [
+                                      'title' => __('Record this tax payment?'),
+                                      'warning' => __('The payment is posted to the ledger: what the school owes the tax office goes down, and the money leaves the account.'),
+                                      'amountLabel' => __('Amount paid to the tax office'), 'amountField' => 'amount',
+                                      'rows' => [[__('Month'), $row['month_label']], [__('Date'), 'field:payment_date'], [__('Paid From'), 'field:payment_account_id'], [__('Reference'), 'field:reference']],
+                                      'rules' => [
+                                          ['rule' => 'future', 'field' => 'payment_date', 'level' => 'stop', 'text' => __('The date is in the future.')],
+                                          ['rule' => 'max', 'field' => 'amount', 'max' => (float) $row['outstanding'], 'text' => __('This is :amount more than is outstanding for the month.')],
+                                          ['rule' => 'empty', 'field' => 'reference', 'text' => __('There is no receipt or reference from the tax office.')],
+                                      ],
+                                      'tick' => __('I have checked this against the tax office\'s receipt.'),
+                                      'confirm' => __('Yes, record and post'),
+                                  ]; @endphp
+                            <form method="POST" action="{{ route('admin.tax-remittances.store') }}"
+                                  data-confirm='@json($__confirm1)'
+                                  class="mt-3 grid grid-cols-1 md:grid-cols-6 gap-3 bg-gray-50 rounded-lg p-3">
                                 @csrf
                                 <input type="hidden" name="liability_account_id" value="{{ $row['account_id'] }}">
                                 <input type="hidden" name="salary_month" value="{{ $row['month'] }}">
@@ -184,9 +199,10 @@
                             @if($remittance->void_reason)<span class="block text-xs">{{ $remittance->void_reason }}</span>@endif
                         @else
                             @can('tax-remittance.void')
-                            <form method="POST" action="{{ route('admin.tax-remittances.void', $remittance) }}" class="flex justify-end gap-2">@csrf
+                            @php $__confirm2 = ['title' => __('Void this tax payment?'), 'warning' => __('A reversing entry is posted; the payment stays on record, marked void.'), 'amount' => (float) $remittance->amount, 'rows' => [[__('Reason'), 'field:void_reason']], 'tick' => __('I have checked this is the payment to void.'), 'confirm' => __('Yes, void it')]; @endphp
+                            <form method="POST" action="{{ route('admin.tax-remittances.void', $remittance) }}" class="flex justify-end gap-2" data-confirm='@json($__confirm2)'>@csrf
                                 <input type="text" name="void_reason" required minlength="5" maxlength="500" placeholder="{{ __('Why void it?') }}" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">
-                                <button type="submit" class="text-red-600 hover:underline text-xs" onclick="return confirm('{{ __('Void this payment? A reversing entry will be posted.') }}')">{{ __('Void') }}</button>
+                                <button type="submit" class="text-red-600 hover:underline text-xs">{{ __('Void') }}</button>
                             </form>
                             @endcan
                         @endif

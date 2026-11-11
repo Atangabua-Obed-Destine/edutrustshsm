@@ -18,11 +18,14 @@
             </div>
             <div class="flex gap-2">
                 @if($entry->is_posted)
-                    <form method="POST" action="{{ route('admin.journal-entries.unpost', $entry) }}" onsubmit="return confirm('{{ __('Un-post this entry?') }}')">@csrf<button class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Un-post') }}</button></form>
+                    @php $__confirm1 = ['title' => __('Un-post this entry?'), 'warning' => __('The entry leaves the ledger and every report built on it.'), 'amount' => (float) $entry->total_debit, 'rows' => [[__('Entry'), $entry->entry_number], [__('Description'), $entry->description]], 'tick' => __('I want this entry taken out of the ledger.'), 'confirm' => __('Yes, un-post it')]; @endphp
+                    <form method="POST" action="{{ route('admin.journal-entries.unpost', $entry) }}" data-confirm='@json($__confirm1)'>@csrf<button class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Un-post') }}</button></form>
                 @else
-                    <form method="POST" action="{{ route('admin.journal-entries.post', $entry) }}">@csrf<button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Post') }}</button></form>
+                    @php $__confirm2 = ['title' => __('Post this entry?'), 'warning' => __('The entry goes into the ledger, the trial balance and the financial statements.'), 'amount' => (float) $entry->total_debit, 'rows' => [[__('Entry'), $entry->entry_number], [__('Date'), $entry->entry_date?->format('d/m/Y')], [__('Description'), $entry->description], [__('Total Debit'), number_format((float) $entry->total_debit, 2)], [__('Total Credit'), number_format((float) $entry->total_credit, 2)]], 'issues' => abs((float) $entry->total_debit - (float) $entry->total_credit) > 0.005 ? [['level' => 'stop', 'text' => __('Debits and credits are not equal.')]] : [], 'tick' => __('I have checked every line of this entry.'), 'confirm' => __('Yes, post it')]; @endphp
+                    <form method="POST" action="{{ route('admin.journal-entries.post', $entry) }}" data-confirm='@json($__confirm2)'>@csrf<button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Post') }}</button></form>
                     @unless($entry->is_system_generated)
-                    <form method="POST" action="{{ route('admin.journal-entries.destroy', $entry) }}" onsubmit="return confirm('{{ __('Delete this entry?') }}')">@csrf @method('DELETE')<button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Delete') }}</button></form>
+                    @php $__confirm3 = ['title' => __('Delete this entry?'), 'warning' => __('The draft entry and its lines are deleted.'), 'rows' => [[__('Entry'), $entry->entry_number]], 'tick' => __('I want this entry deleted.'), 'confirm' => __('Yes, delete it')]; @endphp
+                    <form method="POST" action="{{ route('admin.journal-entries.destroy', $entry) }}" data-confirm='@json($__confirm3)'>@csrf @method('DELETE')<button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Delete') }}</button></form>
                     @endunless
                 @endif
             </div>

@@ -142,8 +142,9 @@
     <div class="{{ $ready ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200' }} border rounded-xl p-6">
         @if($ready)
         <p class="text-sm text-amber-900">{{ __('Every check has passed. The closing entry can be reversed afterwards if you need to reopen the year.') }}</p>
+        @php $__confirm1 = ['title' => __('Close this fiscal year?'), 'warning' => __('The closing entry is posted and no further entry can be made in this year. Reopening it later reverses the closing entry.'), 'rows' => [[__('Fiscal year'), $fiscalYear->name]], 'tick' => __('Every item on the checklist is done, and the year\'s books are final.'), 'confirm' => __('Yes, close the year')]; @endphp
         <form method="POST" action="{{ route('admin.fiscal-years.close', $fiscalYear) }}" class="mt-4"
-              onsubmit="return confirm('{{ __('Post the closing entry and close this fiscal year?') }}')">
+              data-confirm='@json($__confirm1)'>
             @csrf
             <button type="submit" class="px-5 py-2.5 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700">
                 {{ __('Close Fiscal Year') }}
@@ -159,8 +160,9 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 class="text-sm font-semibold text-gray-700">{{ __('Reopen this year') }}</h3>
         <p class="text-sm text-gray-500 mt-1">{{ __('The closing entry is reversed and the year opens for posting again. Say why, so the next person to close it knows.') }}</p>
+        @php $__confirm2 = ['title' => __('Reopen this fiscal year?'), 'warning' => __('The closing entry is reversed, and entries can be made in this year again.'), 'rows' => [[__('Fiscal year'), $fiscalYear->name]], 'tick' => __('The year needs a correction and must be reopened.'), 'confirm' => __('Yes, reopen it')]; @endphp
         <form method="POST" action="{{ route('admin.fiscal-years.reopen', $fiscalYear) }}" class="mt-3 flex flex-wrap gap-2"
-              onsubmit="return confirm('{{ __('Reverse the closing entry and reopen this year?') }}')">
+              data-confirm='@json($__confirm2)'>
             @csrf
             <input type="text" name="reason" required minlength="5" maxlength="500" placeholder="{{ __('Why is the year being reopened?') }}"
                    class="flex-1 min-w-[16rem] px-3 py-2 border border-gray-300 rounded-lg text-sm">

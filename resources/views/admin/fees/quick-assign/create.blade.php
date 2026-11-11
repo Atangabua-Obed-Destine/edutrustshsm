@@ -109,8 +109,19 @@
                 <p style="font-size: 0.9rem; color: #64748b; font-weight: 500;">{{ __('No active academic session found. Please activate a session first.') }}</p>
             </div>
         @else
-        <form method="POST" action="{{ route('admin.quick-assign.store') }}" id="quickAssignForm">
+        @php $__confirm1 = [
+                  'title' => __('Bill this fee?'),
+                  'warning' => __('The student is billed at once: it shows on their fees, the defaulters list and the parent portal.'),
+                  'amountLabel' => __('Amount to bill'), 'amountField' => 'amount',
+                  'rows' => [[__('Student'), 'field:student_label'], [__('Fee'), 'field:fee_category_id']],
+                  'rules' => [['rule' => 'empty', 'field' => 'student_enrollment_id', 'level' => 'stop', 'text' => __('Choose a student first.')]],
+                  'tick' => __('I have checked the student, the fee and the amount.'),
+                  'confirm' => __('Yes, bill this fee'),
+              ]; @endphp
+        <form method="POST" action="{{ route('admin.quick-assign.store') }}" id="quickAssignForm"
+              data-confirm='@json($__confirm1)'>
             @csrf
+            <input type="hidden" name="student_label" id="studentLabelForConfirm">
 
             {{-- Row 1: Student Search --}}
             <div style="margin-bottom: 20px;">
@@ -325,6 +336,7 @@
         document.getElementById('studentAvatar').textContent = name.charAt(0).toUpperCase();
         document.getElementById('selectedStudentName').textContent = name;
         document.getElementById('selectedStudentDetails').textContent = studentId + ' • ' + cls + (stream ? ' / ' + stream : '');
+        document.getElementById('studentLabelForConfirm').value = name + ' (' + studentId + ')';
 
         searchInput.style.display = 'none';
         selectedCard.style.display = 'block';

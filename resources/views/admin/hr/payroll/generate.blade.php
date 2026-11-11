@@ -3,7 +3,7 @@
 @section('title', __('Generate Payroll'))
 @section('breadcrumb', __('Human Resources > Payroll > Generate'))
 
-@php($currency = \App\Models\SchoolSetting::current()->currency ?? 'CFA')
+@php $currency = \App\Models\SchoolSetting::current()->currency ?? 'CFA'; @endphp
 
 @section('content')
 <div class="space-y-4">
@@ -71,9 +71,20 @@
         </div>
         @if($existing->status)
             <p class="text-sm text-gray-600">{{ __('Paid on') }} {{ optional($existing->pay_date)->format('d/m/Y') }} · {{ $existing->payment_method }} · {{ __('Net') }} {{ number_format($existing->net_salary, 2) }}</p>
-            <form method="POST" action="{{ route('admin.payroll.unpay', $existing) }}" class="mt-3" onsubmit="return confirm('{{ __('Un-pay and reverse the ledger entry?') }}')">@csrf<button class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm">{{ __('Un-pay') }}</button></form>
+            @php $__confirm1 = ['title' => __('Mark this payslip unpaid?'), 'warning' => __('The salary\'s ledger entry is reversed and the payslip goes back to unpaid.'), 'amount' => (float) $existing->net_salary, 'rows' => [[__('Staff'), $staff->full_name], [__('Month'), $salaryMonth]], 'tick' => __('This salary was not in fact paid.'), 'confirm' => __('Yes, mark it unpaid')]; @endphp
+            <form method="POST" action="{{ route('admin.payroll.unpay', $existing) }}" class="mt-3" data-confirm='@json($__confirm1)'>@csrf<button class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm">{{ __('Un-pay') }}</button></form>
         @else
-            <form method="POST" action="{{ route('admin.payroll.pay', $existing) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            @php $__confirm2 = [
+                      'title' => __('Pay this salary?'),
+                      'warning' => __('The payslip is marked paid and the salary is posted to the ledger: the expense, the taxes owed and the money leaving.'),
+                      'amountLabel' => __('Net salary to pay'), 'amount' => (float) $existing->net_salary,
+                      'rows' => [[__('Staff'), $staff->full_name], [__('Month'), $salaryMonth], [__('Method'), 'field:payment_method'], [__('Bank Account'), 'field:bank_account_id'], [__('Pay Date'), 'field:pay_date']],
+                      'rules' => [['rule' => 'future', 'field' => 'pay_date', 'level' => 'stop', 'text' => __('The date is in the future.')]],
+                      'tick' => __('I have paid, or am paying, exactly this amount.'),
+                      'confirm' => __('Yes, pay and post'),
+                  ]; @endphp
+            <form method="POST" action="{{ route('admin.payroll.pay', $existing) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
+                  data-confirm='@json($__confirm2)'>
                 @csrf
                 <div><label class="block text-xs text-gray-500 mb-1">{{ __('Method') }}</label>
                     <select name="payment_method" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" required>

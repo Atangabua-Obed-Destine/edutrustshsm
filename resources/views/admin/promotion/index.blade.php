@@ -75,7 +75,9 @@
     </div>
 
     @if($students->isNotEmpty())
-    <form action="{{ route('admin.promotion.process') }}" method="POST">
+    @php $__confirm1 = ['title' => __('Process these promotions?'), 'warning' => __('Each student is moved as decided: into their new class for next year, kept back to repeat, or graduated off the roll. This cannot simply be undone.'), 'rows' => [[__('Class'), $selectedClass->name]], 'check' => 'promotionCheck', 'tick' => __('I have checked every decision against the class council.'), 'confirm' => __('Yes, process them')]; @endphp
+    <form action="{{ route('admin.promotion.process') }}" method="POST"
+          data-confirm='@json($__confirm1)'>
         @csrf
         <div class="bg-white rounded-xl shadow-sm border border-gray-200">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -176,8 +178,7 @@
                     <strong>P</strong> = Promote &middot; <strong>R</strong> = Repeat &middot; <strong>G</strong> = Graduate &middot; <strong>S</strong> = Skip
                 </p>
                 @if($nextSession)
-                <button type="submit" class="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition"
-                        onclick="return confirm('Are you sure? This will process all promotion decisions. This action cannot be easily undone.')">
+                <button type="submit" class="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition">
                     {{ __('Process Promotions') }}
                 </button>
                 @else
@@ -209,5 +210,25 @@ function toggleTargetClass(enrollmentId, show) {
         if (!show) select.value = '';
     }
 }
+</script>
+
+<script>
+    // Counts each decision, and stops a promotion with nowhere to go.
+    window.promotionCheck = function (form) {
+        const label = { promote: @json(__('Promote')), repeat: @json(__('Repeat')), graduate: @json(__('Graduate')), skip: @json(__('Skip')) };
+        const counts = { promote: 0, repeat: 0, graduate: 0, skip: 0 }; let undecided = 0, noTarget = 0;
+        form.querySelectorAll('tbody tr').forEach((row) => {
+            const picked = row.querySelector('input[type=radio]:checked');
+            if (!picked) { undecided++; return; }
+            counts[picked.value]++;
+            const target = row.querySelector('select[name$="[target_class_id]"]');
+            if (picked.value === 'promote' && target && !target.value) noTarget++;
+        });
+        const rows = Object.entries(counts).filter(([, n]) => n).map(([k, n]) => [label[k], n]);
+        const out = [];
+        if (noTarget) out.push({ level: 'stop', text: @json(__('Some students are set to Promote but have no target class.')) });
+        if (undecided) out.push({ level: 'warn', text: @json(__('Some students have no decision and will be left as they are.')) });
+        return { rows, issues: out };
+    };
 </script>
 @endsection

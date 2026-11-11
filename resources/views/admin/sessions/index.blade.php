@@ -38,16 +38,20 @@
                     </td>
                     <td class="px-6 py-4 text-right space-x-2">
                         @if(!$session->is_current)
-                            <form method="POST" action="{{ route('admin.sessions.activate', $session) }}" class="inline">
+                            @php $__confirm1 = ['title' => __('Make this the current year?'), 'warning' => __('Registers, billing, marks and the dashboard all move to this year at once. Last year is kept.'), 'rows' => [[__('Year'), $session->name]], 'tick' => __('The school is ready to work in this year.'), 'confirm' => __('Yes, make it current')]; @endphp
+                            <form method="POST" action="{{ route('admin.sessions.activate', $session) }}" class="inline"
+                                  data-confirm='@json($__confirm1)'>
                                 @csrf
-                                <button type="submit" class="text-green-600 hover:text-green-800 text-sm font-medium" onclick="return confirm('{{ __('Set this as the active session?') }}')">{{ __('Activate') }}</button>
+                                <button type="submit" class="text-green-600 hover:text-green-800 text-sm font-medium" >{{ __('Activate') }}</button>
                             </form>
                         @endif
                         <a href="{{ route('admin.sessions.edit', $session) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">{{ __('Edit') }}</a>
                         @if(!$session->is_current)
-                            <form method="POST" action="{{ route('admin.sessions.destroy', $session) }}" class="inline">
+                            @php $__confirm2 = ['title' => __('Delete this year?'), 'warning' => __('The year is deleted. A year that holds enrolments, fees or marks is refused.'), 'rows' => [[__('Year'), $session->name]], 'tick' => __('I want this year deleted.'), 'confirm' => __('Yes, delete it')]; @endphp
+                            <form method="POST" action="{{ route('admin.sessions.destroy', $session) }}" class="inline"
+                                  data-confirm='@json($__confirm2)'>
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium" onclick="return confirm('{{ __('Delete this session?') }}')">{{ __('Delete') }}</button>
+                                <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium" >{{ __('Delete') }}</button>
                             </form>
                         @endif
                     </td>

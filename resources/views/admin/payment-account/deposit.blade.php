@@ -3,14 +3,26 @@
 @section('title', __('Deposit'))
 @section('breadcrumb', __('Payment Accounts > Deposit'))
 
-@php($currency = \App\Models\SchoolSetting::current()->currency ?? 'CFA')
+@php $currency = \App\Models\SchoolSetting::current()->currency ?? 'CFA'; @endphp
 
 @section('content')
 <div class="max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 p-6">
     <h3 class="text-lg font-semibold text-gray-700 mb-1">{{ __('Deposit to') }}: {{ $account->title }}</h3>
     <p class="text-sm text-gray-500 mb-6">{{ __('Current balance') }}: <span class="font-semibold text-green-700">{{ number_format($account->current_balance, 2) }} {{ $currency }}</span></p>
 
-    <form method="POST" action="{{ route('admin.payment-account.deposit', $account) }}" enctype="multipart/form-data" class="space-y-4">
+    @php $__confirm1 = [
+              'title' => __('Deposit this money?'),
+              'warning' => __('The amount is added to this account at once, and the account book records it.'),
+              'amountLabel' => __('Amount to deposit'), 'amountField' => 'amount',
+              'rows' => [[__('Account'), $account->title], [__('Date'), 'field:transaction_date']],
+              'rules' => [
+                  ['rule' => 'future', 'field' => 'transaction_date', 'level' => 'stop', 'text' => __('The date is in the future.')],
+              ],
+              'tick' => __('I have checked the amount against the slip.'),
+              'confirm' => __('Yes, deposit it'),
+          ]; @endphp
+    <form method="POST" action="{{ route('admin.payment-account.deposit', $account) }}" enctype="multipart/form-data" class="space-y-4"
+          data-confirm='@json($__confirm1)'>
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

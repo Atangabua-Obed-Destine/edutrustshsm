@@ -11,7 +11,21 @@
         {{ __('Use this to move money between your accounts. This will debit the source account and credit the destination account automatically.') }}
     </div>
 
-    <form method="POST" action="{{ route('admin.payment-account-transfer.store') }}" enctype="multipart/form-data" class="space-y-4">
+    @php $__confirm1 = [
+              'title' => __('Transfer this money?'),
+              'warning' => __('The amount leaves the first account and arrives in the second on the date given.'),
+              'amountLabel' => __('Amount to transfer'), 'amountField' => 'amount',
+              'rows' => [[__('From Account'), 'field:from_account_id'], [__('To Account'), 'field:to_account_id'], [__('Date'), 'field:transfer_date']],
+              'rules' => [
+                  ['rule' => 'same', 'fields' => ['from_account_id', 'to_account_id'], 'level' => 'stop', 'text' => __('The money would leave and arrive in the same account.')],
+                  ['rule' => 'max', 'field' => 'amount', 'maxFrom' => 'from_account_id', 'level' => 'stop', 'text' => __('The first account does not hold this much: :amount short.')],
+                  ['rule' => 'future', 'field' => 'transfer_date', 'level' => 'stop', 'text' => __('The date is in the future.')],
+              ],
+              'tick' => __('I have checked the accounts and the amount.'),
+              'confirm' => __('Yes, transfer it'),
+          ]; @endphp
+    <form method="POST" action="{{ route('admin.payment-account-transfer.store') }}" enctype="multipart/form-data" class="space-y-4"
+          data-confirm='@json($__confirm1)'>
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -19,7 +33,7 @@
                 <select name="from_account_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required>
                     <option value="">{{ __('Select') }}</option>
                     @foreach($accounts as $a)
-                        <option value="{{ $a->id }}" {{ old('from_account_id') == $a->id ? 'selected' : '' }}>{{ $a->title }} ({{ number_format($a->current_balance, 2) }})</option>
+                        <option value="{{ $a->id }}" data-balance="{{ (float) $a->current_balance }}" {{ old('from_account_id') == $a->id ? 'selected' : '' }}>{{ $a->title }} ({{ number_format($a->current_balance, 2) }})</option>
                     @endforeach
                 </select>
                 @error('from_account_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror

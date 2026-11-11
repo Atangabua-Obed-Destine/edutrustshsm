@@ -57,8 +57,9 @@
                             </button>
                         </form>
                     @else
+                        @php $__confirm1 = ['title' => __('Conclude this council?'), 'warning' => __('Its figures are fixed to what the meeting saw, and each decision prints on the report cards. It can be reopened later, but the fixed figures stay as recorded.'), 'issues' => [], 'check' => 'councilUnsaved', 'tick' => __('The decisions on this page are the ones the council agreed.'), 'confirm' => __('Yes, conclude it')]; @endphp
                         <form method="POST" action="{{ route('admin.councils.conclude', $council) }}"
-                              onsubmit="return confirm('{{ __('Conclude this council? Its figures will be fixed to what the meeting saw.') }}')">
+                              data-confirm='@json($__confirm1)'>
                             @csrf
                             <button class="px-4 py-2 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-white text-sm font-medium transition">
                                 {{ __('Conclude') }}
@@ -193,7 +194,7 @@
                     </thead>
                     <tbody>
                         @foreach($entries as $entry)
-                            @php($failing = $entry->average !== null && (float) $entry->average < $passMark)
+                            @php $failing = $entry->average !== null && (float) $entry->average < $passMark; @endphp
                             <tr class="border-b border-gray-50 {{ $failing ? 'bg-rose-50/40' : '' }}">
                                 <td class="py-2 pr-3 text-gray-400">{{ $entry->rank ?? '—' }}</td>
                                 <td class="py-2 px-3">
@@ -299,8 +300,9 @@
 
     @unless($locked)
         @can('class-council.delete')
+            @php $__confirm2 = ['title' => __('Delete this council?'), 'warning' => __('The council and every decision recorded in it are deleted.'), 'tick' => __('I want this council deleted.'), 'confirm' => __('Yes, delete it')]; @endphp
             <form method="POST" action="{{ route('admin.councils.destroy', $council) }}"
-                  onsubmit="return confirm('{{ __('Delete this council and its decisions?') }}')" class="flex justify-end">
+                  data-confirm='@json($__confirm2)' class="flex justify-end">
                 @csrf @method('DELETE')
                 <button class="text-xs text-rose-600 hover:text-rose-700">{{ __('Delete this council') }}</button>
             </form>
@@ -343,4 +345,15 @@ function council() {
 }
 </script>
 @endpush
+
+<script>
+    // Decisions changed on the page but not saved would not be in what is concluded.
+    window.councilUnsaved = function () {
+        const form = document.querySelector('form[action*="/decisions"]');
+        if (!form) return [];
+        const changed = [...form.elements].some((el) => (el.type === 'checkbox' || el.type === 'radio') ? el.checked !== el.defaultChecked
+            : (el.tagName === 'SELECT' ? [...el.options].some((o) => o.selected !== o.defaultSelected) : ('defaultValue' in el && el.value !== el.defaultValue)));
+        return changed ? [{ level: 'stop', text: @json(__('Some decisions on this page have not been saved. Save them first.')) }] : [];
+    };
+</script>
 @endsection

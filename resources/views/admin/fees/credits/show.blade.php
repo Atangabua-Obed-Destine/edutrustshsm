@@ -127,7 +127,10 @@
 
                 @if($refund->status === 'approved')
                 @can('student-credit.process-refund')
-                <form method="POST" action="{{ route('admin.student-credits.refunds.process', $refund) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-gray-50 rounded-lg p-3">
+                @php $__confirm1 = ['title' => __('Pay this refund?'), 'warning' => __('The money leaves the chosen account and the student\'s credit goes down by this amount.'), 'amountLabel' => __('Refund to pay'), 'amount' => (float) $refund->amount, 'rows' => [[__('Method'), 'field:method'], [__('Paid From'), 'field:payment_account_id'], [__('Reference'), 'field:reference']], 'rules' => [['rule' => 'empty', 'field' => 'reference', 'when' => ['field' => 'method', 'not' => 'cash'], 'text' => __('There is no reference for a payment that is not cash.')]], 'tick' => __('I have paid, or am about to pay, exactly this amount.'), 'confirm' => __('Yes, pay the refund')]; @endphp
+                <form method="POST" action="{{ route('admin.student-credits.refunds.process', $refund) }}"
+                      data-confirm='@json($__confirm1)'
+                      class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-gray-50 rounded-lg p-3">
                     @csrf
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Method') }}</label>
@@ -150,7 +153,7 @@
                     </div>
                     <div class="flex items-end">
                         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium"
-                                onclick="return confirm('{{ __('Pay this refund out? The money will leave the chosen account.') }}')">{{ __('Pay Refund') }}</button>
+                                >{{ __('Pay Refund') }}</button>
                     </div>
                     <div class="md:col-span-4">
                         <input type="text" name="note" maxlength="500" placeholder="{{ __('Note (optional)') }}" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm">

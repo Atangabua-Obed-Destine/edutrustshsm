@@ -34,7 +34,19 @@
     @else
 
     {{-- Student Found - Payment Form --}}
-    <form method="POST" action="{{ route('admin.payments.store') }}">
+    @php
+        $confirm = [
+            'warning' => __('This records the amount below as received from the family and issues a receipt. Reversing it later leaves a correction on the record, so confirm the figure now.'),
+            'amountLabel' => __('Amount to record as received'), 'amountField' => 'amount',
+            'rows' => [[__('Student'), trim(($student->full_name ?? '').' ('.($student->student_id ?? '').')')], [__('Method'), 'field:payment_method'], [__('Date'), 'field:payment_date']],
+            'rules' => [
+                ['rule' => 'future', 'field' => 'payment_date', 'level' => 'stop', 'text' => __('The date is in the future.')],
+                ['rule' => 'max', 'field' => 'amount', 'max' => (float) $fees->sum('balance'), 'text' => __('This is :amount more than the student owes. The extra is kept as the student\'s credit.')],
+            ],
+            'tick' => __('I have counted this and it matches the amount the family paid.'), 'confirm' => __('Yes, record this payment'),
+        ];
+    @endphp
+    <form method="POST" action="{{ route('admin.payments.store') }}" data-confirm='@json($confirm)'>
         @csrf
         <input type="hidden" name="student_enrollment_id" value="{{ $enrollment?->id }}">
 

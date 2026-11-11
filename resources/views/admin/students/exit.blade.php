@@ -43,7 +43,17 @@
         </div>
     @endif
 
+    @php $__confirm1 = [
+              'title' => __('Take this student off the roll?'),
+              'warning' => __('Their enrolment closes: they leave every class list, fee report and register, and their bed if they board. Everything recorded about them is kept, and they can be re-admitted.'),
+              'rows' => [[__('Student'), trim($student->first_name.' '.$student->last_name).' ('.$student->student_id.')'], [__('Why they are leaving'), 'field:type'], [__('Last day'), 'field:left_on'], [__('Transferring to'), 'field:destination_school']],
+              'issues' => $balance > 0 ? [['level' => 'warn', 'text' => __('They still owe :amount. Leaving does not clear it.', ['amount' => number_format($balance, 0).' FCFA'])]] : [],
+              'rules' => [['rule' => 'empty', 'field' => 'destination_school', 'when' => ['field' => 'type', 'is' => 'transferred'], 'text' => __('No receiving school is named for this transfer. It prints on the leaving certificate.')]],
+              'tick' => __('I have checked the student and the date.'),
+              'confirm' => __('Yes, record the leaving'),
+          ]; @endphp
     <form method="POST" action="{{ route('admin.students.exit.store', $student) }}"
+          data-confirm='@json($__confirm1)'
           class="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
           x-data="{ type: '{{ old('type', 'graduated') }}' }">
         @csrf
@@ -88,7 +98,6 @@
         <div class="flex items-center justify-end gap-3 mt-6">
             <a href="{{ route('admin.students.show', $student) }}" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">{{ __('Cancel') }}</a>
             <button type="submit"
-                    onclick="return confirm('{{ __('Take this pupil off the roll?') }}')"
                     class="bg-[#1e293b] hover:bg-[#334155] text-white px-6 py-2 rounded-lg text-sm font-medium transition">
                 {{ __('Record the leaving') }}
             </button>

@@ -675,6 +675,7 @@
             document.getElementById('flash-success')?.remove();
         }, 5000);
     </script>
+    @include('partials.confirm-action')
     @stack('scripts')
 </body>
 </html>

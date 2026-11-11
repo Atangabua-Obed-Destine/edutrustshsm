@@ -3,7 +3,7 @@
 @section('title', __('Account Book'))
 @section('breadcrumb', __('Payment Accounts > Account Book'))
 
-@php($currency = \App\Models\SchoolSetting::current()->currency ?? 'CFA')
+@php $currency = \App\Models\SchoolSetting::current()->currency ?? 'CFA'; @endphp
 
 @section('content')
 <div class="space-y-4">
@@ -17,7 +17,8 @@
         <div class="space-x-2">
             <a href="{{ route('admin.payment-account.deposit-form', $account) }}" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm">{{ __('Deposit') }}</a>
             <a href="{{ route('admin.payment-account.withdraw-form', $account) }}" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg text-sm">{{ __('Withdraw') }}</a>
-            <form method="POST" action="{{ route('admin.payment-account.recompute', $account) }}" class="inline" onsubmit="return confirm('{{ __('Recompute balance from transactions?') }}')">
+            @php $__confirm1 = ['title' => __('Recompute the balance?'), 'warning' => __('The balance is worked out again from every transaction on this account. Use it when the balance looks wrong.'), 'tick' => __('I want the balance recomputed.'), 'confirm' => __('Yes, recompute')]; @endphp
+            <form method="POST" action="{{ route('admin.payment-account.recompute', $account) }}" class="inline" data-confirm='@json($__confirm1)'>
                 @csrf
                 <button type="submit" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm">{{ __('Recompute') }}</button>
             </form>
@@ -53,7 +54,8 @@
                     <td class="px-4 py-3 text-sm text-right font-medium text-gray-900">{{ number_format($txn->balance_after, 2) }}</td>
                     <td class="px-4 py-3 text-right">
                         @unless($txn->isLinked())
-                        <form method="POST" action="{{ route('admin.payment-account.transaction.destroy', $txn) }}" class="inline" onsubmit="return confirm('{{ __('Delete this transaction?') }}')">
+                        @php $__confirm2 = ['title' => __('Delete this transaction?'), 'warning' => __('The account balance moves back by this amount.'), 'amount' => (float) $txn->amount, 'rows' => [[__('Date'), $txn->transaction_date?->format('d/m/Y')], [__('Description'), $txn->title]], 'tick' => __('I have checked this is the transaction to delete.'), 'confirm' => __('Yes, delete it')]; @endphp
+                        <form method="POST" action="{{ route('admin.payment-account.transaction.destroy', $txn) }}" class="inline" data-confirm='@json($__confirm2)'>
                             @csrf @method('DELETE')
                             <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button>
                         </form>

@@ -391,8 +391,17 @@
 
         @if($submission && $submission->status === 'draft' && $submission->marks_entered > 0)
         <div class="px-6 pb-4 flex flex-wrap items-center gap-3">
+            @php $__confirm1 = [
+                      'title' => __('Submit these marks?'),
+                      'warning' => __('The sheet goes to the Vice Principal for approval. You cannot change a mark until it is approved or returned to you.'),
+                      'rows' => [[__('Class'), $classSection->name ?? ''], [__('Subject'), $subject->name ?? ''], [__('Sequence'), $sequence->name ?? ''], [__('Marks entered'), $submission->marks_entered.' / '.$submission->total_students]],
+                      'issues' => $submission->marks_entered < $submission->total_students ? [['level' => 'warn', 'text' => trans_choice('{1} :count student has no mark and is not marked absent.|[2,*] :count students have no mark and are not marked absent.', $submission->total_students - $submission->marks_entered, ['count' => $submission->total_students - $submission->marks_entered])]] : [],
+                      'check' => 'marksUnsaved',
+                      'tick' => __('I have checked every mark on this sheet.'),
+                      'confirm' => __('Yes, submit for approval'),
+                  ]; @endphp
             <form method="POST" action="{{ route('admin.marks.submit', $submission) }}" class="inline"
-                  onsubmit="return confirm('{{ __('Submit these marks for approval? You will not be able to edit them until approved or returned.') }}')">
+                  data-confirm='@json($__confirm1)'>
                 @csrf
                 <button type="submit"
                         class="inline-flex items-center px-5 py-2 text-white rounded-lg text-sm font-medium transition"
@@ -408,8 +417,16 @@
 
         @if($submission && $submission->status === 'submitted' && in_array(auth()->user()->role, ['super_admin', 'admin']))
         <div class="px-6 pb-4 flex flex-wrap items-center gap-3">
+            @php $__confirm2 = [
+                      'title' => __('Approve these marks?'),
+                      'warning' => __('Approved marks go into report cards. The teacher can no longer change them.'),
+                      'rows' => [[__('Class'), $classSection->name ?? ''], [__('Subject'), $subject->name ?? ''], [__('Sequence'), $sequence->name ?? ''], [__('Marks entered'), $submission->marks_entered.' / '.$submission->total_students], [__('Class Average:'), $submission->class_average !== null ? number_format($submission->class_average, 2) : '—'], [__('Pass Rate:'), $submission->pass_rate !== null ? number_format($submission->pass_rate, 1).'%' : '—']],
+                      'issues' => $submission->marks_entered < $submission->total_students ? [['level' => 'warn', 'text' => trans_choice('{1} :count student has no mark and is not marked absent.|[2,*] :count students have no mark and are not marked absent.', $submission->total_students - $submission->marks_entered, ['count' => $submission->total_students - $submission->marks_entered])]] : [],
+                      'tick' => __('I have looked over these marks and they are ready for report cards.'),
+                      'confirm' => __('Yes, approve'),
+                  ]; @endphp
             <form method="POST" action="{{ route('admin.marks.approve', $submission) }}" class="inline"
-                  onsubmit="return confirm('{{ __('Approve these marks? This action is final.') }}')">
+                  data-confirm='@json($__confirm2)'>
                 @csrf
                 <button type="submit"
                         class="inline-flex items-center px-5 py-2 text-white rounded-lg text-sm font-medium transition"
@@ -733,4 +750,13 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endpush
+
+<script>
+    // A mark typed but not saved is lost if the sheet is submitted.
+    window.marksUnsaved = function () {
+        const changed = [...document.querySelectorAll('#marksForm input[type=number], #marksForm input[type=checkbox]')]
+            .filter((el) => el.type === 'checkbox' ? el.checked !== el.defaultChecked : el.value !== el.defaultValue).length;
+        return changed ? [{ level: 'stop', text: @json(__('Some marks on the sheet have been changed but not saved. Click Save Marks first.')) }] : [];
+    };
+</script>
 @endsection
