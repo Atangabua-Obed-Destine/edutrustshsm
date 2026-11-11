@@ -83,6 +83,7 @@ return [
         'fees_charged', // fee_structures + student_fees, per form, no student named
         'students',     // student_enrollments, each student once, per form
         'staff',        // users on the Staff screen: number, name, department, post. Never pay.
+        'fees',         // the year's fees: expected, collected, owed, by form and fee
 
         /*
          * NOT DECLARED, with reasons:

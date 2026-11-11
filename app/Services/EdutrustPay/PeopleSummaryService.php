@@ -59,6 +59,18 @@ class PeopleSummaryService
      */
     public function studentsByForm(): array
     {
+        return collect($this->studentForms())->countBy()->sortKeys(SORT_NATURAL)->all();
+    }
+
+    /**
+     * The pupils on the roll for the session at month end, each once, with the
+     * form of their latest enrolment. The fee part uses the same list to find
+     * pupils who were never charged.
+     *
+     * @return array<int, string>  student id => form name
+     */
+    public function studentForms(): array
+    {
         $session = $this->session();
 
         if (! $session) {
@@ -79,9 +91,7 @@ class PeopleSummaryService
             ->get(['e.student_id', 'f.name as form']);
 
         // The last row wins: a student who changed class mid-year counts in the new one.
-        $latest = $rows->keyBy('student_id');
-
-        return $latest->countBy(fn ($row) => $row->form ?: 'No class')->sortKeys(SORT_NATURAL)->all();
+        return $rows->keyBy('student_id')->map(fn ($row) => $row->form ?: 'No class')->all();
     }
 
     /**

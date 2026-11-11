@@ -87,6 +87,13 @@ class PeriodReportBuilder
             $builder->staff($people->staff());
         }
 
+        // The fee position for the school year, as at month end: expected,
+        // collected, owed and overpaid, by form and fee, and how many pupils have
+        // paid. Before the first session, nothing is sent.
+        if (in_array(Capability::FEES, $capabilities, true) && ($year = (new FeeYearService($branchId, $period))->position())) {
+            $builder->fees($year['session'], $year['rows'], $year['students']);
+        }
+
         return $builder->build();
     }
 
