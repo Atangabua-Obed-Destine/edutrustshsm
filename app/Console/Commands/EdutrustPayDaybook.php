@@ -7,6 +7,7 @@ use App\Models\EdutrustPayOutbox;
 use App\Services\EdutrustPay\DaybookExporter;
 use App\Services\EdutrustPay\OutboxService;
 use App\Services\EdutrustPay\SettingsResolver;
+use App\Services\EdutrustPay\ReportingMonths;
 use Carbon\Carbon;
 use EdutrustPay\Contract\Daybook;
 use Illuminate\Console\Command;
@@ -24,6 +25,7 @@ class EdutrustPayDaybook extends Command
         {period? : Calendar month YYYY-MM. Defaults to last month.}
         {--months= : The last N complete months, oldest first}
         {--branch= : Only this branch id}
+        {--to-date : Also the month in progress, up to today, filed provisional and refiled as it changes}
         {--dry-run : Build and count the lines without queueing anything}
         {--send : Attempt delivery immediately rather than waiting for the flush}';
 
@@ -99,12 +101,6 @@ class EdutrustPayDaybook extends Command
             return [$period];
         }
 
-        $count = max(1, (int) ($this->option('months') ?: 1));
-        // Ends at the last COMPLETE month, as the report does.
-        $cursor = Carbon::now()->startOfMonth()->subMonths($count + 1);
-
-        return collect(range(1, $count))
-            ->map(fn () => $cursor->addMonth()->format('Y-m'))
-            ->all();
+        return ReportingMonths::recent((int) ($this->option('months') ?: 1), (bool) $this->option('to-date'));
     }
 }

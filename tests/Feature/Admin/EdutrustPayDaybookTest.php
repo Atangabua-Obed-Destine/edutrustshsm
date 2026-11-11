@@ -143,6 +143,37 @@ class EdutrustPayDaybookTest extends TestCase
         $this->assertSame(1, EdutrustPayOutbox::where('kind', 'report')->where('period', '2026-10')->count());
     }
 
+    public function test_the_month_in_progress_goes_out_up_to_date_and_follows_its_changes(): void
+    {
+        Http::fake(['*' => Http::response(['status' => 'accepted'], 202)]);
+        $this->payment($this->here, 'R-NOV-1', 50000, 'cash', '2026-11-05');
+
+        // Without --to-date, November waits until it is over.
+        $this->artisan('edutrustpay:daybook --months=3 --send');
+        $this->assertSame(0, EdutrustPayOutbox::where('kind', 'daybook')->where('period', '2026-11')->count());
+
+        $this->artisan('edutrustpay:daybook --months=3 --to-date --send');
+        $this->assertSame(
+            ['2026-08', '2026-09', '2026-10', '2026-11'],
+            EdutrustPayOutbox::where('kind', 'daybook')->orderBy('period')->pluck('period')->unique()->values()->all()
+        );
+        $november = EdutrustPayOutbox::where('kind', 'daybook')->where('period', '2026-11')->sole();
+        $this->assertSame(EdutrustPayOutbox::DELIVERED, $november->status);
+        $this->assertStringContainsString('R-NOV-1', $november->payload);
+
+        // Nothing new: not sent again. A new payment: filed again, the console keeping both.
+        $this->artisan('edutrustpay:daybook --months=3 --to-date --send');
+        $this->assertSame(1, EdutrustPayOutbox::where('kind', 'daybook')->where('period', '2026-11')->count());
+
+        $this->payment($this->here, 'R-NOV-2', 20000, 'cash', '2026-11-07');
+        $this->artisan('edutrustpay:daybook --months=3 --to-date --send');
+
+        $latest = EdutrustPayOutbox::where('kind', 'daybook')->where('period', '2026-11')->orderByDesc('sequence')->first();
+        $this->assertSame(2, (int) $latest->sequence);
+        $this->assertStringContainsString('R-NOV-2', $latest->payload);
+        $this->assertStringContainsString('70000.00', $latest->payload);
+    }
+
     private function enrol(Branch $branch, string $name, string $number): StudentEnrollment
     {
         $session = AcademicSession::create(['branch_id' => $branch->id, 'name' => '2026/2027', 'start_date' => '2026-09-07', 'end_date' => '2027-07-02', 'status' => 'active', 'is_current' => true]);
@@ -155,7 +186,7 @@ class EdutrustPayDaybookTest extends TestCase
         return StudentEnrollment::create(['branch_id' => $branch->id, 'student_id' => $student->id, 'academic_session_id' => $session->id, 'term_id' => $term->id, 'class_section_id' => $section->id, 'residence_type' => 'day', 'enrollment_date' => '2026-09-07', 'status' => 'active']);
     }
 
-    private function payment(StudentEnrollment $enrollment, string $receipt, int $amount, string $method): void
+    private function payment(StudentEnrollment $enrollment, string $receipt, int $amount, string $method, string $date = '2026-10-15'): void
     {
         DB::table('payments')->insert([
             'branch_id' => $enrollment->branch_id,
@@ -163,7 +194,7 @@ class EdutrustPayDaybookTest extends TestCase
             'student_enrollment_id' => $enrollment->id,
             'amount' => $amount,
             'payment_method' => $method,
-            'payment_date' => '2026-10-15',
+            'payment_date' => $date,
             'verification_status' => 'verified',
             'created_at' => now(),
             'updated_at' => now(),

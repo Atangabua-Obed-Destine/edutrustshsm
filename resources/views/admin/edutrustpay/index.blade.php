@@ -89,7 +89,7 @@
                         {{ __('Send reports now') }}
                     </button>
                 </form>
-                <span class="max-w-2xl text-xs text-gray-500">{{ __('Runs the nightly jobs now for every branch that reports: builds the last 3 months’ reports, daybooks and budget sheets, sends a check-in and delivers everything waiting. Months that have not changed are not sent again.') }}</span>
+                <span class="max-w-2xl text-xs text-gray-500">{{ __('Runs the nightly jobs now for every branch that reports: builds the reports, daybooks and budget sheets for the last 3 months and for this month up to now, sends a check-in and delivers everything waiting. This month is marked provisional until it ends. Months that have not changed are not sent again.') }}</span>
             @else
                 <button type="button" disabled class="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white opacity-50">{{ __('Send reports now') }}</button>
                 <span class="text-xs text-gray-500">{{ __('Fill in a branch’s connection below, tick “Send reports for this branch” and save first.') }}</span>

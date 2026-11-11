@@ -121,9 +121,9 @@ class EdutrustPayController extends Controller
             ->update(['status' => EdutrustPayOutbox::PENDING, 'attempts' => 0, 'next_attempt_at' => null]);
 
         $steps = [
-            [__('Monthly reports, last 3 months'), 'edutrustpay:report', ['--months' => 3]],
-            [__('Daybooks, last 3 months'), 'edutrustpay:daybook', ['--months' => 3]],
-            [__('Budget sheets, last 3 months'), 'edutrustpay:budget-sheet', ['--months' => 3]],
+            [__('Monthly reports, last 3 months and this month so far'), 'edutrustpay:report', ['--months' => 3, '--to-date' => true]],
+            [__('Daybooks, last 3 months and this month so far'), 'edutrustpay:daybook', ['--months' => 3, '--to-date' => true]],
+            [__('Budget sheets, last 3 months and this month so far'), 'edutrustpay:budget-sheet', ['--months' => 3, '--to-date' => true]],
             [__('Check-in'), 'edutrustpay:heartbeat', []],
             [__('Delivery to the console'), 'edutrustpay:flush', []],
         ];

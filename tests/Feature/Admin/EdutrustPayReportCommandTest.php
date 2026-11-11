@@ -50,6 +50,29 @@ class EdutrustPayReportCommandTest extends TestCase
         );
     }
 
+    public function test_to_date_files_the_month_in_progress_as_provisional_then_final(): void
+    {
+        Http::fake(['*' => Http::response(['status' => 'accepted'], 202)]);
+
+        $this->artisan('edutrustpay:report --months=2 --to-date --send');
+
+        $this->assertSame(
+            ['2026-09', '2026-10', '2026-11'],
+            EdutrustPayOutbox::where('kind', 'report')->orderBy('period')->pluck('period')->all()
+        );
+        $november = EdutrustPayOutbox::where('kind', 'report')->where('period', '2026-11')->sole();
+        $this->assertSame('provisional', json_decode($november->payload, true)['status']);
+
+        // Once November is well over, the nightly run files it again as final.
+        $this->travelTo('2026-12-15 03:00:00');
+        $this->artisan('edutrustpay:report --months=3 --to-date --send');
+
+        $latest = EdutrustPayOutbox::where('kind', 'report')->where('period', '2026-11')->orderByDesc('sequence')->first();
+        $this->assertSame(2, (int) $latest->sequence);
+        $this->assertSame('final', json_decode($latest->payload, true)['status']);
+        $this->assertSame(EdutrustPayOutbox::DELIVERED, $latest->status);
+    }
+
     public function test_an_unchanged_month_is_not_filed_again(): void
     {
         Http::fake(['*' => Http::response(['status' => 'accepted'], 202)]);

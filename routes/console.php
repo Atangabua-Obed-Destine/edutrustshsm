@@ -58,19 +58,21 @@ Schedule::command('fees:remind')
 */
 
 // Daily, not monthly: it files any month not yet filed and refiles any recent
-// month that has since changed. Unchanged months are skipped.
-Schedule::command('edutrustpay:report --months=3')
+// month that has since changed. Unchanged months are skipped. --to-date adds the
+// month in progress, so the console shows this month's money up to last night
+// (provisional until the month is over) instead of nothing until it ends.
+Schedule::command('edutrustpay:report --months=3 --to-date')
     ->dailyAt('03:00')
     ->withoutOverlapping()
     ->onOneServer();
 
 // Its own job, so a large daybook failing cannot hold the report back.
-Schedule::command('edutrustpay:daybook --months=3')
+Schedule::command('edutrustpay:daybook --months=3 --to-date')
     ->dailyAt('03:15')
     ->withoutOverlapping()
     ->onOneServer();
 
-Schedule::command('edutrustpay:budget-sheet --months=3')
+Schedule::command('edutrustpay:budget-sheet --months=3 --to-date')
     ->dailyAt('03:30')
     ->withoutOverlapping()
     ->onOneServer();

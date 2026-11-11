@@ -7,6 +7,7 @@ use App\Models\EdutrustPayOutbox;
 use App\Services\EdutrustPay\BudgetSheetExporter;
 use App\Services\EdutrustPay\OutboxService;
 use App\Services\EdutrustPay\SettingsResolver;
+use App\Services\EdutrustPay\ReportingMonths;
 use Carbon\Carbon;
 use EdutrustPay\Contract\BudgetSheet;
 use Illuminate\Console\Command;
@@ -21,6 +22,7 @@ class EdutrustPayBudgetSheet extends Command
         {period? : Calendar month YYYY-MM. Defaults to last month.}
         {--months= : The last N complete months, oldest first}
         {--branch= : Only this branch id}
+        {--to-date : Also the month in progress, up to today, refiled as it changes}
         {--dry-run : Build the sheets without queueing anything}
         {--send : Attempt delivery immediately rather than waiting for the flush}';
 
@@ -102,11 +104,6 @@ class EdutrustPayBudgetSheet extends Command
             return [$period];
         }
 
-        $count = max(1, (int) ($this->option('months') ?: 1));
-        $cursor = Carbon::now()->startOfMonth()->subMonths($count + 1);
-
-        return collect(range(1, $count))
-            ->map(fn () => $cursor->addMonth()->format('Y-m'))
-            ->all();
+        return ReportingMonths::recent((int) ($this->option('months') ?: 1), (bool) $this->option('to-date'));
     }
 }

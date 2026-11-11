@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Services\EdutrustPay\OutboxService;
 use App\Services\EdutrustPay\SettingsResolver;
 use App\Services\EdutrustPay\PeriodReportBuilder;
+use App\Services\EdutrustPay\ReportingMonths;
 use Carbon\Carbon;
 use App\Models\EdutrustPayOutbox;
 use EdutrustPay\Contract\Capability;
@@ -29,6 +30,7 @@ class EdutrustPayReport extends Command
         {--months= : The last N complete months, oldest first}
         {--sequence= : Force a sequence. Normally worked out: unchanged months are skipped, changed ones refiled}
         {--status= : Force provisional or final}
+        {--to-date : Also the month in progress, up to today, filed provisional and refiled as it changes}
         {--dry-run : Build and show the figures without queueing}
         {--send : Attempt delivery immediately}';
 
@@ -149,12 +151,11 @@ class EdutrustPayReport extends Command
             return [$period];
         }
 
-        $count = max(1, (int) ($this->option('months') ?: 1));
-        // Ends at the last COMPLETE month. Including the current one filed a half
-        // finished month as if it were a report, then conflicted when it ended.
-        $cursor = Carbon::now()->startOfMonth()->subMonths($count + 1);
-
-        return collect(range(1, $count))->map(fn () => $cursor->addMonth()->format('Y-m'))->all();
+        // Ends at the last COMPLETE month unless --to-date asks for the one in
+        // progress too. That month goes out provisional, and a change refiles
+        // it at the next sequence (a 409 from the console is refiled the same
+        // way), so a half-finished month no longer conflicts when it ends.
+        return ReportingMonths::recent((int) ($this->option('months') ?: 1), (bool) $this->option('to-date'));
     }
 
     private function amount(string $value): string
