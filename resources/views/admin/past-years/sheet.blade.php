@@ -115,7 +115,7 @@
             @can('past-year.verify')
                 @unless($sheet->isVerified())
                     <form method="POST" action="{{ route('admin.past-years.verify', [$year, $section, $term]) }}" class="bg-white rounded-xl border border-emerald-200 p-5 space-y-2 flex-1 min-w-[260px]"
-                          onsubmit="return confirm(@js(__('Have you compared every line with the paper mark sheet?')))">
+                          data-ask="{{ __('Have you compared every line with the paper mark sheet?') }}">
                         @csrf
                         <h3 class="font-semibold text-emerald-800">{{ __('Verify against the paper') }}</h3>
                         <p class="text-xs text-gray-600">{{ __('Compare each line with the paper mark sheet. Once verified the sheet is locked and the results reach each pupil\'s history and the parent portal. The person who entered it cannot verify it.') }}</p>

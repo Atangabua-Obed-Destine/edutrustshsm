@@ -54,11 +54,18 @@
                 </form>
                 @endif
 
+                @if(in_array($application->status, ['pending', 'under_review']) && ! $application->stepsComplete())
+                <span style="padding: 8px 12px; background: #f1f5f9; color: #64748b; border-radius: 7px; font-size: 0.75rem;" title="{{ __('Finish the admission steps first.') }}">
+                    {{ __('Accept after: :step', ['step' => \App\Models\AdmissionApplication::stepLabels()[$application->nextStep()]]) }}
+                </span>
+                @endif
                 @if(in_array($application->status, ['pending', 'under_review']))
+                @if($application->stepsComplete())
                 <button type="button" onclick="document.getElementById('acceptModal').style.display='flex'" style="padding: 8px 16px; background: #22c55e; color: #fff; border: none; border-radius: 7px; font-size: 0.78rem; font-weight: 600; cursor: pointer;"
                         onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">
                     ✓ {{ __('Accept') }}
                 </button>
+                @endif
                 <button type="button" onclick="document.getElementById('rejectModal').style.display='flex'" style="padding: 8px 16px; background: #ef4444; color: #fff; border: none; border-radius: 7px; font-size: 0.78rem; font-weight: 600; cursor: pointer;"
                         onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
                     ✕ {{ __('Reject') }}
@@ -81,6 +88,8 @@
         </div>
         @endif
     </div>
+
+    @include('admin.admissions._steps')
 
     {{-- Application Details Grid --}}
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
@@ -295,7 +304,7 @@
             <div style="margin-top: 18px; text-align: right;">
                 <button type="submit" style="padding: 10px 24px; background: #8b5cf6; color: #fff; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s;"
                         onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'"
-                        onclick="return confirm('{{ __('Enrol this applicant as a student? This will create a student record and enrollment.') }}')">
+                        data-ask="{{ __('Enrol this applicant as a student? This will create a student record and enrollment.') }}">
                     🎓 {{ __('Confirm Enrollment') }}
                 </button>
             </div>

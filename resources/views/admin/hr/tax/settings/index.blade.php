@@ -60,18 +60,20 @@
         </form>
     </div>
 
-    {{-- List --}}
-    <div class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    {{-- List: sorting and paging redraw only this card (data-list-region). --}}
+    <div class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" data-list-region="tax-settings">
         <div class="px-5 py-4 border-b border-gray-100"><h3 class="text-base font-semibold text-gray-700">{{ __('Tax Setting List') }}</h3></div>
+        <x-list.toolbar :list="$list" :rows="$settings" />
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Title') }}</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Group') }}</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Min') }}</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Max') }}</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Value') }}</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Paid By') }}</th>
+                    <x-list.th :list="$list" key="title" class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="group" class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="min" class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="max" class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="value" class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="paid_by" class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase" />
                     <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Action') }}</th>
                 </tr>
             </thead>
@@ -88,7 +90,7 @@
                     <td class="px-3 py-2 text-sm text-gray-600 capitalize">{{ $s->paid_by }}</td>
                     <td class="px-3 py-2 text-right space-x-1 whitespace-nowrap">
                         <button onclick="openExemptions({{ $s->id }})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">{{ __('Exempt') }}</button>
-                        <form method="POST" action="{{ route('admin.tax-settings.destroy', $s) }}" class="inline" onsubmit="return confirm('{{ __('Delete?') }}')">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button></form>
+                        <form method="POST" action="{{ route('admin.tax-settings.destroy', $s) }}" class="inline" data-ask="{{ __('Delete?') }}">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button></form>
                     </td>
                 </tr>
                 @empty
@@ -96,6 +98,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         <div class="px-5 py-3">{{ $settings->links() }}</div>
     </div>
 </div>

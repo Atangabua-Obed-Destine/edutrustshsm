@@ -55,7 +55,7 @@
                             @endcan
                             @can('gce-registration.delete')
                             <form method="POST" action="{{ route('admin.gce.sessions.destroy', $series) }}"
-                                  onsubmit="return confirm('{{ __('Delete this exam series?') }}')">
+                                  data-ask="{{ __('Delete this exam series?') }}">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-500 hover:text-red-600">{{ __('Delete') }}</button>
                             </form>

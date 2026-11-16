@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') - {{ $__school->school_name ?? 'EduTrustSchool' }}</title>
+    {{-- Opens in its own window from a desktop or taskbar icon. --}}
+    <link rel="manifest" href="{{ route('app.manifest') }}">
+    <meta name="theme-color" content="#1e293b">
+    <link rel="apple-touch-icon" href="{{ route('app.icon', 180) }}">
+    {{-- Row density is set before the page draws, so it does not jump. --}}
+    <script>document.documentElement.dataset.density = (function () { try { return localStorage.getItem('edutrust.density'); } catch (e) { return null; } })() || 'compact';</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         .sidebar-link.active, .sidebar-link:hover { background-color: rgba(255,255,255,0.1); }
@@ -20,6 +26,8 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+    {{-- The sidebar stays as it was left, without sliding on every page. --}}
+    <script>try { if (window.innerWidth >= 1024 && localStorage.getItem('edutrust.sidebarClosed') === '1') document.body.classList.add('sidebar-closed'); } catch (e) {}</script>
     <div class="flex min-h-screen">
         <!-- Sidebar -->
         <aside id="sidebar" class="w-64 bg-[#1e293b] text-white flex flex-col fixed inset-y-0 left-0 z-30 transition-transform duration-300 -translate-x-full lg:translate-x-0">
@@ -125,6 +133,7 @@
                         @endif
                         @can('student-exit.view')
                         <a href="{{ route('admin.students.archive') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.students.archive') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Former Pupils') }}</a>
+                        <a href="{{ route('admin.issued-documents.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.issued-documents.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Certificates issued') }}</a>
                         @endcan
                         @can('group-enrol.view')
                         <a href="{{ route('admin.group-enrol.index') }}" class="block px-3 py-2 rounded text-sm {{ request()->routeIs('admin.group-enrol.*') ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white' }}">{{ __('Group Enrol') }}</a>
@@ -508,7 +517,7 @@
         </aside>
 
         <!-- Main Content -->
-        <div id="main-content" class="flex-1 lg:ml-64 transition-all duration-300" style="min-width: 0;">
+        <div id="main-content" class="flex-1 flex flex-col min-h-screen lg:ml-64 transition-all duration-300" style="min-width: 0;">
             <!-- Top Bar -->
             <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-20">
                 <div class="flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 py-3">
@@ -534,7 +543,6 @@
                                    class="w-56 lg:w-72 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none">
                         </form>
                         @endcan
-                        <span class="hidden xl:block text-sm text-gray-500">{{ now()->translatedFormat('l j F Y') }}</span>
 
                         {{-- Branch Switcher — only when the user can access more than one branch --}}
                         @if(\App\Support\BranchContext::showSwitcher())
@@ -599,26 +607,19 @@
 
             <!-- Page Content -->
             {{-- Wide tables scroll inside the page instead of being cut off on a phone. --}}
-            <main class="p-4 lg:p-6 overflow-x-auto">
-                <!-- Flash Messages -->
-                @if(session('success'))
-                    <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 flex items-center justify-between" id="flash-success">
-                        <span>{{ session('success') }}</span>
-                        <button onclick="this.parentElement.remove()" class="text-green-600 hover:text-green-800">&times;</button>
-                    </div>
-                @endif
-                @if(session('error'))
-                    <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-                        <span>{{ session('error') }}</span>
-                        <button onclick="this.parentElement.remove()" class="text-red-600 hover:text-red-800">&times;</button>
-                    </div>
-                @endif
-                @if(session('warning'))
-                    <div class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-                        <span>{{ session('warning') }}</span>
-                        <button onclick="this.parentElement.remove()" class="text-amber-600 hover:text-amber-800">&times;</button>
-                    </div>
-                @endif
+            <main class="flex-1 p-4 lg:p-6 overflow-x-auto">
+                {{-- Messages after a save appear as toasts, bottom right. Success
+                     fades on its own; an error stays until it is closed. --}}
+                <div id="toast-stack" class="toast-stack" aria-live="polite">
+                    @foreach(['success' => 'border-emerald-200 bg-emerald-50 text-emerald-900', 'warning' => 'border-amber-200 bg-amber-50 text-amber-900', 'error' => 'border-red-200 bg-red-50 text-red-900'] as $__kind => $__style)
+                        @if(session($__kind))
+                            <div class="toast {{ $__style }}" data-toast="{{ $__kind }}" role="{{ $__kind === 'error' ? 'alert' : 'status' }}" @if($__kind === 'success') id="flash-success" @endif>
+                                <div class="flex-1 whitespace-pre-line">{{ session($__kind) }}</div>
+                                <button type="button" data-toast-close class="toast-close" aria-label="{{ __('Close') }}">&times;</button>
+                            </div>
+                        @endif
+                    @endforeach
+                </div>
 
                 @if(\App\Support\BranchContext::isAllBranches())
                     <div class="bg-indigo-50 border border-indigo-200 text-indigo-800 px-4 py-2 rounded-lg mb-4 text-sm flex items-center gap-2">
@@ -629,8 +630,77 @@
 
                 @yield('content')
             </main>
+
+            {{-- Status bar: the year and term everything is filed under, the
+                 connection, and the time, always in view. --}}
+            {{-- Inline php() form only here: this layout already uses it, and
+                 a php block closed after one would swallow everything between. --}}
+            @php($__year = \App\Models\AcademicSession::current())
+            @php($__term = \App\Models\Term::current())
+            <footer id="status-bar" class="sticky bottom-0 z-10 flex items-center gap-x-4 gap-y-1 flex-wrap border-t border-gray-200 bg-white/95 px-3 lg:px-6 py-1 text-xs text-gray-600 backdrop-blur">
+                <span id="sb-conn" data-state="online" class="inline-flex items-center gap-1.5" title="{{ __('Connection to the school server') }}">
+                    <span class="sb-dot"></span><span data-conn-text>{{ __('Connected') }}</span>
+                </span>
+                @if($__year)
+                    <span class="inline-flex items-center gap-1" title="{{ __('New records are filed under this year and term') }}">
+                        <span class="font-semibold text-gray-800">{{ $__year->name }}</span>
+                        @if($__term)
+                            <span class="text-gray-400">·</span><span>{{ $__term->name }}</span>
+                        @else
+                            <span class="text-gray-400">·</span><span class="font-semibold text-amber-700">{{ __('No current term') }}</span>
+                        @endif
+                    </span>
+                @else
+                    <span class="font-semibold text-amber-700">{{ __('No current academic year') }}</span>
+                @endif
+                <span class="ml-auto"></span>
+                <button type="button" class="hidden lg:inline rounded px-1.5 py-0.5 hover:bg-gray-100" onclick="window.openPalette && window.openPalette()"
+                        title="{{ __('Go to any screen, or find a pupil') }}"><kbd class="sb-key">Ctrl K</kbd> {{ __('Go to…') }}</button>
+                @can('student.view')<span class="hidden xl:inline"><kbd class="sb-key">/</kbd> {{ __('Find a pupil') }}</span>@endcan
+                <button type="button" id="sb-density" class="rounded px-1.5 py-0.5 hover:bg-gray-100" title="{{ __('Show more or fewer rows on a screen') }}">{{ __('Compact rows') }}</button>
+                <span id="sb-clock" class="tabular-nums text-gray-700"></span>
+            </footer>
         </div>
     </div>
+
+    <?php
+        $__shell = [
+            'keepAlive' => route('admin.keep-alive'),
+            'pupils' => auth()->user()->can('student.view') ? route('admin.palette.pupils') : null,
+            'login' => route('login'),
+            'lifetime' => (int) config('session.lifetime'),
+            'text' => [
+                'close' => __('Close'),
+                'cancel' => __('Cancel'),
+                'yes' => __('Yes'),
+                'delete' => __('Delete'),
+                'conn_online' => __('Connected'),
+                'conn_offline' => __('No network'),
+                'conn_unreachable' => __('Server not answering'),
+                'offline_toast' => __('This computer has lost its network. Anything you save now will not reach the school server.'),
+                'unreachable_toast' => __('The school server is not answering. Wait for it to come back before saving.'),
+                'back_online' => __('Connected to the school server again.'),
+                'session_warn_title' => __('Still there?'),
+                'session_warn_text' => __('Nothing has happened on this page for a while. You will be signed out when the time below runs out.'),
+                'session_stay' => __('Stay signed in'),
+                'session_ended_title' => __('You have been signed out'),
+                'session_ended_text' => __('Sign in again in a new tab, then come back here: this page stays as it is, so what you typed can still be saved.'),
+                'session_sign_in' => __('Sign in again'),
+                'session_back' => __('Signed in again. You can save now.'),
+                'density_compact' => __('Compact rows'),
+                'density_comfortable' => __('Comfortable rows'),
+                'palette_placeholder' => __('Go to a screen or find a pupil…'),
+                'palette_screens' => __('Screens'),
+                'palette_pupils' => __('Pupils'),
+                'palette_empty' => __('Nothing matches.'),
+                'palette_hint' => __('↑ ↓ to choose · Enter to open · Esc to close'),
+                'bulk_none' => __('Tick at least one row first.'),
+            ],
+        ];
+    ?>
+    <script>
+        window.EDUTRUST_SHELL = {!! json_encode($__shell, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!};
+    </script>
 
     <!-- Mobile sidebar overlay -->
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden lg:hidden" onclick="closeSidebar()"></div>
@@ -669,11 +739,6 @@
             sidebar.classList.add('-translate-x-full');
             overlay.classList.add('hidden');
         }
-
-        // Auto-hide flash messages
-        setTimeout(() => {
-            document.getElementById('flash-success')?.remove();
-        }, 5000);
     </script>
     @include('partials.confirm-action')
     @stack('scripts')

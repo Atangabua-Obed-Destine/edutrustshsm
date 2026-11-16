@@ -99,7 +99,8 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+                {{-- data-grid: P, A, L or E marks a pupil and moves down; Up and Down move (shell.js). --}}
+                <table class="min-w-full divide-y divide-gray-200" data-grid>
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="hidden sm:table-cell px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-10">#</th>
@@ -132,7 +133,7 @@
                                                name="attendance[{{ $enrollment->id }}][status]"
                                                value="{{ $status }}"
                                                class="sr-only peer status-radio"
-                                               data-status="{{ $status }}"
+                                               data-status="{{ $status }}" data-key="{{ $label }}"
                                                {{ ($existing?->status ?? 'present') === $status ? 'checked' : '' }}
                                                onchange="updateStats()">
                                         <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-xs font-bold border-2 transition

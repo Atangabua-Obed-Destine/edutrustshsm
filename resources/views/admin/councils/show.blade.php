@@ -188,6 +188,9 @@
                             <th class="py-2 px-3">{{ __('Pupil') }}</th>
                             <th class="py-2 px-3 text-right w-20">{{ __('Average') }}</th>
                             <th class="py-2 px-3 w-48">{{ __('Award') }}</th>
+                            @if($yearEnd)
+                            <th class="py-2 px-3 w-40" title="{{ __('Promotion follows this decision once the council is concluded.') }}">{{ __('Next year') }}</th>
+                            @endif
                             <th class="py-2 px-3 w-36">{{ __('Conduct') }}</th>
                             <th class="py-2 pl-3">{{ __('Remark') }}</th>
                         </tr>
@@ -216,6 +219,18 @@
                                         @endforeach
                                     </select>
                                 </td>
+                                @if($yearEnd)
+                                <td class="py-2 px-3">
+                                    <select name="entries[{{ $entry->id }}][year_decision]" @disabled($locked) style="appearance:auto;"
+                                            aria-label="{{ __('Next year for :name', ['name' => $entry->student?->first_name.' '.$entry->student?->last_name]) }}"
+                                            class="w-full text-xs font-medium border rounded-lg px-2 py-1.5 {{ $entry->year_decision === 'promote' ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : ($entry->year_decision ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-white border-gray-300') }}">
+                                        <option value="">—</option>
+                                        @foreach($yearDecisions as $value => $label)
+                                            <option value="{{ $value }}" @selected($entry->year_decision === $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                @endif
                                 <td class="py-2 px-3">
                                     <select name="entries[{{ $entry->id }}][conduct]" @disabled($locked) style="appearance:auto;"
                                             class="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white">

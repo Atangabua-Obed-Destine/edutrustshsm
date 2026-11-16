@@ -45,7 +45,7 @@
                 @elseif($status === 'approved')
                     <form method="POST" action="{{ route('admin.budget.activate', $budget) }}">@csrf<button class="rounded-lg px-3 py-2 bg-emerald-600 text-white hover:bg-emerald-700">{{ __('Activate') }}</button></form>
                 @elseif($status === 'active')
-                    <form method="POST" action="{{ route('admin.budget.close', $budget) }}" onsubmit="return confirm('{{ __('Close this sheet? Its figures become the record of the year.') }}')">@csrf<button class="rounded-lg px-3 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50">{{ __('Close') }}</button></form>
+                    <form method="POST" action="{{ route('admin.budget.close', $budget) }}" data-ask="{{ __('Close this sheet? Its figures become the record of the year.') }}">@csrf<button class="rounded-lg px-3 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50">{{ __('Close') }}</button></form>
                 @endif
             @endcan
         </div>
@@ -142,7 +142,7 @@
                     <p class="w-full text-xs text-gray-400">{{ __('A sheet created with the wrong dates reports the wrong year\'s money. Changing them re-reads the actuals.') }}</p>
                 </form>
                 @if($status === 'draft')
-                    <form method="POST" action="{{ route('admin.budget-sheet.destroy', $budget) }}" onsubmit="return confirm('{{ __('Delete this draft sheet and its figures?') }}')">
+                    <form method="POST" action="{{ route('admin.budget-sheet.destroy', $budget) }}" data-ask="{{ __('Delete this draft sheet and its figures?') }}">
                         @csrf @method('DELETE')
                         <button type="submit" class="text-sm text-red-600 hover:text-red-800">{{ __('Delete this draft') }}</button>
                     </form>

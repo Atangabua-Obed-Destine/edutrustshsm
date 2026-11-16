@@ -6,7 +6,7 @@
     'blue' => 'bg-blue-500 hover:bg-blue-600',
 ])
 <form method="POST" action="{{ route('admin.budget.' . $route, $budget) }}" class="inline"
-      @if($confirm ?? false) onsubmit="return confirm('{{ __('Are you sure?') }}')" @endif>
+      @if($confirm ?? false) data-ask="{{ __('Are you sure?') }}" @endif>
     @csrf
     <button type="submit" class="{{ $colors[$color] ?? $colors['blue'] }} text-white px-3 py-1.5 rounded-lg text-sm">{{ $label }}</button>
 </form>

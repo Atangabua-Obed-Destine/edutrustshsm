@@ -24,7 +24,7 @@ class Payment extends Model
         'payment_date', 'payer_name', 'payer_phone', 'bank_name',
         'transaction_ref', 'proof_document', 'verification_status',
         'received_by', 'notes', 'payment_account_id',
-        'reversed_at', 'reversed_by', 'reversal_reason',
+        'reversed_at', 'reversed_by', 'reversal_reason', 'verify_code',
     ];
 
     /** What a payment method is called, in the reader's language. */
@@ -86,5 +86,45 @@ class Payment extends Model
     public function isReversed(): bool
     {
         return $this->verification_status === 'reversed';
+    }
+
+    /** Letters for the check code (see App\Support\CheckCode). */
+    public const VERIFY_ALPHABET = \App\Support\CheckCode::ALPHABET;
+
+    /** A fresh, unused check code. */
+    public static function newVerifyCode(): string
+    {
+        return \App\Support\CheckCode::generate(fn (string $code) => static::withoutBranchScope()->where('verify_code', $code)->exists());
+    }
+
+    /** What someone typed, as it is stored. */
+    public static function normaliseVerifyCode(?string $typed): string
+    {
+        return \App\Support\CheckCode::normalise($typed);
+    }
+
+    /**
+     * This receipt's check code, made the first time it is asked for (receipts
+     * from before codes existed get one when they are next printed).
+     */
+    public function verifyCode(): string
+    {
+        if (! $this->verify_code) {
+            $this->forceFill(['verify_code' => static::newVerifyCode()])->saveQuietly();
+        }
+
+        return $this->verify_code;
+    }
+
+    /** The code as printed: XXXX-XXXX-XXXX. */
+    public function verifyCodeForPrint(): string
+    {
+        return \App\Support\CheckCode::forPrint($this->verifyCode());
+    }
+
+    /** The public page that says whether this receipt is genuine. */
+    public function verifyUrl(): string
+    {
+        return route('receipt.verify', $this->verifyCode());
     }
 }

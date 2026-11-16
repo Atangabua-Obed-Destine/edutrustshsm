@@ -36,12 +36,36 @@ class FixedAssetController extends Controller implements HasMiddleware
 
     public function index(Request $request)
     {
-        $assets = FixedAsset::with('category:id,name')
+        $query = FixedAsset::with('category:id,name')
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
-            ->when($request->input('category_id'), fn ($q, $v) => $q->where('fixed_asset_category_id', $v))
-            ->orderByDesc('acquisition_date')
-            ->paginate(25)
-            ->withQueryString();
+            ->when($request->input('category_id'), fn ($q, $v) => $q->where('fixed_asset_category_id', $v));
+
+        $categories = FixedAssetCategory::active()->orderBy('name')->get();
+        $statusLabel = fn (?string $status) => __(ucfirst(str_replace('_', ' ', (string) $status)));
+
+        $list = new \App\Support\Listing($request, 'fixed-assets', __('Fixed Assets'), [
+            'asset' => ['label' => __('Asset'), 'sort' => 'fixed_assets.name', 'value' => fn ($a) => $a->name],
+            'code' => ['label' => __('Asset Code'), 'sort' => 'fixed_assets.code', 'value' => fn ($a) => $a->code],
+            'category' => ['label' => __('Category'),
+                'sort' => fn ($q, $dir) => $q->orderBy(FixedAssetCategory::select('name')->whereColumn('fixed_asset_categories.id', 'fixed_assets.fixed_asset_category_id')->limit(1), $dir),
+                'value' => fn ($a) => $a->category?->name],
+            'acquired' => ['label' => __('Acquired'), 'sort' => 'fixed_assets.acquisition_date', 'value' => fn ($a) => $a->acquisition_date],
+            'cost' => ['label' => __('Cost'), 'sort' => 'fixed_assets.cost', 'money' => true, 'value' => fn ($a) => $a->cost],
+            'depreciated' => ['label' => __('Depreciated'), 'money' => true, 'value' => fn ($a) => $a->accumulatedDepreciation()],
+            'book_value' => ['label' => __('Book Value'), 'money' => true, 'value' => fn ($a) => $a->bookValue()],
+            'status' => ['label' => __('Status'), 'sort' => 'fixed_assets.status', 'value' => fn ($a) => $statusLabel($a->status)],
+        ], default: 'acquired', defaultDir: 'desc');
+
+        $list->filters([
+            __('Status') => $request->input('status') ? $statusLabel($request->input('status')) : null,
+            __('Category') => $request->input('category_id') ? FixedAssetCategory::whereKey((int) $request->input('category_id'))->value('name') : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $assets = $list->paginate($query);
 
         $assets->getCollection()->transform(function (FixedAsset $asset) {
             $asset->accumulated = $asset->accumulatedDepreciation();
@@ -52,7 +76,8 @@ class FixedAssetController extends Controller implements HasMiddleware
 
         return view('admin.accounting.assets.index', [
             'assets' => $assets,
-            'categories' => FixedAssetCategory::active()->orderBy('name')->get(),
+            'list' => $list,
+            'categories' => $categories,
             'totalCost' => (float) FixedAsset::active()->sum('cost'),
             'dueCount' => DepreciationSchedule::due()
                 ->whereHas('asset', fn ($q) => $q->where('status', 'active'))->count(),

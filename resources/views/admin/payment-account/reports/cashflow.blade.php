@@ -9,7 +9,10 @@
 <div class="space-y-4">
     <h3 class="text-lg font-semibold text-gray-700">{{ __('Cash Flow Report') }}</h3>
 
-    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-4" data-list-region="cashflow">
+    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-6 gap-3 items-end" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
         <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Account') }}</label>
             <select name="account_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
@@ -67,17 +70,19 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$transactions" />
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Date') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Account') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Description') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Method') }}</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Debit') }}</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Credit') }}</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Balance') }}</th>
+                    <x-list.th :list="$list" key="date" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="account" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="description" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="method" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="debit" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="credit" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="balance" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" />
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -96,8 +101,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     <div>{{ $transactions->links() }}</div>
+    </div>
 </div>
 @endsection

@@ -26,6 +26,9 @@
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Name') }}</th>
                     <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{{ __('Weight') }}</th>
+                    @if($year)
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Mark entry closes (:year)', ['year' => $year->name]) }}</th>
+                    @endif
                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Actions') }}</th>
                 </tr>
             </thead>
@@ -35,17 +38,36 @@
                     <td class="px-6 py-4 text-sm text-gray-500">{{ $sequence->sequence_number }}</td>
                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $sequence->name }}</td>
                     <td class="px-6 py-4 text-sm text-center text-gray-600">{{ rtrim(rtrim(number_format((float) $sequence->weight, 2, '.', ''), '0'), '.') }}</td>
+                    @if($year)
+                    @php $__deadline = $deadlines->get($sequence->id); @endphp
+                    <td class="px-6 py-3 text-sm">
+                        @can('results-control.deadline')
+                        <form method="POST" action="{{ route('admin.sequences.deadline', $sequence) }}" class="flex items-center gap-2">
+                            @csrf
+                            <input type="date" name="closes_on" value="{{ $__deadline?->closes_on?->format('Y-m-d') }}"
+                                   aria-label="{{ __('Mark entry closes for :sequence', ['sequence' => $sequence->name]) }}"
+                                   class="px-2 py-1 border border-gray-300 rounded text-sm" onchange="this.form.requestSubmit()">
+                            <noscript><button type="submit" class="text-blue-600 text-xs">{{ __('Save') }}</button></noscript>
+                        </form>
+                        @else
+                        {{ $__deadline?->closes_on?->format('d/m/Y') ?? '—' }}
+                        @endcan
+                        @if($__deadline?->isClosed())
+                        <span class="text-xs font-semibold text-red-700">{{ __('Closed') }}</span>
+                        @endif
+                    </td>
+                    @endif
                     <td class="px-6 py-4 text-right space-x-2">
                         <button onclick="openEditModal({{ $sequence->id }}, {{ Js::from($sequence->only(['name', 'weight'])) }})" class="text-blue-600 hover:text-blue-800 text-sm font-medium">{{ __('Edit') }}</button>
                         <form method="POST" action="{{ route('admin.sequences.destroy', $sequence) }}" class="inline">
                             @csrf @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium" onclick="return confirm('{{ __('Delete this sequence? This cannot be undone.') }}')">{{ __('Delete') }}</button>
+                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium" data-ask="{{ __('Delete this sequence? This cannot be undone.') }}">{{ __('Delete') }}</button>
                         </form>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="4" class="px-6 py-8 text-center text-gray-500">{{ __('No exam sequences found.') }}</td>
+                    <td colspan="{{ $year ? 5 : 4 }}" class="px-6 py-8 text-center text-gray-500">{{ __('No exam sequences found.') }}</td>
                 </tr>
                 @endforelse
             </tbody>

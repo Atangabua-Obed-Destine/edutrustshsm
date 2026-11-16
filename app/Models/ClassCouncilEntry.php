@@ -24,9 +24,14 @@ class ClassCouncilEntry extends Model
     public const WORK_WARNING = 'work_warning';
     public const CONDUCT_WARNING = 'conduct_warning';
 
+    /** The year-end council's decision on the pupil's next year. */
+    public const PROMOTE = 'promote';
+    public const REPEAT = 'repeat';
+    public const LEAVE = 'leave';
+
     protected $fillable = [
         'branch_id', 'class_council_id', 'student_id', 'term_result_id',
-        'average', 'rank', 'award', 'conduct', 'remark',
+        'average', 'rank', 'award', 'year_decision', 'conduct', 'remark',
     ];
 
     protected function casts(): array
@@ -59,6 +64,16 @@ class ClassCouncilEntry extends Model
             self::NONE => __('No award'),
             self::WORK_WARNING => __('Warning — work'),
             self::CONDUCT_WARNING => __('Warning — conduct'),
+        ];
+    }
+
+    /** @return array<string, string> decision => label */
+    public static function yearDecisions(): array
+    {
+        return [
+            self::PROMOTE => __('Moves up'),
+            self::REPEAT => __('Repeats the year'),
+            self::LEAVE => __('Asked to leave'),
         ];
     }
 

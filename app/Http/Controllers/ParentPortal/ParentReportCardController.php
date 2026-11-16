@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ParentPortal;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicSession;
+use App\Models\ResultHold;
 use App\Models\SchoolSetting;
 use App\Models\Sequence;
 use App\Models\TermResult;
@@ -24,7 +25,10 @@ class ParentReportCardController extends Controller
             ->with(['term', 'enrollment.academicSession', 'enrollment.classSection.form'])
             ->get()
             ->sortByDesc(fn ($r) => optional($r->enrollment->academicSession)->start_date)
-            ->values();
+            ->values()
+            // A card the school has withheld is listed, so the family knows
+            // it exists, but not opened, and shows no figures.
+            ->each(fn (TermResult $r) => $r->setAttribute('withheld', ResultHold::holds($r)));
 
         return view('parent.report-cards.index', compact('studentModel', 'results'));
     }
@@ -37,6 +41,7 @@ class ParentReportCardController extends Controller
         // Security: the report card must belong to this student AND be published.
         abort_if($termResult->enrollment->student_id !== $studentModel->id, 403);
         abort_if(! $termResult->is_published, 403, __('This report card has not been published yet.'));
+        abort_if(ResultHold::holds($termResult), 403, __('The school has withheld this report card. Please contact the school.'));
 
         // A year from before the system has no report card of its own here:
         // its results are shown as recorded from the school's paper ones.

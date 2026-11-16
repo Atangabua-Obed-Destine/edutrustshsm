@@ -48,11 +48,48 @@ class UserController extends Controller implements HasMiddleware
             $query->where('is_active', false);
         }
 
-        $users = $query->orderBy('last_name')->orderBy('first_name')->paginate(25)->withQueryString();
+        $list = $this->userList($request)->filters([
+            __('Search') => $search ?: null,
+            __('Role') => $role ? $this->roleLabel($role) : null,
+            __('Status') => match ($request->input('status')) {
+                'active' => __('Active'),
+                'inactive' => __('Inactive'),
+                default => null,
+            },
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $users = $list->paginate($query);
 
         $roleCounts = User::selectRaw('role, count(*) as count')->groupBy('role')->pluck('count', 'role');
 
-        return view('admin.users.index', compact('users', 'roleCounts'));
+        return view('admin.users.index', compact('users', 'roleCounts', 'list'));
+    }
+
+    /** The staff accounts list's columns: what sorts, and what an export writes. */
+    private function userList(Request $request): \App\Support\Listing
+    {
+        return new \App\Support\Listing($request, 'users', __('Staff Management'), [
+            'name' => ['label' => __('Staff Member'), 'sort' => ['users.last_name', 'users.first_name'],
+                'value' => fn ($u) => trim($u->last_name.' '.$u->first_name)],
+            'phone' => ['label' => __('Phone'), 'value' => fn ($u) => $u->phone],
+            'email' => ['label' => __('Email'), 'sort' => 'users.email', 'value' => fn ($u) => $u->email],
+            'role' => ['label' => __('Role'), 'sort' => 'users.role', 'value' => fn ($u) => $this->roleLabel((string) $u->role)],
+            'status' => ['label' => __('Status'), 'sort' => 'users.is_active', 'value' => fn ($u) => $u->is_active ? __('Active') : __('Inactive')],
+            'last_login' => ['label' => __('Last Login'), 'sort' => 'users.last_login_at',
+                'value' => fn ($u) => $u->last_login_at ? $u->last_login_at->format('d/m/Y H:i') : __('Never')],
+        ], default: 'name');
+    }
+
+    private function roleLabel(string $role): string
+    {
+        return [
+            'super_admin' => __('Super Admin'), 'admin' => __('Admin'), 'accountant' => __('Accountant'),
+            'teacher' => __('Teacher'), 'staff' => __('Staff'),
+        ][$role] ?? ucfirst(str_replace('_', ' ', $role));
     }
 
     public function create()

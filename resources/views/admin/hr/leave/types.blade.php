@@ -55,7 +55,7 @@
                     <td class="px-6 py-3 text-right">
                         @can('leave-type.delete')
                         <form method="POST" action="{{ route('admin.leave-types.destroy', $type) }}" class="inline"
-                              onsubmit="return confirm('{{ __('Delete this leave type?') }}')">
+                              data-ask="{{ __('Delete this leave type?') }}">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
                         </form>

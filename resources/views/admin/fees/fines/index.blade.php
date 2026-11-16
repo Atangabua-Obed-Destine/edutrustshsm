@@ -94,7 +94,7 @@
                     <td class="px-6 py-3 text-right">
                         @can('fee-fine.delete')
                         <form method="POST" action="{{ route('admin.fee-fines.destroy', $fine) }}" class="inline"
-                              onsubmit="return confirm('{{ __('Delete this late fee band?') }}')">
+                              data-ask="{{ __('Delete this late fee band?') }}">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
                         </form>

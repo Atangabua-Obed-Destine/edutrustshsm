@@ -127,7 +127,7 @@
             {{ __('Remarks') }}
         </a>
 
-        @if(session('incomplete'))
+        @if(session('incomplete') && auth()->user()->can('exam-publishing.publish'))
         @php $__confirm2 = ['title' => __('Publish with subjects missing?'), 'warning' => __('Parents see these report cards in the portal at once.'), 'issues' => [['level' => 'warn', 'text' => __('Some subjects have no approved marks, so they are left out of every average on these cards.')]], 'tick' => __('I know these subjects are missing, and the school has decided to publish anyway.'), 'confirm' => __('Yes, publish anyway')]; @endphp
         <form method="POST" action="{{ route('admin.report-cards.publish') }}" data-confirm='@json($__confirm2)'>
             @csrf
@@ -139,7 +139,7 @@
         </form>
         @endif
 
-        @if($results->count() > 0)
+        @if($results->count() > 0 && auth()->user()->can('exam-publishing.publish'))
         {{-- Publish All --}}
         @php $__confirm3 = ['title' => __('Publish these report cards?'), 'warning' => __('Parents see them in the portal at once, and they print for the class.'), 'rows' => [[__('Report cards'), $results->count()]], 'tick' => __('I have checked these report cards and they are ready for parents.'), 'confirm' => __('Yes, publish them')]; @endphp
         <form method="POST" action="{{ route('admin.report-cards.publish') }}" data-confirm='@json($__confirm3)'>
@@ -153,6 +153,20 @@
                 {{ __('Publish All') }}
             </button>
         </form>
+        @endif
+
+        {{-- Take back: a wrong mark found after parents could see the cards. --}}
+        @if($results->where('is_published', true)->isNotEmpty() && auth()->user()->can('exam-publishing.unpublish'))
+        <button type="button" data-reason-open
+                data-action="{{ route('admin.report-cards.unpublish') }}"
+                data-field="reason"
+                data-title="{{ __('Take these report cards back from parents?') }}"
+                data-hint="{{ __('Parents stop seeing them in the portal until they are published again. Say why; it is kept in the audit log.') }}"
+                data-confirm="{{ __('Take them back') }}"
+                data-extra='@json(['class_section_id' => $classSectionId, 'term_id' => $termId, 'academic_session_id' => $sessionId])'
+                style="padding: 9px 16px; background: #fff; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+            {{ __('Take back from parents') }}
+        </button>
         @endif
     </div>
 
@@ -180,6 +194,17 @@
                     <span>{{ __('Download Selected as PDF (ZIP)') }}</span>
                     <span id="bulkBtnBadge" style="display:none; padding: 1px 7px; background: rgba(255,255,255,0.25); border-radius: 999px; font-size: 0.7rem;">0</span>
                 </button>
+                @can('results-control.withhold')
+                <button type="button" data-reason-open data-from-ticked
+                        data-action="{{ route('admin.report-cards.withhold') }}"
+                        data-field="reason"
+                        data-title="{{ __('Withhold the ticked pupils\' results?') }}"
+                        data-hint="{{ __('Their parents see that the report card is withheld and are asked to contact the school. The school still sees and prints it. Say why (unpaid fees, a disciplinary matter…).') }}"
+                        data-confirm="{{ __('Withhold') }}"
+                        style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #fff; color: #b45309; border: 1px solid #fcd34d; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                    {{ __('Withhold selected') }}
+                </button>
+                @endcan
                 @if($results->first())
                 <div style="text-align: right; font-size: 0.8rem;">
                     <span style="color: #6b7280;">{{ __('Class Avg:') }}</span>
@@ -236,6 +261,10 @@
                         </td>
                         @endunless
                         <td style="padding: 10px 16px; text-align: center;">
+                            @php $__hold = $holds->get($result->enrollment->student_id); @endphp
+                            @if($__hold)
+                            <span title="{{ $__hold->reason }}" style="display: block; margin-bottom: 3px; font-size: 0.7rem; font-weight: 700; color: #b45309; text-transform: uppercase;" data-withheld>{{ __('Withheld') }}</span>
+                            @endif
                             @if($result->is_published)
                             <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 500; color: #16a34a;">
                                 <svg style="width: 14px; height: 14px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
@@ -261,6 +290,17 @@
                                     <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                     {{ __('Download') }}
                                 </a>
+                                @if($__hold && auth()->user()->can('results-control.withhold'))
+                                <button type="button" data-reason-open
+                                        data-action="{{ route('admin.report-cards.release', $__hold) }}"
+                                        data-field="release_reason"
+                                        data-title="{{ __('Release these results?') }}"
+                                        data-hint="{{ __('Withheld on :date by :name: :reason', ['date' => $__hold->held_at?->format('d/m/Y'), 'name' => $__hold->heldBy?->full_name ?? '—', 'reason' => $__hold->reason]) }}"
+                                        data-confirm="{{ __('Release') }}"
+                                        style="padding: 6px 10px; background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+                                    {{ __('Release') }}
+                                </button>
+                                @endif
                             </div>
                         </td>
                     </tr>
@@ -290,7 +330,48 @@
 
 </div>
 
+{{-- One box for every action that needs a reason (take back, withhold, release). --}}
+<dialog id="reasonDialog" style="margin: auto; border: none; border-radius: 12px; padding: 0; width: min(480px, 92vw); box-shadow: 0 20px 50px rgba(0,0,0,0.25);">
+    <form method="POST" id="reasonForm" style="padding: 20px;">
+        @csrf
+        <h3 id="reasonTitle" style="font-size: 1rem; font-weight: 700; color: #111827;"></h3>
+        <p id="reasonHint" style="font-size: 0.8rem; color: #6b7280; margin-top: 6px;"></p>
+        <label for="reasonText" style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-top: 14px;">{{ __('Reason') }}</label>
+        <textarea id="reasonText" rows="3" required minlength="3" maxlength="500" style="width: 100%; margin-top: 4px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;"></textarea>
+        <div id="reasonExtra"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+            <button type="button" onclick="document.getElementById('reasonDialog').close()" style="padding: 8px 16px; border: 1px solid #d1d5db; background: #fff; border-radius: 8px; font-size: 0.85rem;">{{ __('Cancel') }}</button>
+            <button type="submit" id="reasonGo" style="padding: 8px 18px; border: none; background: #b45309; color: #fff; border-radius: 8px; font-size: 0.85rem; font-weight: 600;"></button>
+        </div>
+    </form>
+</dialog>
+
 @push('scripts')
+<script>
+document.addEventListener('click', (e) => {
+    const opener = e.target.closest('[data-reason-open]');
+    if (!opener) return;
+    const ids = opener.hasAttribute('data-from-ticked')
+        ? [...document.querySelectorAll('.bulk-check:checked')].map((c) => c.value)
+        : null;
+    if (ids && !ids.length) { window.toast(@json(__('Tick at least one row first.')), 'warning'); return; }
+    const form = document.getElementById('reasonForm');
+    form.action = opener.dataset.action;
+    document.getElementById('reasonTitle').textContent = opener.dataset.title;
+    document.getElementById('reasonHint').textContent = opener.dataset.hint || '';
+    document.getElementById('reasonGo').textContent = opener.dataset.confirm;
+    const text = document.getElementById('reasonText');
+    text.name = opener.dataset.field;
+    text.value = '';
+    const extra = document.getElementById('reasonExtra');
+    extra.replaceChildren();
+    const add = (name, value) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = name; i.value = value ?? ''; extra.appendChild(i); };
+    Object.entries(JSON.parse(opener.dataset.extra || '{}')).forEach(([k, v]) => add(k, v));
+    (ids || []).forEach((id) => add('term_result_ids[]', id));
+    document.getElementById('reasonDialog').showModal();
+    text.focus();
+});
+</script>
 <script>
 (function() {
     const baseUrl = @json(url('admin/report-cards'));

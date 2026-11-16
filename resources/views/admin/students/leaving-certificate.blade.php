@@ -106,5 +106,8 @@
 
 <div class="foot">{{ __('Issued :date', ['date' => now()->format('d M Y')]) }}</div>
 
+@isset($issued)
+    @include('admin.documents._issued')
+@endisset
 </body>
 </html>

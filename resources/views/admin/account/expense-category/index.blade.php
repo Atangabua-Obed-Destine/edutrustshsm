@@ -43,7 +43,7 @@
                     </td>
                     <td class="px-6 py-3 text-right space-x-2 whitespace-nowrap">
                         <button type="button" onclick="editCat({{ $cat->id }}, @js($cat->title), {{ $cat->status ? 1 : 0 }})" class="text-blue-600 hover:text-blue-800 text-sm font-medium">{{ __('Edit') }}</button>
-                        <form method="POST" action="{{ route('admin.account.expense-category.destroy', $cat) }}" class="inline" onsubmit="return confirm('{{ __('Delete this category?') }}')">
+                        <form method="POST" action="{{ route('admin.account.expense-category.destroy', $cat) }}" class="inline" data-ask="{{ __('Delete this category?') }}">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">{{ __('Delete') }}</button>
                         </form>

@@ -110,5 +110,8 @@
     {{ __('This certificate is issued without alteration. Any erasure renders it void.') }}
 </div>
 
+@isset($issued)
+    @include('admin.documents._issued')
+@endisset
 </body>
 </html>

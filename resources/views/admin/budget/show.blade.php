@@ -28,7 +28,7 @@
                 @endif
                 @if($budget->status === 'draft')
                     @include('admin.budget._action', ['route' => 'submit', 'label' => __('Submit for Approval'), 'color' => 'amber'])
-                    <form method="POST" action="{{ route('admin.budget.destroy', $budget) }}" onsubmit="return confirm('{{ __('Delete this budget?') }}')">@csrf @method('DELETE')<button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Delete') }}</button></form>
+                    <form method="POST" action="{{ route('admin.budget.destroy', $budget) }}" data-ask="{{ __('Delete this budget?') }}">@csrf @method('DELETE')<button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm">{{ __('Delete') }}</button></form>
                 @elseif($budget->status === 'pending_approval')
                     @include('admin.budget._action', ['route' => 'approve', 'label' => __('Approve'), 'color' => 'green'])
                 @elseif($budget->status === 'approved')
@@ -153,7 +153,7 @@
                         <td class="px-3 py-2 text-sm" style="color: {{ $aColor }};">{{ $a->utilization_percentage }}%</td>
                         @unless($locked)
                         <td class="px-3 py-2 text-right">
-                            <form method="POST" action="{{ route('admin.budget.allocations.destroy', $a) }}" onsubmit="return confirm('{{ __('Remove this allocation?') }}')">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Remove') }}</button></form>
+                            <form method="POST" action="{{ route('admin.budget.allocations.destroy', $a) }}" data-ask="{{ __('Remove this allocation?') }}">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Remove') }}</button></form>
                         </td>
                         @endunless
                     </tr>

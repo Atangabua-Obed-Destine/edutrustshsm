@@ -25,7 +25,7 @@
             @endif
             @can('fixed-asset.delete')
             @if(! $asset->isDisposed() && ! $asset->schedules->contains('is_posted', true))
-            <form method="POST" action="{{ route('admin.fixed-assets.destroy', $asset) }}" onsubmit="return confirm('{{ __('Delete this asset? It has nothing in the ledger yet.') }}')">
+            <form method="POST" action="{{ route('admin.fixed-assets.destroy', $asset) }}" data-ask="{{ __('Delete this asset? It has nothing in the ledger yet.') }}">
                 @csrf @method('DELETE')
                 <button type="submit" class="border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm">{{ __('Delete') }}</button>
             </form>
@@ -129,7 +129,7 @@
             {{ __('Proceeds above book value are a gain, below it a loss. Unposted periods are voided.') }}
         </p>
         <form method="POST" action="{{ route('admin.fixed-assets.dispose', $asset) }}"
-              onsubmit="return confirm('{{ __('Dispose of this asset and post the entry?') }}')">
+              data-ask="{{ __('Dispose of this asset and post the entry?') }}">
             @csrf
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>

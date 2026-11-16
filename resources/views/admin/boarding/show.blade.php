@@ -43,7 +43,7 @@
                             <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1.5 rounded-lg">{{ __('Save') }}</button>
                         </form>
                         @if($room->allocations()->doesntExist())
-                        <form method="POST" action="{{ route('admin.boarding.rooms.destroy', $room) }}" onsubmit="return confirm(@js(__('Delete this room?')))">
+                        <form method="POST" action="{{ route('admin.boarding.rooms.destroy', $room) }}" data-ask="{{ __('Delete this room?') }}">
                             @csrf @method('DELETE')
                             <button class="border border-red-300 text-red-700 hover:bg-red-50 text-sm px-3 py-1.5 rounded-lg">{{ __('Delete') }}</button>
                         </form>
@@ -152,7 +152,7 @@
         </form>
     </div>
     @if($house->allocations()->doesntExist())
-    <form method="POST" action="{{ route('admin.boarding.houses.destroy', $house) }}" onsubmit="return confirm(@js(__('Delete this house and its rooms?')))">
+    <form method="POST" action="{{ route('admin.boarding.houses.destroy', $house) }}" data-ask="{{ __('Delete this house and its rooms?') }}">
         @csrf @method('DELETE')
         <button class="text-sm text-red-700 hover:underline">{{ __('Delete this house') }}</button>
     </form>

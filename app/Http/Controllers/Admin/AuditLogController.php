@@ -35,19 +35,57 @@ class AuditLogController extends Controller implements HasMiddleware
 
     public function index(Request $request)
     {
-        $logs = $this->filtered($request)
-            ->with('user:id,first_name,last_name,email')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate(50)
-            ->withQueryString();
+        $query = $this->filtered($request)->with('user:id,first_name,last_name,email');
+        $users = User::orderBy('first_name')->get(['id', 'first_name', 'last_name']);
+
+        $list = $this->logList($request)->filters([
+            __('User') => ($u = $users->firstWhere('id', (int) $request->input('user_id'))) ? $u->first_name.' '.$u->last_name : null,
+            __('Action') => $request->input('action') ? __(ucfirst(str_replace('_', ' ', (string) $request->input('action')))) : null,
+            __('Record') => $request->input('model'),
+            __('From') => $request->input('from'),
+            __('To') => $request->input('to'),
+            __('Search') => $request->input('search'),
+        ]);
+
+        // Taking the trail away is its own permission, as on the CSV route.
+        if (in_array($request->query('export'), \App\Support\Listing::FORMATS, true)) {
+            abort_unless($request->user()?->can('audit-log.export'), 403);
+        }
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
 
         return view('admin.audit-log.index', [
-            'logs' => $logs,
+            'logs' => $list->paginate($query),
             'actions' => $this->actionOptions(),
             'models' => $this->modelOptions(),
-            'users' => User::orderBy('first_name')->get(['id', 'first_name', 'last_name']),
+            'users' => $users,
+            'list' => $list,
         ]);
+    }
+
+    /** The audit trail's columns: what sorts, and what an export writes. */
+    private function logList(Request $request): \App\Support\Listing
+    {
+        $person = fn (string $column) => \Illuminate\Support\Facades\DB::table('users')->select($column)
+            ->whereColumn('users.id', 'audit_logs.user_id')->limit(1);
+
+        return new \App\Support\Listing($request, 'audit-log', __('Audit Log'), [
+            'when' => ['label' => __('When'), 'sort' => 'audit_logs.created_at',
+                'value' => fn ($l) => optional($l->created_at)->format('d/m/Y H:i')],
+            'user' => ['label' => __('User'),
+                'sort' => fn ($q, $dir) => $q->orderBy($person('first_name'), $dir)->orderBy($person('last_name'), $dir),
+                'value' => fn ($l) => $l->user?->full_name ?? __('System')],
+            'action' => ['label' => __('Action'), 'sort' => 'audit_logs.action',
+                'value' => fn ($l) => __(ucfirst(str_replace('_', ' ', (string) $l->action)))],
+            'record' => ['label' => __('Record'), 'sort' => 'audit_logs.model_type',
+                'value' => fn ($l) => class_basename($l->model_type ?? '') ?: null],
+            'record_id' => ['label' => __('ID'), 'value' => fn ($l) => $l->model_id],
+            'ip' => ['label' => __('IP'), 'sort' => 'audit_logs.ip_address', 'value' => fn ($l) => $l->ip_address],
+            'changes' => ['label' => __('Changes'),
+                'value' => fn ($l) => ($l->new_values ?? $l->old_values) ? json_encode($l->new_values ?? $l->old_values, JSON_UNESCAPED_UNICODE) : null],
+        ], default: 'when', defaultDir: 'desc', defaultPerPage: 50);
     }
 
     public function show(AuditLog $auditLog)

@@ -32,16 +32,43 @@ class ParentPaymentVerificationController extends Controller implements HasMiddl
     {
         $status = $request->query('status', 'pending');
 
-        $submissions = ParentPaymentSubmission::query()
-            ->when(in_array($status, ['pending', 'approved', 'rejected']), fn ($q) => $q->where('status', $status))
-            ->with(['guardian', 'enrollment.student', 'enrollment.classSection.form', 'studentFee.feeCategory', 'reviewedBy'])
-            ->orderByDesc('created_at')
-            ->paginate(20)
-            ->withQueryString();
+        $filtered = in_array($status, ['pending', 'approved', 'rejected']);
+        $query = ParentPaymentSubmission::query()
+            ->when($filtered, fn ($q) => $q->where('status', $status))
+            ->with(['guardian', 'enrollment.student', 'enrollment.classSection.form', 'studentFee.feeCategory', 'reviewedBy']);
+
+        $list = $this->submissionList($request)->filters([
+            __('Status') => $filtered ? __(ucfirst($status)) : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $submissions = $list->paginate($query);
 
         $pendingCount = ParentPaymentSubmission::where('status', 'pending')->count();
 
-        return view('admin.parent-payments.index', compact('submissions', 'status', 'pendingCount'));
+        return view('admin.parent-payments.index', compact('submissions', 'status', 'pendingCount', 'list'));
+    }
+
+    /** The submission list's columns: what sorts, and what an export writes. */
+    private function submissionList(Request $request): \App\Support\Listing
+    {
+        return new \App\Support\Listing($request, 'parent-payments', __('Payment Submissions'), [
+            // Newest first, as the list always opened.
+            'submitted' => ['label' => __('Submitted'), 'sort' => 'parent_payment_submissions.created_at',
+                'value' => fn ($s) => $s->created_at?->format('d/m/Y H:i')],
+            'parent' => ['label' => __('Parent'), 'value' => fn ($s) => $s->guardian?->display_name],
+            'child' => ['label' => __('Child'), 'value' => fn ($s) => $s->enrollment?->student?->full_name],
+            'class' => ['label' => __('Class'), 'value' => fn ($s) => $s->enrollment?->classSection?->name],
+            'fee' => ['label' => __('Fee'), 'value' => fn ($s) => $s->studentFee?->feeCategory?->name],
+            'method' => ['label' => __('Method'), 'sort' => 'parent_payment_submissions.payment_method',
+                'value' => fn ($s) => \App\Models\Payment::methodLabel($s->payment_method)],
+            'reference' => ['label' => __('Reference'), 'value' => fn ($s) => $s->transaction_ref],
+            'amount' => ['label' => __('Amount'), 'sort' => 'parent_payment_submissions.amount', 'money' => true, 'value' => fn ($s) => $s->amount],
+            'status' => ['label' => __('Status'), 'sort' => 'parent_payment_submissions.status', 'value' => fn ($s) => __(ucfirst((string) $s->status))],
+        ], default: 'submitted', defaultDir: 'desc');
     }
 
     public function show(ParentPaymentSubmission $submission)
@@ -63,7 +90,18 @@ class ParentPaymentVerificationController extends Controller implements HasMiddl
 
         $sameReference = $this->sameReference($submission);
 
-        return view('admin.parent-payments.show', compact('submission', 'fees', 'sameReference'));
+        // The bank or mobile-money account the transfer arrived in.
+        $paymentAccounts = \App\Models\PaymentAccount::active()->orderBy('title')->get(['id', 'title']);
+
+        // What approving it now would leave as credit: the reviewer says the
+        // family agrees before it is kept.
+        $creditIfApproved = $submission->isPending() && $submission->enrollment
+            ? app(\App\Services\PaymentRecorder::class)->plan(
+                $submission->student_enrollment_id, (float) $submission->amount, $submission->student_fee_id
+            )['credit']
+            : 0.0;
+
+        return view('admin.parent-payments.show', compact('submission', 'fees', 'sameReference', 'paymentAccounts', 'creditIfApproved'));
     }
 
     /** Approve a submission → record the official Payment + allocate it. */
@@ -72,6 +110,12 @@ class ParentPaymentVerificationController extends Controller implements HasMiddl
         if (! $submission->enrollment) {
             return back()->with('error', __('The related enrollment no longer exists.'));
         }
+
+        $accountId = $request->validate([
+            'payment_account_id' => PaymentRecorder::accountRules(),
+        ], [
+            'payment_account_id.required' => __('Choose the cash box or bank account the money was paid into.'),
+        ])['payment_account_id'] ?? null;
 
         // The same bank or mobile-money reference already paid for something:
         // most often one transfer sent in twice. The reviewer checks the
@@ -85,7 +129,8 @@ class ParentPaymentVerificationController extends Controller implements HasMiddl
         // updated outside it, so a failure there left an orphaned receipt on a
         // still-pending submission, and a double-click recorded it twice.
         try {
-            $payment = DB::transaction(function () use ($submission, $recorder) {
+            $acceptCredit = $request->boolean('accept_credit');
+            $payment = DB::transaction(function () use ($submission, $recorder, $accountId, $acceptCredit) {
                 $locked = ParentPaymentSubmission::whereKey($submission->getKey())
                     ->lockForUpdate()
                     ->firstOrFail();
@@ -108,6 +153,8 @@ class ParentPaymentVerificationController extends Controller implements HasMiddl
                     'proof_document'        => $locked->receipt_path,
                     'received_by'           => auth()->id(),
                     'notes'                 => __('Approved from parent portal submission #:id', ['id' => $locked->id]),
+                    'payment_account_id'    => $accountId,
+                    'accept_credit'         => $acceptCredit,
                 ]);
 
                 $locked->update([

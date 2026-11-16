@@ -49,7 +49,10 @@
         </div>
     </div>
 
-    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-4" data-list-region="recurring-entries">
+    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
         <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Search') }}</label>
             <input type="text" name="search" value="{{ request('search') }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
@@ -74,16 +77,18 @@
         <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">{{ __('Filter') }}</button>
     </form>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$templates" />
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Title') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Frequency') }}</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Amount') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Next Run') }}</th>
-                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{{ __('Runs') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Status') }}</th>
+                    <x-list.th :list="$list" key="title" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="frequency" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="amount" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="next_run" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="runs" class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="status" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
                     <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Action') }}</th>
                 </tr>
             </thead>
@@ -119,8 +124,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
     <div>{{ $templates->links() }}</div>
+    </div>
 
     @if($upcoming->isNotEmpty())
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">

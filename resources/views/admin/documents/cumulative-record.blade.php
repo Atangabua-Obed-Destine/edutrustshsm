@@ -110,5 +110,8 @@
     </tr>
 </table>
 
+@isset($issued)
+    @include('admin.documents._issued')
+@endisset
 </body>
 </html>

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
+use App\Models\AcademicSession;
+use App\Models\MarksEntryDeadline;
 use App\Models\Sequence;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -15,11 +17,53 @@ class SequenceController extends Controller implements HasMiddleware
 
     protected static string $access = 'exam-sequence';
 
+    /** @return array<int, Middleware> */
+    protected static function extraMiddleware(): array
+    {
+        return [static::can('results-control.deadline', ['deadline'])];
+    }
+
     public function index()
     {
         $sequences = Sequence::orderBy('sequence_number')->get();
 
-        return view('admin.sequences.index', compact('sequences'));
+        // This year's mark-entry deadlines, one per sequence.
+        $year = AcademicSession::current();
+        $deadlines = $year
+            ? MarksEntryDeadline::where('academic_session_id', $year->id)->get()->keyBy('sequence_id')
+            : collect();
+
+        return view('admin.sequences.index', compact('sequences', 'year', 'deadlines'));
+    }
+
+    /**
+     * Set, move or clear the day mark entry closes for this sequence in the
+     * current year. After it, teachers cannot enter or submit these marks.
+     */
+    public function deadline(Request $request, Sequence $sequence)
+    {
+        $validated = $request->validate(['closes_on' => ['nullable', 'date']]);
+        $year = AcademicSession::current();
+
+        if (! $year) {
+            return back()->with('error', __('There is no current school year to set a deadline in.'));
+        }
+
+        if (blank($validated['closes_on'] ?? null)) {
+            MarksEntryDeadline::where('academic_session_id', $year->id)->where('sequence_id', $sequence->id)->delete();
+
+            return back()->with('success', __('No deadline for :sequence: teachers can enter marks at any time.', ['sequence' => $sequence->name]));
+        }
+
+        MarksEntryDeadline::updateOrCreate(
+            ['academic_session_id' => $year->id, 'sequence_id' => $sequence->id],
+            ['closes_on' => $validated['closes_on'], 'set_by' => auth()->id()]
+        );
+
+        return back()->with('success', __('Mark entry for :sequence closes at the end of :date.', [
+            'sequence' => $sequence->name,
+            'date' => \Illuminate\Support\Carbon::parse($validated['closes_on'])->format('d/m/Y'),
+        ]));
     }
 
     public function create()

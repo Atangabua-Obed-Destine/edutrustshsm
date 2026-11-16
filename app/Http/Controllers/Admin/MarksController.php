@@ -9,6 +9,8 @@ use App\Models\ClassSection;
 use App\Models\Form;
 use App\Models\GradeScale;
 use App\Models\Mark;
+use App\Models\MarkCorrection;
+use App\Models\MarksEntryDeadline;
 use App\Models\MarksSubmission;
 use App\Models\Sequence;
 use App\Models\StudentEnrollment;
@@ -35,6 +37,7 @@ class MarksController extends Controller implements HasMiddleware
             static::can('marks-entry.view', ['index', 'subjectsByForm', 'termsByForm', 'sequencesByFormTerm', 'sectionsByForm']),
             static::can('marks-entry.enter', ['save', 'submit']),
             static::can('marks-entry.edit', ['approve', 'returnMarks']),
+            static::can('results-control.correct', ['correct']),
         ];
     }
 
@@ -197,7 +200,14 @@ class MarksController extends Controller implements HasMiddleware
             : collect();
         $showDone = $request->boolean('show_done');
 
-        return view('admin.marks.index', compact('maxMark', 'passMark',
+        // When entry closes for this sequence this year, and what was
+        // corrected on this sheet after approval.
+        $deadline = $sequenceId && $sessionId ? MarksEntryDeadline::for((int) $sessionId, (int) $sequenceId) : null;
+        $corrections = $submission
+            ? MarkCorrection::where('marks_submission_id', $submission->id)->with(['mark.enrollment.student', 'correctedBy'])->latest('id')->get()
+            : collect();
+
+        return view('admin.marks.index', compact('maxMark', 'passMark', 'deadline', 'corrections',
             'sessions', 'forms', 'sessionId', 'educationSystem', 'formId',
             'classSectionId', 'subjectId', 'termId', 'sequenceId',
             'classSections', 'subjects', 'terms', 'sequences',
@@ -320,6 +330,10 @@ class MarksController extends Controller implements HasMiddleware
             ));
         }
 
+        if ($closed = $this->entryClosed((int) $validated['sequence_id'])) {
+            return back()->with('error', $closed);
+        }
+
         $gradeScales = GradeScale::orderByDesc('min_mark')->get();
 
         DB::transaction(function () use ($validated, $gradeScales) {
@@ -404,6 +418,10 @@ class MarksController extends Controller implements HasMiddleware
     {
         abort_unless(app(\App\Services\TeachingScope::class)->canMark(auth()->user(), (int) $submission->class_section_id, (int) $submission->subject_id), 403);
 
+        if ($closed = $this->entryClosed((int) $submission->sequence_id, $submission->academic_session_id)) {
+            return back()->with('error', $closed);
+        }
+
         try {
             $workflow->apply($submission, 'submitted');
         } catch (RuntimeException $e) {
@@ -441,5 +459,60 @@ class MarksController extends Controller implements HasMiddleware
         }
 
         return back()->with('success', __('Marks returned to teacher.'));
+    }
+
+    /**
+     * Correct one mark on an approved or published sheet, with the reason.
+     * The sheet stays where it is; the change is recorded and the report
+     * cards are recalculated (see MarkCorrectionService).
+     */
+    public function correct(Request $request, MarksSubmission $submission, \App\Services\MarkCorrectionService $corrections)
+    {
+        $validated = $request->validate([
+            'enrollment_id' => ['required', 'integer'],
+            'score' => ['nullable', 'numeric'],
+            'is_absent' => ['nullable', 'boolean'],
+            'reason' => ['required', 'string', 'max:500'],
+        ], ['reason.required' => __('Say why the mark is being corrected.')]);
+
+        try {
+            $correction = $corrections->correct(
+                $submission,
+                (int) $validated['enrollment_id'],
+                isset($validated['score']) ? (float) $validated['score'] : null,
+                (bool) ($validated['is_absent'] ?? false),
+                $validated['reason']
+            );
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $change = [
+            'old' => MarkCorrection::describe($correction->old_score, $correction->old_absent),
+            'new' => MarkCorrection::describe($correction->new_score, $correction->new_absent),
+        ];
+
+        return back()->with('success', $corrections->recalculatedTerms > 0
+            ? __('Mark corrected: :old → :new. The report cards have been recalculated.', $change)
+            : __('Mark corrected: :old → :new.', $change));
+    }
+
+    /**
+     * Why marks for this sequence can no longer be entered, or null while
+     * they can. Past the deadline, only someone who holds the deadline
+     * permission (the principal, the deputy) still enters or submits.
+     */
+    private function entryClosed(int $sequenceId, ?int $sessionId = null): ?string
+    {
+        $deadline = MarksEntryDeadline::for($sessionId ?? AcademicSession::current()?->id, $sequenceId);
+
+        if (! $deadline || ! $deadline->isClosed() || auth()->user()->can('results-control.deadline')) {
+            return null;
+        }
+
+        return __('Mark entry for :sequence closed on :date. Ask the principal or deputy to enter these marks or to move the deadline.', [
+            'sequence' => $deadline->sequence?->name ?? '',
+            'date' => $deadline->closes_on->format('d/m/Y'),
+        ]);
     }
 }

@@ -90,6 +90,73 @@ class AdmissionApplication extends Model
         ];
     }
 
+    /** The steps before the decision, in the order they are taken. */
+    public const STEPS = ['received', 'documents', 'assessment'];
+
+    /** @return array<string, string> step => label */
+    public static function stepLabels(): array
+    {
+        return [
+            'received' => __('Application received'),
+            'documents' => __('Documents checked'),
+            'assessment' => __('Entrance test or interview'),
+        ];
+    }
+
+    /** Every step ever recorded, oldest first: the whole history. */
+    public function admissionSteps()
+    {
+        return $this->hasMany(AdmissionStep::class)->orderBy('id');
+    }
+
+    /**
+     * The sign-off that still counts for each step, or null.
+     *
+     * Read through the history in order: done or waived sets a step; sent
+     * back clears that step and every one after it, but not the ones before
+     * (sending documents back does not unsay that the application arrived).
+     *
+     * @return array<string, ?AdmissionStep>
+     */
+    public function stepStanding(): array
+    {
+        $standing = array_fill_keys(self::STEPS, null);
+
+        foreach ($this->admissionSteps as $row) {
+            $index = array_search($row->step, self::STEPS, true);
+            if ($index === false) {
+                continue;
+            }
+
+            if ($row->outcome === AdmissionStep::RETURNED) {
+                foreach (array_slice(self::STEPS, $index) as $later) {
+                    $standing[$later] = null;
+                }
+            } else {
+                $standing[$row->step] = $row;
+            }
+        }
+
+        return $standing;
+    }
+
+    /** The first step not yet signed off, or null when all are. */
+    public function nextStep(): ?string
+    {
+        foreach ($this->stepStanding() as $step => $row) {
+            if (! $row) {
+                return $step;
+            }
+        }
+
+        return null;
+    }
+
+    public function stepsComplete(): bool
+    {
+        return $this->nextStep() === null;
+    }
+
     public function applicant() { return $this->belongsTo(Applicant::class); }
     public function academicSession() { return $this->belongsTo(AcademicSession::class); }
     public function form() { return $this->belongsTo(Form::class); }

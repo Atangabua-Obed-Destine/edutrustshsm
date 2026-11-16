@@ -264,6 +264,47 @@ class MarksWorkflowTest extends TestCase
         $this->assertEquals(11, (float) Mark::firstOrFail()->score);
     }
 
+    public function test_a_returned_sheet_offers_resubmit_and_goes_back_for_approval(): void
+    {
+        // The service always allowed returned → submitted, but the screen only
+        // showed the button for drafts, so a corrected sheet was stuck.
+        $session = AcademicSession::current();
+        $submission = MarksSubmission::create([
+            'branch_id' => $this->branch->id,
+            'academic_session_id' => $session->id,
+            'class_section_id' => $this->section->id,
+            'subject_id' => $this->subject->id,
+            'sequence_id' => $this->sequence->id,
+            'teacher_id' => $this->admin->id,
+            'status' => 'returned',
+            'admin_comment' => 'Two scores are missing',
+            'marks_entered' => 1, 'total_students' => 1,
+        ]);
+
+        $this->get(route('admin.marks.index', [
+            'academic_session_id' => $session->id,
+            'form_id' => $this->section->form_id,
+            'class_section_id' => $this->section->id,
+            'subject_id' => $this->subject->id,
+            'term_id' => $this->term->id,
+            'sequence_id' => $this->sequence->id,
+        ]))->assertOk()
+            ->assertSee(route('admin.marks.submit', $submission))
+            ->assertSee('Resubmit for Approval');
+
+        $this->post(route('admin.marks.save'), [
+            'class_section_id' => $this->section->id,
+            'subject_id' => $this->subject->id,
+            'sequence_id' => $this->sequence->id,
+            'marks' => [['enrollment_id' => $this->enrollment->id, 'score' => 12]],
+        ])->assertSessionHas('success');
+
+        $this->post(route('admin.marks.submit', $submission))->assertSessionHas('success');
+
+        $this->assertSame('submitted', $submission->fresh()->status);
+        $this->assertSame('submitted', Mark::firstOrFail()->status);
+    }
+
     public function test_a_bulk_transition_skips_and_names_what_it_cannot_move(): void
     {
         $ready = $this->submission('submitted');

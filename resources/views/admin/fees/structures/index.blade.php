@@ -167,7 +167,7 @@
                                     <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     {{ __('Edit') }}
                                 </a>
-                                <form method="POST" action="{{ route('admin.fee-structures.destroy', $item) }}" style="display: inline;" onsubmit="return confirm('{{ __('Delete this fee entry?') }}')">
+                                <form method="POST" action="{{ route('admin.fee-structures.destroy', $item) }}" style="display: inline;" data-ask="{{ __('Delete this fee entry?') }}">
                                     @csrf @method('DELETE')
                                     <button type="submit"
                                             style="display: inline-flex; align-items: center; gap: 3px; padding: 4px 10px; font-size: 0.75rem; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; transition: all .15s;"

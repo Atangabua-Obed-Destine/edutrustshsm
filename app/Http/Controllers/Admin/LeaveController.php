@@ -42,14 +42,27 @@ class LeaveController extends Controller implements HasMiddleware
     {
         $year = (int) $request->input('year', now()->year);
 
-        $leaves = Leave::with(['user:id,first_name,last_name,staff_id', 'leaveType:id,title,annual_limit', 'reviewedBy:id,first_name,last_name'])
+        $query = Leave::with(['user:id,first_name,last_name,staff_id', 'leaveType:id,title,annual_limit', 'reviewedBy:id,first_name,last_name'])
             ->when($request->input('user_id'), fn ($q, $v) => $q->where('user_id', $v))
             ->when($request->input('leave_type_id'), fn ($q, $v) => $q->where('leave_type_id', $v))
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
-            ->forYear($year)
-            ->orderByDesc('from_date')
-            ->paginate(25)
-            ->withQueryString();
+            ->forYear($year);
+
+        $types = LeaveType::active()->orderBy('title')->get();
+        $staff = User::staff()->orderBy('first_name')->get(['id', 'first_name', 'last_name']);
+
+        $list = $this->leaveList($request, $year)->filters([
+            __('Year') => $year,
+            __('Staff') => ($person = $staff->firstWhere('id', (int) $request->input('user_id'))) ? $person->first_name.' '.$person->last_name : null,
+            __('Type') => $types->firstWhere('id', (int) $request->input('leave_type_id'))?->title,
+            __('Status') => $request->input('status') ? __(ucfirst((string) $request->input('status'))) : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $leaves = $list->paginate($query);
 
         // Remaining allowance per row, so the reviewer sees the consequence of
         // approving without opening each record.
@@ -62,11 +75,41 @@ class LeaveController extends Controller implements HasMiddleware
 
         return view('admin.hr.leave.index', [
             'leaves' => $leaves,
-            'types' => LeaveType::active()->orderBy('title')->get(),
-            'staff' => User::staff()->orderBy('first_name')->get(['id', 'first_name', 'last_name']),
+            'types' => $types,
+            'staff' => $staff,
             'year' => $year,
             'pendingCount' => Leave::pending()->forYear($year)->count(),
+            'list' => $list,
         ]);
+    }
+
+    /** The leave list's columns: what sorts, and what an export writes. */
+    private function leaveList(Request $request, int $year): \App\Support\Listing
+    {
+        $person = fn (string $column) => DB::table('users')->select($column)->whereColumn('users.id', 'leaves.user_id')->limit(1);
+        $type = fn () => DB::table('leave_types')->select('title')->whereColumn('leave_types.id', 'leaves.leave_type_id')->limit(1);
+
+        return new \App\Support\Listing($request, 'leaves', __('Staff Leave'), [
+            'staff' => ['label' => __('Staff'),
+                'sort' => fn ($q, $dir) => $q->orderBy($person('first_name'), $dir)->orderBy($person('last_name'), $dir),
+                'value' => fn ($l) => trim(($l->user?->first_name ?? '').' '.($l->user?->last_name ?? ''))],
+            'staff_id' => ['label' => __('Staff ID'), 'value' => fn ($l) => $l->user?->staff_id],
+            'type' => ['label' => __('Type'), 'sort' => fn ($q, $dir) => $q->orderBy($type(), $dir), 'value' => fn ($l) => $l->leaveType?->title],
+            'from' => ['label' => __('From'), 'sort' => 'leaves.from_date', 'value' => fn ($l) => $l->from_date],
+            'to' => ['label' => __('To'), 'value' => fn ($l) => $l->to_date],
+            'days' => ['label' => __('Days'), 'value' => fn ($l) => $l->daysCount()],
+            'used' => ['label' => __('Used / Allowance'), 'value' => function ($l) use ($year) {
+                $allowance = $l->leaveType?->annual_limit;
+
+                return $allowance
+                    ? Leave::usedDaysForType($l->user_id, $l->leave_type_id, $year).' / '.$allowance
+                    : __('Unlimited');
+            }],
+            'pay' => ['label' => __('Pay'), 'sort' => 'leaves.pay_type', 'value' => fn ($l) => __(ucfirst((string) $l->pay_type))],
+            'status' => ['label' => __('Status'), 'sort' => 'leaves.status', 'value' => fn ($l) => __(ucfirst((string) $l->status))],
+            'reviewer' => ['label' => __('Reviewed by'),
+                'value' => fn ($l) => $l->reviewedBy ? $l->reviewedBy->first_name.' '.$l->reviewedBy->last_name : null],
+        ], default: 'from', defaultDir: 'desc');
     }
 
     public function store(Request $request)

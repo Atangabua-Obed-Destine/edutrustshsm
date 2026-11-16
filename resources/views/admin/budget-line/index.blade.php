@@ -64,7 +64,7 @@
                         @if($canEdit && $rows->isNotEmpty())
                             <div class="flex items-center gap-3 text-xs">
                                 <span class="text-gray-400 hidden sm:inline" data-order-status>{{ __('Drag a row by its grip to reorder; drop it under a heading to file it there.') }}</span>
-                                <form method="POST" action="{{ route('admin.budget-line.auto-sort') }}" onsubmit="return confirm('{{ __('Renumber this whole section from the codes? Your headings stay as they are.') }}')">
+                                <form method="POST" action="{{ route('admin.budget-line.auto-sort') }}" data-ask="{{ __('Renumber this whole section from the codes? Your headings stay as they are.') }}">
                                     @csrf
                                     <input type="hidden" name="section" value="{{ $section }}">
                                     <button type="submit" class="text-gray-500 hover:text-gray-800">{{ __('Renumber from codes') }}</button>
@@ -119,7 +119,7 @@
                                                 <button type="submit" class="text-gray-500 hover:text-gray-800">{{ $line->status ? __('Retire') : __('Restore') }}</button>
                                             </form>
                                             @if($refs === [])
-                                                <form method="POST" action="{{ route('admin.budget-line.destroy', $line) }}" onsubmit="return confirm('{{ __('Delete :code from the sheet?', ['code' => $line->code]) }}')">
+                                                <form method="POST" action="{{ route('admin.budget-line.destroy', $line) }}" data-ask="{{ __('Delete :code from the sheet?', ['code' => $line->code]) }}">
                                                     @csrf @method('DELETE')
                                                     <button type="submit" class="text-red-500 hover:text-red-700">{{ __('Delete') }}</button>
                                                 </form>

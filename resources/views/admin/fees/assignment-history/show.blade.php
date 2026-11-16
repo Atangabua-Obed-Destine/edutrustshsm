@@ -150,7 +150,7 @@
 
         @can('assignment-history.delete')
         <form method="POST" action="{{ route('admin.assignment-history.destroy', $fee) }}" class="bg-white rounded-xl border border-red-200 p-5 space-y-3"
-              onsubmit="return confirm(@js(__('Remove this fee from the pupil? It disappears from every statement.')))">
+              data-ask="{{ __('Remove this fee from the pupil? It disappears from every statement.') }}">
             @csrf @method('DELETE')
             <h3 class="font-semibold text-red-700">{{ __('Remove this fee') }}</h3>
             <p class="text-xs text-gray-500">{{ __('Only for a fee billed by mistake. A fee with money on it cannot be removed.') }}</p>

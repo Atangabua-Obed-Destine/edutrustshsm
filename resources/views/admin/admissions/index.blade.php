@@ -36,9 +36,12 @@
         @endforeach
     </div>
 
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div data-list-region="applications">
     {{-- Filters --}}
     <div style="background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 18px 20px; margin-bottom: 20px;">
-        <form method="GET" action="{{ route('admin.admissions.applications.index') }}" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+        <form method="GET" action="{{ route('admin.admissions.applications.index') }}" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;" data-auto-submit>
+            @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
             <div style="flex: 1; min-width: 160px;">
                 <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Session') }}</label>
                 <select name="academic_session_id" style="width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; outline: none;">
@@ -95,6 +98,7 @@
 
     {{-- Applications Table --}}
     <div style="background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden;">
+        <x-list.toolbar :list="$list" :rows="$applications" />
         @if($applications->count() === 0)
         <div style="padding: 48px 24px; text-align: center;">
             <svg width="42" height="42" style="color: #cbd5e1; margin: 0 auto 12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -105,13 +109,13 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Application #') }}</th>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Applicant') }}</th>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Session') }}</th>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Class') }}</th>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Stream') }}</th>
-                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Status') }}</th>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Date') }}</th>
+                        <x-list.th :list="$list" key="number" style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;" />
+                        <x-list.th :list="$list" key="name" style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;" />
+                        <x-list.th :list="$list" key="session" style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;" />
+                        <x-list.th :list="$list" key="class" style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;" />
+                        <x-list.th :list="$list" key="stream" style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;" />
+                        <x-list.th :list="$list" key="status" style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;" />
+                        <x-list.th :list="$list" key="date" style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;" />
                         <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('Action') }}</th>
                     </tr>
                 </thead>
@@ -167,6 +171,7 @@
         </div>
         @endif
         @endif
+    </div>
     </div>
 </div>
 @endsection

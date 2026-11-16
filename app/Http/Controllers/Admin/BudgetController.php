@@ -41,11 +41,41 @@ class BudgetController extends Controller implements HasMiddleware
             ->when($request->fiscal_year, fn ($q, $v) => $q->where('fiscal_year', $v))
             ->when($request->department_id, fn ($q, $v) => $q->where('department_id', $v));
 
-        $budgets = $query->orderByDesc('id')->paginate(25)->withQueryString();
         $departments = Department::orderBy('name')->get();
         $fiscalYears = Budget::select('fiscal_year')->distinct()->orderByDesc('fiscal_year')->pluck('fiscal_year');
 
-        return view('admin.budget.index', compact('budgets', 'departments', 'fiscalYears'));
+        $label = fn (?string $value) => __(ucfirst(str_replace('_', ' ', (string) $value)));
+        $list = new \App\Support\Listing($request, 'budgets', __('Budgets'), [
+            'id' => ['label' => __('ID'), 'sort' => 'budgets.id', 'value' => fn ($b) => $b->id],
+            'budget_code' => ['label' => __('Budget Code'), 'sort' => 'budgets.budget_code', 'value' => fn ($b) => $b->budget_code],
+            'title' => ['label' => __('Title'), 'sort' => 'budgets.title', 'value' => fn ($b) => $b->title],
+            'type' => ['label' => __('Type'), 'sort' => 'budgets.type', 'value' => fn ($b) => $label($b->type)],
+            'fiscal_year' => ['label' => __('Fiscal Year'), 'sort' => 'budgets.fiscal_year', 'value' => fn ($b) => $b->fiscal_year],
+            'department' => ['label' => __('Department'),
+                'sort' => fn ($q, $dir) => $q->orderBy(Department::select('name')->whereColumn('departments.id', 'budgets.department_id')->limit(1), $dir),
+                'value' => fn ($b) => $b->department?->name],
+            'total_amount' => ['label' => __('Total Amount'), 'sort' => 'budgets.total_amount', 'money' => true, 'value' => fn ($b) => $b->total_amount],
+            // Spent as a share of the total, the same figure the bar shows ($dir is only ever asc or desc).
+            'utilization' => ['label' => __('Utilization'),
+                'sort' => fn ($q, $dir) => $q->orderByRaw('CASE WHEN budgets.total_amount > 0 THEN budgets.spent_amount / budgets.total_amount ELSE 0 END '.$dir),
+                'value' => fn ($b) => $b->utilization_percentage],
+            'status' => ['label' => __('Status'), 'sort' => 'budgets.status', 'value' => fn ($b) => $label($b->status)],
+        ], default: 'id', defaultDir: 'desc');
+
+        $list->filters([
+            __('Type') => $request->type ? $label($request->type) : null,
+            __('Status') => $request->status ? $label($request->status) : null,
+            __('Fiscal Year') => $request->fiscal_year,
+            __('Department') => $request->department_id ? $departments->firstWhere('id', (int) $request->department_id)?->name : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $budgets = $list->paginate($query);
+
+        return view('admin.budget.index', compact('budgets', 'departments', 'fiscalYears', 'list'));
     }
 
     public function create()

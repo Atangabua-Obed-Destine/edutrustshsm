@@ -55,9 +55,54 @@ class PaymentPlanController extends Controller implements HasMiddleware
             });
         }
 
-        $plans = $query->latest()->paginate(20)->withQueryString();
+        $list = $this->planList($request)->filters([
+            __('Status') => $request->filled('status') ? __(ucfirst((string) $request->status)) : null,
+            __('Search') => $request->filled('search') ? $request->search : null,
+        ]);
 
-        return view('admin.fees.payment-plans.index', compact('plans'));
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $plans = $list->paginate($query);
+
+        return view('admin.fees.payment-plans.index', compact('plans', 'list'));
+    }
+
+    /** The payment plan list's columns: what sorts, and what an export writes. */
+    private function planList(Request $request): \App\Support\Listing
+    {
+        // The pupil's name, and what has been paid, as values the list can sort on.
+        $student = fn (string $column) => StudentFee::query()
+            ->join('student_enrollments', 'student_enrollments.id', '=', 'student_fees.student_enrollment_id')
+            ->join('students', 'students.id', '=', 'student_enrollments.student_id')
+            ->whereColumn('student_fees.id', 'payment_plans.student_fee_id')
+            ->select('students.'.$column)
+            ->limit(1);
+        $paid = fn () => PaymentPlanInstallment::query()
+            ->whereColumn('payment_plan_installments.payment_plan_id', 'payment_plans.id')
+            ->selectRaw('COALESCE(SUM(payment_plan_installments.paid_amount), 0)');
+        $remaining = function ($q, $dir) use ($paid) {
+            $sub = $paid()->toBase();
+            $q->orderByRaw('payment_plans.total_amount - ('.$sub->toSql().') '.($dir === 'desc' ? 'desc' : 'asc'), $sub->getBindings());
+        };
+
+        return new \App\Support\Listing($request, 'payment-plans', __('Payment Plans'), [
+            'student' => ['label' => __('Student'), 'sort' => fn ($q, $dir) => $q->orderBy($student('last_name'), $dir)->orderBy($student('first_name'), $dir),
+                'value' => fn ($p) => $p->studentFee?->enrollment?->student?->full_name],
+            'student_id' => ['label' => __('Student ID'), 'value' => fn ($p) => $p->studentFee?->enrollment?->student?->student_id],
+            'fee' => ['label' => __('Fee'), 'value' => fn ($p) => $p->studentFee?->feeCategory?->name],
+            'session' => ['label' => __('Session'), 'value' => fn ($p) => $p->studentFee?->enrollment?->academicSession?->name],
+            'total' => ['label' => __('Total Amount'), 'sort' => 'payment_plans.total_amount', 'money' => true, 'value' => fn ($p) => $p->total_amount],
+            'installments' => ['label' => __('Installments'), 'sort' => 'payment_plans.number_of_installments',
+                'value' => fn ($p) => $p->installments->where('status', 'paid')->count().'/'.$p->number_of_installments],
+            'paid' => ['label' => __('Paid'), 'sort' => fn ($q, $dir) => $q->orderBy($paid(), $dir), 'money' => true, 'value' => fn ($p) => $p->paid_amount],
+            'remaining' => ['label' => __('Remaining'), 'sort' => $remaining,'money' => true, 'value' => fn ($p) => $p->remaining_amount],
+            'progress' => ['label' => __('Progress'), 'value' => fn ($p) => $p->progress.'%'],
+            'status' => ['label' => __('Status'), 'sort' => 'payment_plans.status', 'value' => fn ($p) => __(ucfirst((string) $p->status))],
+            // Newest first, as the list always opened.
+            'created' => ['label' => __('Created'), 'sort' => 'payment_plans.created_at', 'value' => fn ($p) => $p->created_at],
+        ], default: 'created', defaultDir: 'desc');
     }
 
     public function create()
@@ -192,6 +237,9 @@ class PaymentPlanController extends Controller implements HasMiddleware
             'payer_name' => ['nullable', 'string', 'max:150'],
             'payer_phone' => ['nullable', 'string', 'max:20'],
             'transaction_ref' => ['nullable', 'string', 'max:100'],
+            'payment_account_id' => PaymentRecorder::accountRules(),
+        ], [
+            'payment_account_id.required' => __('Choose the cash box or bank account the money was paid into.'),
         ]);
 
         if ($paymentPlan->status !== 'active') {
@@ -223,6 +271,8 @@ class PaymentPlanController extends Controller implements HasMiddleware
             'payer_name'            => $validated['payer_name'] ?? null,
             'payer_phone'           => $validated['payer_phone'] ?? null,
             'transaction_ref'       => $validated['transaction_ref'] ?? null,
+            'payment_account_id'    => $validated['payment_account_id'] ?? null,
+            'accept_credit'         => $request->boolean('accept_credit'),
             'notes'                 => __('Instalment :n of plan :code', [
                 'n' => $installment->installment_number,
                 'code' => $paymentPlan->id,

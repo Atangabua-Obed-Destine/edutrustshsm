@@ -45,7 +45,7 @@
                 @endcan
                 @can('student-exit.readmit')
                     <form method="POST" action="{{ route('admin.students.readmit', $student) }}" class="inline"
-                          onsubmit="return confirm('{{ __('Bring this pupil back onto the roll?') }}')">
+                          data-ask="{{ __('Bring this pupil back onto the roll?') }}">
                         @csrf
                         <button class="bg-white border border-amber-300 hover:bg-amber-50 text-amber-700 px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Re-admit') }}</button>
                     </form>

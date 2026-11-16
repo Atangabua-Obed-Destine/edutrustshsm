@@ -40,16 +40,20 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    {{-- Sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-6" data-list-region="student-credits">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$credits" />
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-6 py-3 text-left">{{ __('Student') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Class') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Source') }}</th>
-                    <th class="px-6 py-3 text-right">{{ __('Amount') }}</th>
-                    <th class="px-6 py-3 text-right">{{ __('Used') }}</th>
-                    <th class="px-6 py-3 text-right">{{ __('Available') }} ({{ $currency }})</th>
+                    <x-list.th :list="$list" key="student" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="class" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="source" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="amount" class="px-6 py-3 text-right" />
+                    <x-list.th :list="$list" key="used" class="px-6 py-3 text-right" />
+                    <x-list.th :list="$list" key="available" class="px-6 py-3 text-right">{{ __('Available') }} ({{ $currency }})</x-list.th>
                     <th class="px-6 py-3"></th>
                 </tr>
             </thead>
@@ -82,7 +86,7 @@
                         @if((float) $credit->balance > 0)
                         @can('student-credit.apply')
                         <form method="POST" action="{{ route('admin.student-credits.apply') }}" class="inline"
-                              onsubmit="return confirm('{{ __('Apply this credit to the student\'s outstanding fees?') }}')">
+                              data-ask="{{ __('Apply this credit to the student\'s outstanding fees?') }}">
                             @csrf
                             <input type="hidden" name="student_enrollment_id" value="{{ $credit->student_enrollment_id }}">
                             <button type="submit" class="text-blue-600 hover:underline">{{ __('Apply to fees') }}</button>
@@ -100,8 +104,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     {{ $credits->links() }}
+    </div>
 </div>
 @endsection

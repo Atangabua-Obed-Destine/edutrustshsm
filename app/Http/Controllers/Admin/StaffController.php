@@ -31,14 +31,51 @@ class StaffController extends Controller implements HasMiddleware
             ->when($request->contract_type, fn ($q, $v) => $q->where('contract_type', $v))
             ->when($request->work_shift_id, fn ($q, $v) => $q->where('work_shift_id', $v));
 
-        $staff = $query->orderBy('staff_id')->paginate(25)->withQueryString();
+        $departments = Department::orderBy('name')->get();
+        $designations = Designation::orderBy('title')->get();
+        $workShifts = WorkShiftType::orderBy('title')->get();
+
+        $list = $this->staffList($request)->filters([
+            __('Department') => $request->department_id ? $departments->firstWhere('id', (int) $request->department_id)?->name : null,
+            __('Designation') => $request->designation_id ? $designations->firstWhere('id', (int) $request->designation_id)?->title : null,
+            __('Role') => $request->role ? __(ucfirst((string) $request->role)) : null,
+            __('Contract Type') => $request->contract_type,
+            __('Work Shift') => $request->work_shift_id ? $workShifts->firstWhere('id', (int) $request->work_shift_id)?->title : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $staff = $list->paginate($query);
 
         return view('admin.hr.staff.index', [
             'staff' => $staff,
-            'departments' => Department::orderBy('name')->get(),
-            'designations' => Designation::orderBy('title')->get(),
-            'workShifts' => WorkShiftType::orderBy('title')->get(),
+            'departments' => $departments,
+            'designations' => $designations,
+            'workShifts' => $workShifts,
+            'list' => $list,
         ]);
+    }
+
+    /** The staff list's columns: what sorts, and what an export writes. */
+    private function staffList(Request $request): \App\Support\Listing
+    {
+        $department = fn () => DB::table('departments')->select('name')->whereColumn('departments.id', 'users.department_id')->limit(1);
+        $designation = fn () => DB::table('designations')->select('title')->whereColumn('designations.id', 'users.designation_id')->limit(1);
+
+        return new \App\Support\Listing($request, 'staff', __('Staff List'), [
+            'staff_id' => ['label' => __('Staff ID'), 'sort' => 'users.staff_id', 'value' => fn ($s) => $s->staff_id],
+            'name' => ['label' => __('Name'), 'sort' => ['users.last_name', 'users.first_name'], 'value' => fn ($s) => $s->full_name],
+            'department' => ['label' => __('Department'), 'sort' => fn ($q, $dir) => $q->orderBy($department(), $dir),
+                'value' => fn ($s) => $s->department?->name],
+            'designation' => ['label' => __('Designation'), 'sort' => fn ($q, $dir) => $q->orderBy($designation(), $dir),
+                'value' => fn ($s) => $s->designation?->title],
+            'salary_type' => ['label' => __('Salary Type'), 'sort' => 'users.salary_type',
+                'value' => fn ($s) => $s->salary_type == 1 ? __('Fixed') : __('Hourly')],
+            'basic_salary' => ['label' => __('Basic Salary'), 'sort' => 'users.basic_salary', 'money' => true, 'value' => fn ($s) => $s->basic_salary],
+            'status' => ['label' => __('Status'), 'sort' => 'users.is_active', 'value' => fn ($s) => $s->is_active ? __('Active') : __('Inactive')],
+        ], default: 'staff_id');
     }
 
     public function create()

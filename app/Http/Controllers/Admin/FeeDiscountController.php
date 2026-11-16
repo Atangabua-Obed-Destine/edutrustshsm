@@ -33,7 +33,15 @@ class FeeDiscountController extends Controller implements HasMiddleware
             $query->where('reason', $reason);
         }
 
-        $discounts = $query->orderByDesc('created_at')->paginate(25)->withQueryString();
+        $list = $this->discountList($request)->filters([
+            __('Reason') => $reason ? __(self::REASONS[$reason] ?? ucfirst(str_replace('_', ' ', $reason))) : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $discounts = $list->paginate($query);
 
         $stats = [
             'total' => FeeDiscount::when($currentSession, fn ($q) => $q->whereHas('enrollment', fn ($sq) => $sq->where('academic_session_id', $currentSession->id)))->count(),
@@ -42,7 +50,47 @@ class FeeDiscountController extends Controller implements HasMiddleware
             'hardship' => FeeDiscount::where('reason', 'financial_hardship')->when($currentSession, fn ($q) => $q->whereHas('enrollment', fn ($sq) => $sq->where('academic_session_id', $currentSession->id)))->count(),
         ];
 
-        return view('admin.fees.discounts.index', compact('discounts', 'stats'));
+        return view('admin.fees.discounts.index', compact('discounts', 'stats', 'list'));
+    }
+
+    /** What each reason is called, as the filter on the list names it. */
+    private const REASONS = [
+        'scholarship' => 'Scholarship', 'staff_child' => 'Staff Child', 'sibling' => 'Sibling',
+        'financial_hardship' => 'Financial Hardship', 'merit' => 'Merit', 'other' => 'Other',
+    ];
+
+    /** The discount list's columns: what sorts, and what an export writes. */
+    private function discountList(Request $request): \App\Support\Listing
+    {
+        // The pupil's name and class, as values the list can sort on.
+        $student = fn (string $column) => StudentEnrollment::query()
+            ->join('students', 'students.id', '=', 'student_enrollments.student_id')
+            ->whereColumn('student_enrollments.id', 'fee_discounts.student_enrollment_id')
+            ->select('students.'.$column)
+            ->limit(1);
+        $class = fn () => StudentEnrollment::query()
+            ->join('class_sections', 'class_sections.id', '=', 'student_enrollments.class_section_id')
+            ->whereColumn('student_enrollments.id', 'fee_discounts.student_enrollment_id')
+            ->select('class_sections.name')
+            ->limit(1);
+
+        return new \App\Support\Listing($request, 'fee-discounts', __('Discounts & Waivers'), [
+            'student' => ['label' => __('Student'), 'sort' => fn ($q, $dir) => $q->orderBy($student('last_name'), $dir)->orderBy($student('first_name'), $dir),
+                'value' => fn ($d) => $d->enrollment?->student?->full_name],
+            'student_id' => ['label' => __('Student ID'), 'value' => fn ($d) => $d->enrollment?->student?->student_id],
+            'class' => ['label' => __('Class'), 'sort' => fn ($q, $dir) => $q->orderBy($class(), $dir),
+                'value' => fn ($d) => $d->enrollment?->classSection?->name],
+            'reason' => ['label' => __('Reason'), 'sort' => 'fee_discounts.reason',
+                'value' => fn ($d) => __(self::REASONS[$d->reason] ?? ucfirst(str_replace('_', ' ', (string) $d->reason)))],
+            'type' => ['label' => __('Type'), 'sort' => 'fee_discounts.discount_type', 'value' => fn ($d) => __(ucfirst((string) $d->discount_type))],
+            // A percentage or an amount, as the Type column says: a plain number either way.
+            'value' => ['label' => __('Value'), 'sort' => 'fee_discounts.value', 'value' => fn ($d) => (float) $d->value],
+            'applies_to' => ['label' => __('Applies To'),
+                'value' => fn ($d) => $d->apply_to === 'all_fees' ? __('All fees') : ($d->feeCategory?->name ?? __('Specific'))],
+            'approved_by' => ['label' => __('Approved By'), 'value' => fn ($d) => $d->approvedBy?->full_name ?? __('System')],
+            // Newest first, as the list always opened.
+            'date' => ['label' => __('Date'), 'sort' => 'fee_discounts.created_at', 'value' => fn ($d) => $d->created_at],
+        ], default: 'date', defaultDir: 'desc');
     }
 
     public function create(Request $request)

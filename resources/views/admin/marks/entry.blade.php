@@ -123,7 +123,7 @@
 
                 @if($submission->status === 'draft' && $submission->marks_entered > 0)
                     <form method="POST" action="{{ route('admin.marks.submit', $submission) }}" class="inline"
-                          onsubmit="return confirm('Submit these marks for approval? You will not be able to edit them until approved or returned.')">
+                          data-ask="Submit these marks for approval? You will not be able to edit them until approved or returned.">
                         @csrf
                         <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition">
                             {{ __('Submit for Approval') }}
@@ -133,7 +133,7 @@
 
                 @if($submission->status === 'submitted' && in_array(auth()->user()->role, ['super_admin', 'admin']))
                     <form method="POST" action="{{ route('admin.marks.approve', $submission) }}" class="inline"
-                          onsubmit="return confirm('Approve these marks? This action is final.')">
+                          data-ask="Approve these marks? This action is final.">
                         @csrf
                         <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition">
                             {{ __('Approve') }}

@@ -77,7 +77,7 @@
                     <td class="px-6 py-4 text-right space-x-2">
                         <a href="{{ route('admin.fee-categories.edit', $cat) }}" class="text-blue-600 hover:text-blue-800 text-xs font-medium">{{ __('Edit') }}</a>
                         @if($cat->fee_structures_count === 0)
-                        <form action="{{ route('admin.fee-categories.destroy', $cat) }}" method="POST" class="inline" onsubmit="return confirm('{{ __('Delete this category?') }}')">
+                        <form action="{{ route('admin.fee-categories.destroy', $cat) }}" method="POST" class="inline" data-ask="{{ __('Delete this category?') }}">
                             @csrf @method('DELETE')
                             <button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button>
                         </form>

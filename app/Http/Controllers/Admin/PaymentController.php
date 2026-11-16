@@ -45,9 +45,48 @@ class PaymentController extends Controller implements HasMiddleware
             });
         }
 
-        $payments = $query->orderByDesc('payment_date')->orderByDesc('id')->paginate(25)->withQueryString();
+        $list = $this->paymentList($request)->filters([
+            __('Search') => $search ?: null,
+        ]);
 
-        return view('admin.fees.payments.index', compact('payments'));
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $payments = $list->paginate($query);
+
+        return view('admin.fees.payments.index', compact('payments', 'list'));
+    }
+
+    /** The payment list's columns: what sorts, and what an export writes. */
+    private function paymentList(Request $request): \App\Support\Listing
+    {
+        // The pupil's name and class, as values the list can sort on.
+        $student = fn (string $column) => StudentEnrollment::query()
+            ->join('students', 'students.id', '=', 'student_enrollments.student_id')
+            ->whereColumn('student_enrollments.id', 'payments.student_enrollment_id')
+            ->select('students.'.$column)
+            ->limit(1);
+        $class = fn () => StudentEnrollment::query()
+            ->join('class_sections', 'class_sections.id', '=', 'student_enrollments.class_section_id')
+            ->whereColumn('student_enrollments.id', 'payments.student_enrollment_id')
+            ->select('class_sections.name')
+            ->limit(1);
+
+        return new \App\Support\Listing($request, 'payments', __('Payments'), [
+            'receipt' => ['label' => __('Receipt #'), 'sort' => 'payments.receipt_number', 'value' => fn ($p) => $p->receipt_number],
+            'student' => ['label' => __('Student'), 'sort' => fn ($q, $dir) => $q->orderBy($student('last_name'), $dir)->orderBy($student('first_name'), $dir),
+                'value' => fn ($p) => $p->enrollment?->student?->full_name],
+            'student_id' => ['label' => __('Student ID'), 'value' => fn ($p) => $p->enrollment?->student?->student_id],
+            'class' => ['label' => __('Class'), 'sort' => fn ($q, $dir) => $q->orderBy($class(), $dir),
+                'value' => fn ($p) => $p->enrollment?->classSection?->name],
+            'amount' => ['label' => __('Amount (XAF)'), 'sort' => 'payments.amount', 'money' => true, 'value' => fn ($p) => $p->amount],
+            'method' => ['label' => __('Method'), 'sort' => 'payments.payment_method', 'value' => fn ($p) => Payment::methodLabel($p->payment_method)],
+            'date' => ['label' => __('Date'), 'sort' => 'payments.payment_date', 'value' => fn ($p) => $p->payment_date],
+            'received_by' => ['label' => __('Received By'), 'value' => fn ($p) => $p->receivedBy?->full_name],
+            // A reversed receipt stays on the list; the export says so.
+            'status' => ['label' => __('Status'), 'value' => fn ($p) => $p->isReversed() ? __('Reversed') : __(ucfirst((string) $p->verification_status))],
+        ], default: 'date', defaultDir: 'desc');
     }
 
     public function create(Request $request)
@@ -69,7 +108,9 @@ class PaymentController extends Controller implements HasMiddleware
             }
         }
 
-        return view('admin.fees.payments.create', compact('student', 'enrollment', 'fees'));
+        $paymentAccounts = \App\Models\PaymentAccount::active()->orderBy('title')->get(['id', 'title']);
+
+        return view('admin.fees.payments.create', compact('student', 'enrollment', 'fees', 'paymentAccounts'));
     }
 
     public function store(Request $request, PaymentRecorder $recorder)
@@ -87,6 +128,9 @@ class PaymentController extends Controller implements HasMiddleware
             'allocations' => ['nullable', 'array'],
             'allocations.*.fee_id' => ['required', 'exists:student_fees,id'],
             'allocations.*.amount' => ['required', 'numeric', 'min:0'],
+            'payment_account_id' => PaymentRecorder::accountRules(),
+        ], [
+            'payment_account_id.required' => __('Choose the cash box or bank account the money was paid into.'),
         ]);
 
         // Recording, allocation, balance updates and payment-plan advancement
@@ -104,6 +148,8 @@ class PaymentController extends Controller implements HasMiddleware
             'transaction_ref'       => $validated['transaction_ref'] ?? null,
             'notes'                 => $validated['notes'] ?? null,
             'allocations'           => $validated['allocations'] ?? [],
+            'payment_account_id'    => $validated['payment_account_id'] ?? null,
+            'accept_credit'         => $request->boolean('accept_credit'),
         ]);
 
         return redirect()->route('admin.payments.show', $payment)

@@ -34,6 +34,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'Marks Entry' => ['view', 'enter', 'edit'],
             'Exam Publishing' => ['view', 'publish', 'unpublish'],
             'Report Card' => ['view', 'print'],
+            // Holding results back, correcting a mark after approval, and the
+            // mark-entry deadline. Its own group: teachers hold the whole of
+            // Marks Entry and Report Card, and must not hold these.
+            'Results Control' => ['withhold', 'correct', 'deadline'],
             'GCE Registration' => ['view', 'create', 'edit', 'delete', 'export'],
             'Fee Category' => ['view', 'create', 'edit', 'delete'],
             'Fee Structure' => ['view', 'create', 'edit', 'delete'],

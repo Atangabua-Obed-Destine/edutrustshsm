@@ -150,6 +150,18 @@
                         <option value="edutrustpay" {{ old('payment_method') == 'edutrustpay' ? 'selected' : '' }}>{{ __('EduTrustPay') }}</option>
                     </select>
                 </div>
+                @if($paymentAccounts->isNotEmpty())
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Paid into') }} <span class="text-red-500">*</span></label>
+                    <select name="payment_account_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="">{{ __('Choose the cash box or bank account') }}</option>
+                        @foreach($paymentAccounts as $account)
+                            <option value="{{ $account->id }}" @selected(old('payment_account_id', $paymentAccounts->count() === 1 ? $account->id : null) == $account->id)>{{ $account->title }}</option>
+                        @endforeach
+                    </select>
+                    @error('payment_account_id') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+                @endif
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Transaction Ref') }}</label>
                     <input type="text" name="transaction_ref" value="{{ old('transaction_ref') }}"
@@ -171,6 +183,8 @@
                 </div>
             </div>
         </div>
+
+        <x-fees.accept-credit />
 
         <div class="flex items-center justify-end space-x-3">
             <a href="{{ route('admin.payments.index') }}" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">{{ __('Cancel') }}</a>

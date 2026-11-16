@@ -168,22 +168,76 @@ class FeeReportController extends Controller implements HasMiddleware
             ->selectRaw('COUNT(*) as fees, COALESCE(SUM(net_amount), 0) as due, COALESCE(SUM(paid_amount), 0) as paid, COALESCE(SUM(balance), 0) as remaining')
             ->first();
 
-        $fees = $query
-            ->with(['enrollment.student', 'enrollment.classSection', 'feeCategory'])
-            ->withCount(['allocations as receipts_count' => fn ($q) => $q->whereHas('payment', fn ($p) => $p->where('verification_status', 'verified'))])
-            ->orderByRaw('due_date IS NULL')
-            ->orderBy('due_date')
-            ->paginate(25)
-            ->withQueryString();
+        $query
+            ->with(['enrollment.student', 'enrollment.classSection', 'enrollment.academicSession', 'feeCategory'])
+            ->withCount(['allocations as receipts_count' => fn ($q) => $q->whereHas('payment', fn ($p) => $p->where('verification_status', 'verified'))]);
+
+        $sessionId = $this->sessionId($request);
+        $list = $this->partialList($request)->filters([
+            __('Session') => $sessionId ? AcademicSession::whereKey($sessionId)->value('name') : null,
+            __('Class') => $request->input('class_section_id') ? ClassSection::whereKey($request->input('class_section_id'))->value('name') : null,
+            __('Fee Category') => $request->input('fee_category_id') ? FeeCategory::whereKey($request->input('fee_category_id'))->value('name') : null,
+            __('Search') => $request->input('search'),
+        ]);
+
+        // A download is an export, whichever button asked for it.
+        if ($request->filled('export') && ! $request->user()?->can('fee-report.export')) {
+            abort(403);
+        }
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $fees = $list->paginate($query);
 
         return view('admin.fees.reports.partial', [
             'fees' => $fees,
+            'list' => $list,
             'stats' => $stats,
             'sessions' => AcademicSession::orderByDesc('start_date')->get(['id', 'name']),
-            'sessionId' => $this->sessionId($request),
+            'sessionId' => $sessionId,
             'sections' => ClassSection::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'categories' => FeeCategory::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
+    }
+
+    /** The partial payment list's columns: what sorts, and what an export writes. */
+    private function partialList(Request $request): \App\Support\Listing
+    {
+        // The pupil's name and class, and the fee's name, as values the list can sort on.
+        $student = fn (string $column) => StudentEnrollment::query()
+            ->join('students', 'students.id', '=', 'student_enrollments.student_id')
+            ->whereColumn('student_enrollments.id', 'student_fees.student_enrollment_id')
+            ->select('students.'.$column)
+            ->limit(1);
+        $class = fn () => StudentEnrollment::query()
+            ->join('class_sections', 'class_sections.id', '=', 'student_enrollments.class_section_id')
+            ->whereColumn('student_enrollments.id', 'student_fees.student_enrollment_id')
+            ->select('class_sections.name')
+            ->limit(1);
+        $category = fn () => FeeCategory::query()
+            ->whereColumn('fee_categories.id', 'student_fees.fee_category_id')
+            ->select('fee_categories.name')
+            ->limit(1);
+
+        return new \App\Support\Listing($request, 'partial-payments', __('Partial Payments'), [
+            'student' => ['label' => __('Student'), 'sort' => fn ($q, $dir) => $q->orderBy($student('last_name'), $dir)->orderBy($student('first_name'), $dir),
+                'value' => fn ($f) => $f->enrollment?->student?->full_name],
+            'student_id' => ['label' => __('Student ID'), 'value' => fn ($f) => $f->enrollment?->student?->student_id],
+            'session' => ['label' => __('Session'), 'value' => fn ($f) => $f->enrollment?->academicSession?->name],
+            'class' => ['label' => __('Class'), 'sort' => fn ($q, $dir) => $q->orderBy($class(), $dir),
+                'value' => fn ($f) => $f->enrollment?->classSection?->name],
+            'category' => ['label' => __('Fee Category'), 'sort' => fn ($q, $dir) => $q->orderBy($category(), $dir),
+                'value' => fn ($f) => $f->feeCategory?->name],
+            'total' => ['label' => __('Total'), 'sort' => 'student_fees.net_amount', 'money' => true, 'value' => fn ($f) => $f->net_amount],
+            'paid' => ['label' => __('Paid'), 'sort' => 'student_fees.paid_amount', 'money' => true, 'value' => fn ($f) => $f->paid_amount],
+            'remaining' => ['label' => __('Remaining'), 'sort' => 'student_fees.balance', 'money' => true, 'value' => fn ($f) => $f->balance],
+            // Oldest due date first, fees with none at the end, as the report always read.
+            'due_date' => ['label' => __('Due Date'), 'sort' => fn ($q, $dir) => $q->orderByRaw('student_fees.due_date IS NULL')->orderBy('student_fees.due_date', $dir),
+                'value' => fn ($f) => $f->due_date],
+            'payments' => ['label' => __('Payments'), 'sort' => 'receipts_count', 'value' => fn ($f) => (int) $f->receipts_count],
+        ], default: 'due_date');
     }
 
     /**

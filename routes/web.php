@@ -207,18 +207,35 @@ Route::prefix('parent')->name('parent.')->group(function () {
     });
 });
 
+// The desktop shell: what a browser needs to open EduTrust in its own
+// window from a desktop or taskbar icon. Fetched without the session.
+Route::get('/manifest.webmanifest', [\App\Http\Controllers\AppShellController::class, 'manifest'])->name('app.manifest');
+Route::get('/app-icon-{size}.png', [\App\Http\Controllers\AppShellController::class, 'icon'])->whereNumber('size')->name('app.icon');
+
 // Auth Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 // Public check that a staff ID card is genuine. The token is random, so the
 // staff list cannot be walked; throttled all the same.
 Route::get('/verify/staff/{token}', [StaffIdCardController::class, 'verify'])
     ->middleware('throttle:30,1')->name('staff-card.verify');
+// Public check that a fee receipt is genuine and still stands: the code
+// printed on it, typed in or followed as a link.
+Route::get('/verify/receipt/{code?}', [\App\Http\Controllers\ReceiptVerificationController::class, 'show'])
+    ->middleware('throttle:30,1')->name('receipt.verify');
+// Public check that a certificate or record was issued by the school.
+Route::get('/verify/document/{code?}', [\App\Http\Controllers\DocumentVerificationController::class, 'show'])
+    ->middleware('throttle:30,1')->name('document.verify');
 
 Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // Protected Routes
 Route::middleware('auth')->group(function () {
+
+    // Any signed-in member of staff: the shell keeps their session alive.
+    Route::get('/admin/keep-alive', [\App\Http\Controllers\AppShellController::class, 'keepAlive'])->name('admin.keep-alive');
+    Route::get('/admin/palette/pupils', [\App\Http\Controllers\AppShellController::class, 'pupils'])
+        ->middleware('throttle:120,1')->name('admin.palette.pupils');
 
     // Admin routes (super_admin and admin only)
     // ── Teaching ──────────────────────────────────────────────────────────
@@ -303,6 +320,7 @@ Route::middleware('auth')->group(function () {
             Route::get('applications', [AdmissionController::class, 'index'])->name('applications.index');
             Route::get('applications/{application}', [AdmissionController::class, 'show'])->name('applications.show');
             Route::patch('applications/{application}/status', [AdmissionController::class, 'updateStatus'])->name('applications.update-status');
+            Route::post('applications/{application}/steps', [AdmissionController::class, 'step'])->name('applications.step');
             Route::post('applications/{application}/accept', [AdmissionController::class, 'accept'])->name('applications.accept');
             Route::post('applications/{application}/reject', [AdmissionController::class, 'reject'])->name('applications.reject');
             Route::post('applications/{application}/enrol', [AdmissionController::class, 'enrol'])->name('applications.enrol');
@@ -326,6 +344,7 @@ Route::middleware('auth')->group(function () {
 
         // Exam Sequences
         Route::resource('sequences', SequenceController::class)->except(['show']);
+        Route::post('sequences/{sequence}/deadline', [SequenceController::class, 'deadline'])->name('sequences.deadline');
 
         // Forms
         Route::resource('forms', FormController::class)->except(['show']);
@@ -383,6 +402,7 @@ Route::middleware('auth')->group(function () {
         // Marks / Exam Management
         Route::post('marks/{submission}/approve', [MarksController::class, 'approve'])->name('marks.approve');
         Route::post('marks/{submission}/return', [MarksController::class, 'returnMarks'])->name('marks.return');
+        Route::post('marks/{submission}/correct', [MarksController::class, 'correct'])->name('marks.correct');
 
         // Nursery classes are assessed by competence, not marked. Only a
         // school that runs nursery/primary has these screens at all.
@@ -445,6 +465,9 @@ Route::middleware('auth')->group(function () {
         Route::post('report-cards/generate', [ReportCardController::class, 'generate'])->name('report-cards.generate');
         Route::post('report-cards/bulk-download', [ReportCardController::class, 'bulkDownload'])->name('report-cards.bulk-download');
         Route::post('report-cards/publish', [ReportCardController::class, 'publish'])->name('report-cards.publish');
+        Route::post('report-cards/unpublish', [ReportCardController::class, 'unpublish'])->name('report-cards.unpublish');
+        Route::post('report-cards/withhold', [ReportCardController::class, 'withhold'])->name('report-cards.withhold');
+        Route::post('report-cards/holds/{hold}/release', [ReportCardController::class, 'release'])->name('report-cards.release');
 
         // Staff / User Management
         Route::get('users', [UserController::class, 'index'])->name('users.index');
@@ -589,6 +612,8 @@ Route::middleware('auth')->group(function () {
         Route::get('collect-fees', [FeeCollectionController::class, 'index'])->name('collect-fees.index');
         Route::post('collect-fees/store-payment', [FeeCollectionController::class, 'storePayment'])->name('collect-fees.store-payment');
         Route::get('collect-fees/receipt/{payment}', [FeeCollectionController::class, 'receipt'])->name('collect-fees.receipt');
+        Route::get('collect-fees/receipts', [FeeCollectionController::class, 'receipts'])->name('collect-fees.receipts');
+        Route::get('collect-fees/split-preview', [FeeCollectionController::class, 'splitPreview'])->name('collect-fees.split-preview');
         Route::get('prior-payments', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'index'])->name('prior-payments.index');
         Route::get('prior-payments/template', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'template'])->name('prior-payments.template');
         Route::post('prior-payments', [\App\Http\Controllers\Admin\PriorPaymentImportController::class, 'upload'])->name('prior-payments.upload');
@@ -669,6 +694,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:super_admin,admin,staff,accountant,receptionist')->prefix('admin')->name('admin.')->group(function () {
             // Leaving, and the roll of those who have left.
         Route::get('students/archive', [StudentExitController::class, 'index'])->name('students.archive');
+        Route::get('certificates-issued', [\App\Http\Controllers\Admin\IssuedDocumentController::class, 'index'])->name('issued-documents.index');
         // Pupils and classes at a level the school no longer runs.
         Route::get('students/out-of-scope', [OutOfScopeController::class, 'index'])->name('students.out-of-scope');
         Route::post('students/out-of-scope/exit', [OutOfScopeController::class, 'exitClass'])->name('students.out-of-scope.exit');

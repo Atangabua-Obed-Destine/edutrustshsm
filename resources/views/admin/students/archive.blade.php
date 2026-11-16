@@ -12,7 +12,10 @@
         </p>
     </div>
 
-    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-4" data-list-region="former-pupils">
+    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-wrap gap-3 items-end" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
         <div class="flex-1 min-w-48">
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('Search') }}</label>
             <input type="text" name="search" value="{{ $filters['search'] ?? '' }}"
@@ -42,15 +45,16 @@
     </form>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$students" />
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="text-left text-xs text-gray-500 border-b border-gray-200 bg-gray-50">
-                        <th class="py-2.5 pl-5 pr-3">{{ __('Pupil') }}</th>
-                        <th class="py-2.5 px-3">{{ __('Last class') }}</th>
-                        <th class="py-2.5 px-3">{{ __('How they left') }}</th>
-                        <th class="py-2.5 px-3">{{ __('Last day') }}</th>
-                        <th class="py-2.5 px-3">{{ __('Note') }}</th>
+                        <x-list.th :list="$list" key="name" class="py-2.5 pl-5 pr-3" />
+                        <x-list.th :list="$list" key="class" class="py-2.5 px-3" />
+                        <x-list.th :list="$list" key="status" class="py-2.5 px-3" />
+                        <x-list.th :list="$list" key="last_day" class="py-2.5 px-3" />
+                        <x-list.th :list="$list" key="note" class="py-2.5 px-3" />
                         <th class="py-2.5 pl-3 pr-5 text-right">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
@@ -92,7 +96,7 @@
                                 @endcan
                                 @can('student-exit.readmit')
                                     <form method="POST" action="{{ route('admin.students.readmit', $student) }}" class="inline ml-3"
-                                          onsubmit="return confirm('{{ __('Bring this pupil back onto the roll?') }}')">
+                                          data-ask="{{ __('Bring this pupil back onto the roll?') }}">
                                         @csrf
                                         <button class="text-xs text-amber-600 hover:text-amber-700">{{ __('Re-admit') }}</button>
                                     </form>
@@ -112,5 +116,6 @@
     </div>
 
     {{ $students->links() }}
+    </div>
 </div>
 @endsection

@@ -129,10 +129,31 @@ class PaymentAccountController extends Controller implements HasMiddleware
     }
 
     /** Account book — ledger for a single account. */
-    public function accountBook(PaymentAccount $payment_account)
+    public function accountBook(Request $request, PaymentAccount $payment_account)
     {
-        $transactions = $payment_account->transactions()->paginate(50);
-        return view('admin.payment-account.account-book', ['account' => $payment_account, 'transactions' => $transactions]);
+        // A running-balance ledger: each row's balance follows from the rows
+        // before it, so the order is fixed (newest first) and not re-sortable.
+        $query = $payment_account->transactions()->getQuery();
+        $sourceLabel = fn ($t) => $t->reference_type ? __(ucfirst(str_replace('_', ' ', $t->reference_type))) : __('Manual');
+
+        $list = new \App\Support\Listing($request, 'account-book', __('Account Book').' · '.$payment_account->title, [
+            'date' => ['label' => __('Date'), 'value' => fn ($t) => $t->transaction_date],
+            'description' => ['label' => __('Description'), 'value' => fn ($t) => $t->title],
+            'source' => ['label' => __('Source'), 'value' => $sourceLabel],
+            'method' => ['label' => __('Method'), 'value' => fn ($t) => $t->payment_method],
+            'debit' => ['label' => __('Debit'), 'money' => true, 'value' => fn ($t) => $t->transaction_type === 'debit' ? $t->amount : null],
+            'credit' => ['label' => __('Credit'), 'money' => true, 'value' => fn ($t) => $t->transaction_type === 'credit' ? $t->amount : null],
+            'balance' => ['label' => __('Balance'), 'money' => true, 'value' => fn ($t) => $t->balance_after],
+        ], defaultPerPage: 50);
+        $list->filters([__('Account') => $payment_account->title]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $transactions = $list->paginate($query);
+
+        return view('admin.payment-account.account-book', ['account' => $payment_account, 'transactions' => $transactions, 'list' => $list]);
     }
 
     public function depositForm(PaymentAccount $payment_account)

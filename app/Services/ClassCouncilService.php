@@ -106,7 +106,57 @@ class ClassCouncilService
             $created++;
         }
 
+        if ($council->isYearEnd()) {
+            $this->suggestYearDecisions($council);
+        }
+
         return $created;
+    }
+
+    /**
+     * For the year-end sitting, pre-fill each pupil's next year from the
+     * year's results (PromotionEligibilityService): the council confirms or
+     * overrides it, as it does the awards. A decision already taken is left.
+     */
+    public function suggestYearDecisions(ClassCouncil $council): void
+    {
+        $eligibility = app(PromotionEligibilityService::class);
+
+        $council->entries()->whereNull('year_decision')->with('termResult.enrollment')->get()
+            ->each(function (ClassCouncilEntry $entry) use ($council, $eligibility) {
+                $enrollment = $entry->termResult?->enrollment;
+                if (! $enrollment || ! $council->academic_session_id) {
+                    return;
+                }
+
+                $entry->update([
+                    'year_decision' => $eligibility->assess($enrollment, (int) $council->academic_session_id)->eligible
+                        ? ClassCouncilEntry::PROMOTE
+                        : ClassCouncilEntry::REPEAT,
+                ]);
+            });
+    }
+
+    /**
+     * What the year-end council decided for each pupil of a class and year,
+     * once it is concluded: student_id => decision. Empty when there is no
+     * concluded year-end sitting.
+     *
+     * @return Collection<int, string>
+     */
+    public function yearDecisionsFor(int $classSectionId, int $sessionId): Collection
+    {
+        $lastTerm = Term::orderByDesc('term_number')->value('id');
+
+        $council = ClassCouncil::where('class_section_id', $classSectionId)
+            ->where('academic_session_id', $sessionId)
+            ->where('term_id', $lastTerm)
+            ->where('status', ClassCouncil::CONCLUDED)
+            ->first();
+
+        return $council
+            ? $council->entries()->whereNotNull('year_decision')->pluck('year_decision', 'student_id')
+            : collect();
     }
 
     /**

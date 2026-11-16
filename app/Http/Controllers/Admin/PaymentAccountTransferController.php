@@ -25,12 +25,30 @@ class PaymentAccountTransferController extends Controller implements HasMiddlewa
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $transfers = PaymentAccountTransfer::with(['fromAccount', 'toAccount', 'createdBy'])
-            ->orderByDesc('transfer_date')->orderByDesc('id')->paginate(25);
+        $query = PaymentAccountTransfer::with(['fromAccount', 'toAccount', 'createdBy']);
+        $accountTitle = fn (string $column) => PaymentAccount::select('title')
+            ->whereColumn('payment_accounts.id', 'payment_account_transfers.'.$column)->limit(1);
 
-        return view('admin.payment-account.transfers.index', compact('transfers'));
+        $list = new \App\Support\Listing($request, 'transfers', __('Fund Transfers'), [
+            'date' => ['label' => __('Date'), 'sort' => 'payment_account_transfers.transfer_date', 'value' => fn ($t) => $t->transfer_date],
+            'from' => ['label' => __('From Account'), 'sort' => fn ($q, $dir) => $q->orderBy($accountTitle('from_account_id'), $dir),
+                'value' => fn ($t) => $t->fromAccount?->title],
+            'to' => ['label' => __('To Account'), 'sort' => fn ($q, $dir) => $q->orderBy($accountTitle('to_account_id'), $dir),
+                'value' => fn ($t) => $t->toAccount?->title],
+            'amount' => ['label' => __('Amount'), 'sort' => 'payment_account_transfers.amount', 'money' => true, 'value' => fn ($t) => $t->amount],
+            'note' => ['label' => __('Note'), 'value' => fn ($t) => $t->note],
+            'created_by' => ['label' => __('Created By'), 'value' => fn ($t) => $t->createdBy?->full_name],
+        ], default: 'date', defaultDir: 'desc');
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $transfers = $list->paginate($query);
+
+        return view('admin.payment-account.transfers.index', compact('transfers', 'list'));
     }
 
     public function create()

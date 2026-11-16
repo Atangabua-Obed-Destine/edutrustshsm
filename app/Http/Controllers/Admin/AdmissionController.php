@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\AdmissionApplication;
+use App\Models\AdmissionStep;
 use App\Models\Batch;
 use App\Models\ClassSection;
 use App\Models\Form;
@@ -31,7 +32,7 @@ class AdmissionController extends Controller implements HasMiddleware
     {
         return [
             static::can('admission.view', ['index', 'show', 'sectionsByForm', 'streamsByForm']),
-            static::can('admission.accept', ['accept', 'updateStatus']),
+            static::can('admission.accept', ['accept', 'updateStatus', 'step']),
             static::can('admission.reject', ['reject']),
             static::can('admission.enrol', ['enrol']),
         ];
@@ -73,12 +74,24 @@ class AdmissionController extends Controller implements HasMiddleware
             $query->where('academic_session_id', $sessionId);
         }
 
-        $applications = $query->orderByDesc('created_at')->paginate(20)->withQueryString();
-
         $forms = Form::active()->forCurrentLevel()->ordered()->get();
         $streams = Stream::where('is_active', true)->orderBy('name')->get();
         $sessions = AcademicSession::orderByDesc('is_current')->orderByDesc('start_date')->get();
         $currentSession = AcademicSession::current();
+
+        $list = $this->applicationList($request)->filters([
+            __('Session') => $sessionId ? $sessions->firstWhere('id', (int) $sessionId)?->name : null,
+            __('Status') => $status ? (new AdmissionApplication)->forceFill(['status' => $status])->status_badge['label'] : null,
+            __('Class') => $formId ? $forms->firstWhere('id', (int) $formId)?->name : null,
+            __('Stream') => $streamId ? $streams->firstWhere('id', (int) $streamId)?->name : null,
+            __('Search') => $search ?: null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $applications = $list->paginate($query);
 
         // Stats (scoped to selected session or all)
         $statsQuery = AdmissionApplication::query();
@@ -94,7 +107,36 @@ class AdmissionController extends Controller implements HasMiddleware
             'enrolled'     => (clone $statsQuery)->where('status', 'enrolled')->count(),
         ];
 
-        return view('admin.admissions.index', compact('applications', 'forms', 'streams', 'sessions', 'currentSession', 'stats'));
+        return view('admin.admissions.index', compact('applications', 'forms', 'streams', 'sessions', 'currentSession', 'stats', 'list'));
+    }
+
+    /** The applications list's columns: what sorts, and what an export writes. */
+    private function applicationList(Request $request): \App\Support\Listing
+    {
+        $session = fn () => DB::table('academic_sessions')->select('start_date')
+            ->whereColumn('academic_sessions.id', 'admission_applications.academic_session_id')->limit(1);
+        $form = fn () => DB::table('forms')->select('display_order')
+            ->whereColumn('forms.id', 'admission_applications.form_id')->limit(1);
+        $stream = fn () => DB::table('streams')->select('name')
+            ->whereColumn('streams.id', 'admission_applications.stream_id')->limit(1);
+
+        return new \App\Support\Listing($request, 'applications', __('Admission Applications'), [
+            'number' => ['label' => __('Application #'), 'sort' => 'admission_applications.application_number',
+                'value' => fn ($a) => $a->application_number],
+            'name' => ['label' => __('Applicant'), 'sort' => ['admission_applications.last_name', 'admission_applications.first_name'],
+                'value' => fn ($a) => $a->full_name],
+            'gender' => ['label' => __('Gender'), 'value' => fn ($a) => $a->gender ? __(ucfirst((string) $a->gender)) : null],
+            'date_of_birth' => ['label' => __('Date of Birth'), 'value' => fn ($a) => $a->date_of_birth],
+            'session' => ['label' => __('Session'), 'sort' => fn ($q, $dir) => $q->orderBy($session(), $dir),
+                'value' => fn ($a) => $a->academicSession?->name],
+            'class' => ['label' => __('Class'), 'sort' => fn ($q, $dir) => $q->orderBy($form(), $dir),
+                'value' => fn ($a) => $a->form?->name],
+            'stream' => ['label' => __('Stream'), 'sort' => fn ($q, $dir) => $q->orderBy($stream(), $dir),
+                'value' => fn ($a) => $a->stream?->name],
+            'status' => ['label' => __('Status'), 'sort' => 'admission_applications.status',
+                'value' => fn ($a) => $a->status_badge['label']],
+            'date' => ['label' => __('Date'), 'sort' => 'admission_applications.created_at', 'value' => fn ($a) => $a->created_at],
+        ], default: 'date', defaultDir: 'desc', defaultPerPage: 20);
     }
 
     /**
@@ -137,12 +179,77 @@ class AdmissionController extends Controller implements HasMiddleware
     }
 
     /**
+     * Sign off, waive or send back one step before the decision.
+     *
+     * Steps are taken in order; a step can be sent back once signed off,
+     * which clears it and every later one. Waiving and sending back say why.
+     */
+    public function step(Request $request, AdmissionApplication $application)
+    {
+        $validated = $request->validate([
+            'step' => ['required', 'in:'.implode(',', AdmissionApplication::STEPS)],
+            'outcome' => ['required', 'in:done,waived,returned'],
+            'note' => ['nullable', 'required_if:outcome,waived,returned', 'string', 'max:1000'],
+            'score' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ], ['note.required_if' => __('Say why.')]);
+
+        if (in_array($application->status, ['accepted', 'enrolled', 'rejected'], true)) {
+            return back()->with('error', __('A decision has already been taken on this application.'));
+        }
+
+        $standing = $application->stepStanding();
+        $step = $validated['step'];
+
+        if ($validated['outcome'] === AdmissionStep::RETURNED) {
+            if (! $standing[$step]) {
+                return back()->with('error', __('That step has not been signed off, so there is nothing to send back.'));
+            }
+        } elseif ($application->nextStep() !== $step) {
+            return back()->with('error', __('Steps are taken in order. The next one is: :step.', [
+                'step' => AdmissionApplication::stepLabels()[$application->nextStep()] ?? '—',
+            ]));
+        }
+
+        AdmissionStep::create([
+            'branch_id' => $application->branch_id,
+            'admission_application_id' => $application->id,
+            'step' => $step,
+            'outcome' => $validated['outcome'],
+            'note' => $validated['note'] ?? null,
+            'score' => $step === 'assessment' ? ($validated['score'] ?? null) : null,
+            'decided_by' => auth()->id(),
+            'decided_at' => now(),
+        ]);
+
+        if ($application->status === 'pending') {
+            $application->update(['status' => 'under_review', 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);
+        }
+
+        return back()->with('success', __(':step: :outcome.', [
+            'step' => AdmissionApplication::stepLabels()[$step],
+            'outcome' => match ($validated['outcome']) {
+                AdmissionStep::DONE => __('done'),
+                AdmissionStep::WAIVED => __('not required'),
+                default => __('sent back'),
+            },
+        ]));
+    }
+
+    /**
      * Accept the application.
      */
     public function accept(Request $request, AdmissionApplication $application)
     {
         if ($application->status === 'enrolled') {
             return back()->with('error', __('This application has already been enrolled.'));
+        }
+
+        // Accepting is the last step, after the others are signed off or
+        // waived: the reference system's chain, not a single click.
+        if (! $application->stepsComplete()) {
+            return back()->with('error', __('Finish the admission steps first. Next: :step.', [
+                'step' => AdmissionApplication::stepLabels()[$application->nextStep()],
+            ]));
         }
 
         $application->update([

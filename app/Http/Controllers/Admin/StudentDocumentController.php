@@ -8,6 +8,7 @@ use App\Models\AcademicSession;
 use App\Models\AdmissionApplication;
 use App\Models\ClassSection;
 use App\Models\Form;
+use App\Models\IssuedDocument;
 use App\Models\SchoolSetting;
 use App\Models\Student;
 use App\Models\StudentFee;
@@ -84,11 +85,22 @@ class StudentDocumentController extends Controller implements HasMiddleware
         $outstanding = (float) StudentFee::whereIn('student_enrollment_id', $student->enrollments->pluck('id'))
             ->sum('balance');
 
+        // Every copy printed goes in the register with its own serial.
+        $issued = IssuedDocument::issue(IssuedDocument::LEAVING_CERTIFICATE, $student, [
+            __('Pupil') => $student->first_name.' '.$student->last_name,
+            __('Matricule') => $student->student_id,
+            __('Date of birth') => $student->date_of_birth?->format('d/m/Y'),
+            __('Last class') => $last?->classSection?->name,
+            __('Academic Year') => $last?->academicSession?->name,
+            __('Date left') => $student->withdrawal_date?->format('d/m/Y'),
+        ]);
+
         return $this->pdf('admin.documents.leaving-certificate', [
             'student' => $student,
             'last' => $last,
             'outstanding' => $outstanding,
             'school' => SchoolSetting::current(),
+            'issued' => $issued,
         ], __('leaving-certificate').'-'.$student->student_id);
     }
 
@@ -124,10 +136,18 @@ class StudentDocumentController extends Controller implements HasMiddleware
             ]))
             ->values();
 
+        $issued = IssuedDocument::issue(IssuedDocument::CUMULATIVE_RECORD, $student, [
+            __('Pupil') => $student->first_name.' '.$student->last_name,
+            __('Matricule') => $student->student_id,
+            __('Date of birth') => $student->date_of_birth?->format('d/m/Y'),
+            __('Years on record') => $history->pluck('session')->filter()->unique()->implode(', '),
+        ]);
+
         return $this->pdf('admin.documents.cumulative-record', [
             'student' => $student,
             'history' => $history,
             'school' => SchoolSetting::current(),
+            'issued' => $issued,
         ], __('cumulative-record').'-'.$student->student_id);
     }
 

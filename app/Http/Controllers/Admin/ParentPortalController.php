@@ -46,7 +46,7 @@ class ParentPortalController extends Controller implements HasMiddleware
     {
         $search = trim((string) $request->query('q', ''));
 
-        $guardians = Guardian::query()
+        $query = Guardian::query()
             ->withCount('students')
             // The children themselves, so the list can name them rather than
             // showing a number nobody can act on.
@@ -72,14 +72,53 @@ class ParentPortalController extends Controller implements HasMiddleware
                         ->orWhere('students.last_name', 'like', "%{$search}%")
                         ->orWhere('students.student_id', 'like', "%{$search}%"));
                 });
-            })
-            ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString();
+            });
 
-        return view('admin.parent-portal.index', compact('guardians', 'search') + [
+        $list = $this->guardianList($request)->filters([
+            __('Search') => $search,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $guardians = $list->paginate($query);
+
+        return view('admin.parent-portal.index', compact('guardians', 'search', 'list') + [
             'duplicateGroups' => app(\App\Services\GuardianMergeService::class)->candidates()->count(),
         ]);
+    }
+
+    /**
+     * The parent accounts list's columns: what sorts, and what an export
+     * writes. Never the password or the invite token: the export shows only
+     * whether access is open.
+     */
+    private function guardianList(Request $request): \App\Support\Listing
+    {
+        $status = fn (Guardian $g) => $g->canAccessPortal() ? __('Active') : ($g->inviteIsValid() ? __('Invited') : __('No Access'));
+
+        return new \App\Support\Listing($request, 'parent-accounts', __('Parent Accounts'), [
+            // Newest first, as the list has always opened; not a column of its own.
+            'added' => ['label' => __('Date'), 'sort' => 'guardians.id'],
+            'name' => ['label' => __('Guardian'),
+                'sort' => fn ($q, $dir) => $q->orderByRaw(
+                    "COALESCE(NULLIF(guardians.guardian_name, ''), NULLIF(guardians.father_name, ''), NULLIF(guardians.mother_name, ''), NULLIF(guardians.emergency_contact_name, '')) "
+                    .($dir === 'desc' ? 'desc' : 'asc')),
+                'value' => fn ($g) => $g->display_name],
+            'relationship' => ['label' => __('Relationship'), 'value' => fn ($g) => $g->guardian_relationship ? ucfirst($g->guardian_relationship) : null],
+            'email' => ['label' => __('Email'), 'value' => fn ($g) => $g->primary_email],
+            'phone' => ['label' => __('Phone'), 'value' => fn ($g) => $g->primary_phone],
+            'children' => ['label' => __('Children'), 'sort' => 'students_count',
+                'value' => fn ($g) => $g->students->map(fn ($c) => $c->full_name)->implode(', ')],
+            'status' => ['label' => __('Status'),
+                // Open access first, then a live invitation, then none.
+                'sort' => fn ($q, $dir) => $q->orderByRaw(
+                    "CASE WHEN guardians.portal_access = 1 AND guardians.password IS NOT NULL AND guardians.password <> '' THEN 0"
+                    ." WHEN guardians.invite_token IS NOT NULL AND guardians.invite_token <> '' AND guardians.invite_expires_at > ? THEN 1 ELSE 2 END "
+                    .($dir === 'desc' ? 'desc' : 'asc'), [now()]),
+                'value' => $status],
+        ], default: 'added', defaultDir: 'desc', defaultPerPage: 20);
     }
 
     /**

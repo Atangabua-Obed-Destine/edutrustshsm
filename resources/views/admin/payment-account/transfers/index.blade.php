@@ -12,17 +12,21 @@
         <a href="{{ route('admin.payment-account-transfer.create') }}" class="bg-[#1e293b] hover:bg-[#334155] text-white px-4 py-2 rounded-lg text-sm font-medium">+ {{ __('New Transfer') }}</a>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    {{-- Sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-4" data-list-region="transfers">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$transfers" />
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Date') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('From Account') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('To Account') }}</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Amount') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Note') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Created By') }}</th>
+                    <x-list.th :list="$list" key="date" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="from" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="to" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="amount" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="note" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="created_by" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
                     <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Action') }}</th>
                 </tr>
             </thead>
@@ -37,7 +41,7 @@
                     <td class="px-4 py-3 text-sm text-gray-600">{{ $t->note ?? '—' }}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">{{ $t->createdBy?->full_name ?? '—' }}</td>
                     <td class="px-4 py-3 text-right">
-                        <form method="POST" action="{{ route('admin.payment-account-transfer.destroy', $t) }}" class="inline" onsubmit="return confirm('{{ __('Reverse and delete this transfer?') }}')">
+                        <form method="POST" action="{{ route('admin.payment-account-transfer.destroy', $t) }}" class="inline" data-ask="{{ __('Reverse and delete this transfer?') }}">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">{{ __('Delete') }}</button>
                         </form>
@@ -48,8 +52,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     <div>{{ $transfers->links() }}</div>
+    </div>
 </div>
 @endsection

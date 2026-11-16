@@ -98,6 +98,8 @@ class PaymentAllocationTest extends TestCase
             'allocations' => [
                 ['fee_id' => $this->fee->id, 'amount' => 100000],
             ],
+            // The family agreed the extra is kept as credit.
+            'accept_credit' => '1',
         ]);
 
         $this->fee->refresh();

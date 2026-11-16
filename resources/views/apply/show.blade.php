@@ -151,6 +151,16 @@
             <div style="font-size: 0.75rem; color: #94a3b8;">{{ $application->created_at->format('M d, Y \a\t g:i A') }}</div>
         </div>
 
+        {{-- The steps the school has signed off (no internal notes). --}}
+        @foreach($application->stepStanding() as $__step => $__row)
+            @continue(! $__row)
+            <div style="position: relative; padding-bottom: 16px;" data-applicant-step="{{ $__step }}">
+                <div style="position: absolute; left: -27px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #22c55e; border: 2px solid #fff;"></div>
+                <div style="font-size: 0.82rem; font-weight: 600; color: #0f172a;">{{ \App\Models\AdmissionApplication::stepLabels()[$__step] }}</div>
+                <div style="font-size: 0.75rem; color: #94a3b8;">{{ $__row->outcome === 'waived' ? __('Not required') : $__row->decided_at->format('M d, Y') }}</div>
+            </div>
+        @endforeach
+
         @if(in_array($application->status, ['under_review', 'accepted', 'rejected', 'enrolled']))
         <div style="position: relative; padding-bottom: 16px;">
             <div style="position: absolute; left: -27px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #f59e0b; border: 2px solid #fff;"></div>

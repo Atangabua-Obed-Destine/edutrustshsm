@@ -32,7 +32,8 @@
         <div class="mb-5 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">{{ session('error') }}</div>
     @endif
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+    {{-- Search, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100" data-list-region="parent-accounts">
         {{-- Header --}}
         <div class="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -48,6 +49,7 @@
                 <p class="text-sm text-gray-500 mt-0.5">{{ __('Enable login access so parents can follow their children online.') }}</p>
             </div>
             <form method="GET" class="flex items-center gap-2">
+                @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
                 <input type="text" name="q" value="{{ $search }}" placeholder="{{ __('Search name or email...') }}"
                        class="text-sm border border-gray-300 rounded-lg px-3 py-2 w-full sm:w-64 focus:ring-2 focus:ring-teal-500 outline-none">
                 <button type="submit" class="text-sm bg-gray-800 text-white px-3 py-2 rounded-lg hover:bg-gray-900">{{ __('Search') }}</button>
@@ -55,14 +57,15 @@
         </div>
 
         {{-- Table --}}
+        <x-list.toolbar :list="$list" :rows="$guardians" />
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                        <th class="px-6 py-3 font-medium">{{ __('Guardian') }}</th>
+                        <x-list.th :list="$list" key="name" class="px-6 py-3 font-medium" />
                         <th class="px-6 py-3 font-medium">{{ __('Contact') }}</th>
-                        <th class="px-6 py-3 font-medium text-center">{{ __('Children') }}</th>
-                        <th class="px-6 py-3 font-medium text-center">{{ __('Status') }}</th>
+                        <x-list.th :list="$list" key="children" class="px-6 py-3 font-medium text-center" />
+                        <x-list.th :list="$list" key="status" class="px-6 py-3 font-medium text-center" />
                         <th class="px-6 py-3 font-medium text-right">{{ __('Actions') }}</th>
                     </tr>
                 </thead>

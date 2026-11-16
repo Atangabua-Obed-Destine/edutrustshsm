@@ -40,7 +40,7 @@
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">{{ __('Current') }}</span>
                         @else
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ __('Not current') }}</span>
-                            <form method="POST" action="{{ route('admin.terms.set-current', $term) }}" class="inline ml-2" onsubmit="return confirm('{{ __('Make this the current term?') }}')">
+                            <form method="POST" action="{{ route('admin.terms.set-current', $term) }}" class="inline ml-2" data-ask="{{ __('Make this the current term?') }}">
                                 @csrf @method('PATCH')
                                 <button type="submit" class="text-xs font-medium text-teal-700 hover:text-teal-900 underline underline-offset-2">{{ __('Make current') }}</button>
                             </form>
@@ -50,7 +50,7 @@
                         <a href="{{ route('admin.terms.edit', $term) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">{{ __('Edit') }}</a>
                         <form method="POST" action="{{ route('admin.terms.destroy', $term) }}" class="inline">
                             @csrf @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium" onclick="return confirm('{{ __('Delete this term?') }}')">{{ __('Delete') }}</button>
+                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium" data-ask="{{ __('Delete this term?') }}">{{ __('Delete') }}</button>
                         </form>
                     </td>
                 </tr>

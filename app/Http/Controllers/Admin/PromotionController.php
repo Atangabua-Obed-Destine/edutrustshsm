@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
+use App\Models\ClassCouncilEntry;
 use App\Models\ClassSection;
 use App\Models\SchoolSetting;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
+use App\Services\ClassCouncilService;
 use App\Services\PromotionEligibilityService;
 use App\Services\StudentExitService;
 use Illuminate\Http\Request;
@@ -21,6 +23,14 @@ class PromotionController extends Controller implements HasMiddleware
     use AuthorizesModule;
 
     protected static string $access = 'promotion';
+
+    /** What the promotion screen does with each year-end council decision. */
+    private const COUNCIL_ACTION = [
+        ClassCouncilEntry::PROMOTE => 'promote',
+        ClassCouncilEntry::REPEAT => 'repeat',
+        // Leaving is recorded on the pupil's exit screen, not here.
+        ClassCouncilEntry::LEAVE => 'skip',
+    ];
 
     public function __construct(private PromotionEligibilityService $eligibility) {}
 
@@ -61,12 +71,21 @@ class PromotionController extends Controller implements HasMiddleware
             // The eligibility service owns the arithmetic and the verdict. The
             // screen used to compute a recommendation off a column that does not
             // exist, so every recommendation came out null.
+            // A concluded year-end class council has decided each pupil's
+            // next year; its decision is the recommendation, and it may move
+            // up a pupil the average alone would hold back.
+            $council = app(ClassCouncilService::class)->yearDecisionsFor((int) $classSectionId, (int) $fromSessionId);
+
             $students = $this->eligibility->forClass((int) $classSectionId, (int) $fromSessionId)
-                ->map(function ($assessment) {
+                ->map(function ($assessment) use ($council) {
                     $enrollment = $assessment->enrollment;
+                    $decided = $council->get($enrollment->student_id);
                     $enrollment->computed_average = $assessment->average;
-                    $enrollment->recommended_decision = $assessment->recommendation;
-                    $enrollment->is_eligible = $assessment->eligible;
+                    $enrollment->council_decision = $decided;
+                    $enrollment->recommended_decision = $decided
+                        ? self::COUNCIL_ACTION[$decided]
+                        : $assessment->recommendation;
+                    $enrollment->is_eligible = $decided ? $decided === ClassCouncilEntry::PROMOTE : $assessment->eligible;
                     $enrollment->ineligible_reason = $assessment->reason;
                     $enrollment->terms_completed = $assessment->terms_completed;
                     $enrollment->terms_expected = $assessment->terms_expected;
@@ -77,6 +96,7 @@ class PromotionController extends Controller implements HasMiddleware
         }
 
         $nextSession = $currentSession ? $this->eligibility->nextSession($currentSession) : null;
+        $councilDecided = isset($council) && $council->isNotEmpty();
 
         // Sections are session-agnostic, so every active section is a valid
         // promotion target for the next session.
@@ -86,7 +106,7 @@ class PromotionController extends Controller implements HasMiddleware
 
         return view('admin.promotion.index', compact(
             'sessions', 'fromSessionId', 'classSections', 'classSectionId',
-            'students', 'selectedClass', 'threshold', 'nextSession', 'targetClasses'
+            'students', 'selectedClass', 'threshold', 'nextSession', 'targetClasses', 'councilDecided'
         ));
     }
 
@@ -124,6 +144,13 @@ class PromotionController extends Controller implements HasMiddleware
                 ->get()
                 ->keyBy('id');
 
+            // The year-end council's decisions, class by class.
+            $councils = app(ClassCouncilService::class);
+            $decided = $enrollments
+                ->groupBy(fn ($e) => $e->class_section_id.':'.$e->academic_session_id)
+                ->map(fn ($rows) => $councils->yearDecisionsFor($rows->first()->class_section_id, $rows->first()->academic_session_id))
+                ->reduce(fn ($all, $set) => $all->union($set), collect());
+
             // Stamp the year's annual average and rank before closing it out.
             // final_average / final_rank have been displayed on the student page
             // since the beginning and written by nothing at all.
@@ -148,13 +175,26 @@ class PromotionController extends Controller implements HasMiddleware
                             continue 2;
                         }
 
-                        // The gate. Promotion previously moved students up with no
-                        // marks at all, or with marks still sitting in draft.
-                        $assessment = $this->eligibility->assess($enrollment, $enrollment->academic_session_id);
+                        // The gate. A concluded year-end council's decision
+                        // stands: it may move up a pupil below the average,
+                        // and nobody moves up a pupil it held back. Without a
+                        // council, the year must be complete and passed.
+                        $councilSaid = $decided->get($enrollment->student_id);
 
-                        if (! $assessment->eligible) {
-                            $refused[] = $this->name($enrollment).' — '.$assessment->reason;
+                        if ($councilSaid && $councilSaid !== ClassCouncilEntry::PROMOTE) {
+                            $refused[] = $this->name($enrollment).' — '.__('Class council: :decision', [
+                                'decision' => ClassCouncilEntry::yearDecisions()[$councilSaid] ?? $councilSaid,
+                            ]);
                             continue 2;
+                        }
+
+                        if (! $councilSaid) {
+                            $assessment = $this->eligibility->assess($enrollment, $enrollment->academic_session_id);
+
+                            if (! $assessment->eligible) {
+                                $refused[] = $this->name($enrollment).' — '.$assessment->reason;
+                                continue 2;
+                            }
                         }
 
                         $enrollment->update(['status' => 'promoted']);

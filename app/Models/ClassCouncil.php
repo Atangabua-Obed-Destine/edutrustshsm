@@ -92,6 +92,17 @@ class ClassCouncil extends Model
         return $this->status === self::OPEN;
     }
 
+    /**
+     * The sitting for the year's last term: the one that decides who moves
+     * up, who repeats and who leaves.
+     */
+    public function isYearEnd(): bool
+    {
+        $last = Term::max('term_number');
+
+        return $last !== null && (int) $this->term?->term_number === (int) $last;
+    }
+
     public function isConcluded(): bool
     {
         return $this->status === self::CONCLUDED;

@@ -54,7 +54,7 @@
                         <a href="{{ route('admin.payment-account.deposit-form', $account) }}" class="text-green-600 hover:text-green-800">{{ __('Deposit') }}</a>
                         <a href="{{ route('admin.payment-account.withdraw-form', $account) }}" class="text-amber-600 hover:text-amber-800">{{ __('Withdraw') }}</a>
                         <a href="{{ route('admin.payment-account.edit', $account) }}" class="text-blue-600 hover:text-blue-800">{{ __('Edit') }}</a>
-                        <form method="POST" action="{{ route('admin.payment-account.destroy', $account) }}" class="inline" onsubmit="return confirm('{{ __('Delete this account?') }}')">
+                        <form method="POST" action="{{ route('admin.payment-account.destroy', $account) }}" class="inline" data-ask="{{ __('Delete this account?') }}">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-red-600 hover:text-red-800">{{ __('Delete') }}</button>
                         </form>

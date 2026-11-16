@@ -10,8 +10,10 @@
         <a href="{{ route('admin.journal-entries.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">+ {{ __('Add Journal Entry') }}</a>
     </div>
 
-    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-        <div>
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-4" data-list-region="journal-entries">
+    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif        <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Fiscal Year') }}</label>
             <select name="fiscal_year_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                 <option value="">{{ __('All') }}</option>
@@ -37,17 +39,19 @@
         <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">{{ __('Filter') }}</button>
     </form>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$entries" />
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Entry #') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Date') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Type') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Description') }}</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Total Debit') }}</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Total Credit') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Status') }}</th>
+                    <x-list.th :list="$list" key="entry_number" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="date" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="type" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="description" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="total_debit" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="total_credit" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="status" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
                     <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Action') }}</th>
                 </tr>
             </thead>
@@ -71,7 +75,9 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
     <div>{{ $entries->links() }}</div>
+    </div>
 </div>
 @endsection

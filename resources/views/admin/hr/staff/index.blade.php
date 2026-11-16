@@ -20,7 +20,10 @@
         </div>
     </div>
 
-    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-4" data-list-region="staff">
+    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
         <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Department') }}</label>
             <select name="department_id" style="appearance:auto;-webkit-appearance:menulist;" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
@@ -53,18 +56,20 @@
         <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">{{ __('Search') }}</button>
     </form>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$staff" />
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
                     <th class="px-4 py-3 w-8"></th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Staff ID') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Name') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Department') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Designation') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Salary Type') }}</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Basic Salary') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Status') }}</th>
+                    <x-list.th :list="$list" key="staff_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="name" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="department" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="designation" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="salary_type" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="basic_salary" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" />
+                    <x-list.th :list="$list" key="status" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase" />
                     <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Action') }}</th>
                 </tr>
             </thead>
@@ -82,7 +87,7 @@
                     <td class="px-4 py-3 text-right space-x-2 whitespace-nowrap">
                         <a href="{{ route('admin.staff.show', $s) }}" class="text-emerald-600 hover:text-emerald-800 text-xs font-medium">{{ __('View') }}</a>
                         <a href="{{ route('admin.staff.edit', $s) }}" class="text-blue-600 hover:text-blue-800 text-xs font-medium">{{ __('Edit') }}</a>
-                        <form method="POST" action="{{ route('admin.staff.destroy', $s) }}" class="inline" onsubmit="return confirm('{{ __('Delete this staff member?') }}')">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button></form>
+                        <form method="POST" action="{{ route('admin.staff.destroy', $s) }}" class="inline" data-ask="{{ __('Delete this staff member?') }}">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button></form>
                     </td>
                 </tr>
                 @empty
@@ -90,7 +95,9 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
     <div>{{ $staff->links() }}</div>
+    </div>
 </div>
 @endsection

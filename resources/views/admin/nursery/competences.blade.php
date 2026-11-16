@@ -50,7 +50,7 @@
                     </form>
                     <div class="flex items-center gap-3 shrink-0" x-show="editing !== 'area-{{ $area->id }}'">
                         <button type="button" @click="editing = 'area-{{ $area->id }}'" class="text-xs text-gray-500 hover:text-gray-800">{{ __('Rename') }}</button>
-                        <form method="POST" action="{{ route('admin.nursery.competences.areas.destroy', $area) }}" onsubmit="return confirm('{{ __('Remove this learning area and everything under it?') }}')">
+                        <form method="POST" action="{{ route('admin.nursery.competences.areas.destroy', $area) }}" data-ask="{{ __('Remove this learning area and everything under it?') }}">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-xs text-red-500 hover:text-red-700">{{ __('Remove') }}</button>
                         </form>

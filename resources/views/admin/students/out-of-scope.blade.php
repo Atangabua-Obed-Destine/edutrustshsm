@@ -49,7 +49,7 @@
     <form id="exit-form" method="POST" action="{{ route('admin.students.out-of-scope.exit') }}"
           class="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
           x-data="{ type: '{{ old('type', 'graduated') }}' }"
-          onsubmit="return confirm('{{ __('Take the ticked pupils off the roll?') }}')">
+          data-ask="{{ __('Take the ticked pupils off the roll?') }}">
         @csrf
         <h3 class="text-sm font-semibold text-gray-700">{{ __('Close out the ticked pupils') }}</h3>
         <p class="text-xs text-gray-500 mt-1 mb-4">
@@ -172,7 +172,7 @@
     @if($classes->contains(fn ($f) => $f->hiddenPupils->isEmpty()))
         <form method="POST" action="{{ route('admin.students.out-of-scope.retire') }}"
               class="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 p-5"
-              onsubmit="return confirm('{{ __('Retire every empty class at this level?') }}')">
+              data-ask="{{ __('Retire every empty class at this level?') }}">
             @csrf
             <p class="text-sm text-gray-600">
                 {{ __('Classes with nobody left can be retired. They are deactivated, not deleted: their old results and records stay readable.') }}

@@ -45,10 +45,42 @@ class IncomeController extends Controller implements HasMiddleware
             $query->where('category_id', $categoryId);
         }
 
-        $incomes = $query->orderByDesc('id')->paginate(25)->withQueryString();
         $total = (clone $query)->sum('amount');
 
-        return view('admin.account.income.index', compact('incomes', 'categories', 'from', 'to', 'total'));
+        $list = $this->incomeList($request)->filters([
+            __('Title') => $title ?: null,
+            __('Category') => $categoryId ? $categories->firstWhere('id', (int) $categoryId)?->title : null,
+            __('From Date') => $from,
+            __('To Date') => $to,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $incomes = $list->paginate($query);
+
+        return view('admin.account.income.index', compact('incomes', 'categories', 'from', 'to', 'total', 'list'));
+    }
+
+    /** The income list's columns: what sorts, and what an export writes. */
+    private function incomeList(Request $request): \App\Support\Listing
+    {
+        return new \App\Support\Listing($request, 'incomes', __('Income List'), [
+            'title' => ['label' => __('Title'), 'sort' => 'incomes.title', 'value' => fn ($i) => $i->title],
+            'category' => ['label' => __('Category'),
+                'sort' => fn ($q, $dir) => $q->orderBy(IncomeCategory::select('title')->whereColumn('income_categories.id', 'incomes.category_id')->limit(1), $dir),
+                'value' => fn ($i) => $i->category?->title],
+            'invoice_id' => ['label' => __('Invoice ID'), 'sort' => 'incomes.invoice_id', 'value' => fn ($i) => $i->invoice_id],
+            'amount' => ['label' => __('Amount'), 'sort' => 'incomes.amount', 'money' => true, 'value' => fn ($i) => $i->amount],
+            'date' => ['label' => __('Date'), 'sort' => 'incomes.date', 'value' => fn ($i) => $i->date],
+            // Newest entered first, as before: a back-dated entry still shows at the top just after it is saved. Sort only, never exported.
+            'added' => ['label' => __('Date'), 'sort' => 'incomes.id'],
+            'method' => ['label' => __('Method'), 'sort' => 'incomes.payment_method', 'value' => fn ($i) => $i->payment_method],
+            'account' => ['label' => __('Account'),
+                'sort' => fn ($q, $dir) => $q->orderBy(PaymentAccount::select('title')->whereColumn('payment_accounts.id', 'incomes.payment_account_id')->limit(1), $dir),
+                'value' => fn ($i) => $i->paymentAccount?->title ?? __('Unlinked')],
+        ], default: 'added', defaultDir: 'desc');
     }
 
     public function create()

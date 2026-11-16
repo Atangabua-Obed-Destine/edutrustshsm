@@ -44,9 +44,12 @@
         @endforeach
     </div>
 
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-6" data-list-region="users">
     {{-- Search & Filter --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <form method="GET" action="{{ route('admin.users.index') }}" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <form method="GET" action="{{ route('admin.users.index') }}" class="grid grid-cols-1 sm:grid-cols-4 gap-3" data-auto-submit>
+            @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
             <div class="sm:col-span-2">
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search by name or email...') }}"
                        class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm">
@@ -68,15 +71,16 @@
 
     {{-- Users Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$users" />
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Staff Member') }}</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Email') }}</th>
-                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Role') }}</th>
-                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Status') }}</th>
-                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Last Login') }}</th>
+                        <x-list.th :list="$list" key="name" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider" />
+                        <x-list.th :list="$list" key="email" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider" />
+                        <x-list.th :list="$list" key="role" class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider" />
+                        <x-list.th :list="$list" key="status" class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider" />
+                        <x-list.th :list="$list" key="last_login" class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider" />
                         <th class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
@@ -156,6 +160,7 @@
             {{ $users->links() }}
         </div>
         @endif
+    </div>
     </div>
 </div>
 @endsection

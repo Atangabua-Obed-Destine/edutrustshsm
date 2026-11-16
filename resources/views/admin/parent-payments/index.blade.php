@@ -19,7 +19,8 @@
         <div class="mb-5 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">{{ session('error') }}</div>
     @endif
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+    {{-- The status tabs, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100" data-list-region="parent-payments">
         <div class="px-6 py-5 border-b border-gray-100">
             <h3 class="text-base font-semibold text-gray-800">{{ __('Parent Payment Submissions') }}</h3>
             <p class="text-sm text-gray-500 mt-0.5">{{ __('Verify receipts uploaded by parents. Approving records an official payment and updates fee balances.') }}</p>
@@ -38,15 +39,16 @@
             </div>
         </div>
 
+        <x-list.toolbar :list="$list" :rows="$submissions" />
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                        <th class="px-6 py-3 font-medium">{{ __('Submitted') }}</th>
+                        <x-list.th :list="$list" key="submitted" class="px-6 py-3 font-medium" />
                         <th class="px-6 py-3 font-medium">{{ __('Parent / Child') }}</th>
-                        <th class="px-6 py-3 font-medium">{{ __('Method') }}</th>
-                        <th class="px-6 py-3 font-medium text-right">{{ __('Amount') }}</th>
-                        <th class="px-6 py-3 font-medium text-center">{{ __('Status') }}</th>
+                        <x-list.th :list="$list" key="method" class="px-6 py-3 font-medium" />
+                        <x-list.th :list="$list" key="amount" class="px-6 py-3 font-medium text-right" />
+                        <x-list.th :list="$list" key="status" class="px-6 py-3 font-medium text-center" />
                         <th class="px-6 py-3 font-medium text-right">{{ __('Action') }}</th>
                     </tr>
                 </thead>

@@ -35,9 +35,12 @@
         </div>
     </div>
 
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-6" data-list-region="fee-discounts">
     {{-- Filter --}}
-    <form class="flex items-center gap-3 bg-white rounded-lg shadow-sm border px-4 py-3">
-        <select name="reason" onchange="this.form.submit()" class="rounded-lg border-gray-300 text-sm">
+    <form method="GET" class="flex items-center gap-3 bg-white rounded-lg shadow-sm border px-4 py-3" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
+        <select name="reason" class="rounded-lg border-gray-300 text-sm">
             <option value="">{{ __('All Reasons') }}</option>
             @foreach(['scholarship' => 'Scholarship', 'staff_child' => 'Staff Child', 'sibling' => 'Sibling', 'financial_hardship' => 'Financial Hardship', 'merit' => 'Merit', 'other' => 'Other'] as $val => $label)
                 <option value="{{ $val }}" {{ request('reason') == $val ? 'selected' : '' }}>{{ __($label) }}</option>
@@ -47,16 +50,17 @@
 
     {{-- Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$discounts" />
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-6 py-3 text-left">{{ __('Student') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Class') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Reason') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('Type') }}</th>
-                    <th class="px-6 py-3 text-right">{{ __('Value') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Applies To') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Approved By') }}</th>
+                    <x-list.th :list="$list" key="student" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="class" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="reason" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="type" class="px-6 py-3 text-center" />
+                    <x-list.th :list="$list" key="value" class="px-6 py-3 text-right" />
+                    <x-list.th :list="$list" key="applies_to" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="approved_by" class="px-6 py-3 text-left" />
                     <th class="px-6 py-3 text-right">{{ __('Actions') }}</th>
                 </tr>
             </thead>
@@ -85,7 +89,7 @@
                     </td>
                     <td class="px-6 py-4 text-gray-500 text-xs">{{ $d->approvedBy->full_name ?? __('System') }}</td>
                     <td class="px-6 py-4 text-right">
-                        <form action="{{ route('admin.fee-discounts.destroy', $d) }}" method="POST" onsubmit="return confirm('{{ __('Remove this discount? Student fees will be recalculated.') }}')">
+                        <form action="{{ route('admin.fee-discounts.destroy', $d) }}" method="POST" data-ask="{{ __('Remove this discount? Student fees will be recalculated.') }}">
                             @csrf @method('DELETE')
                             <button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Remove') }}</button>
                         </form>
@@ -100,6 +104,7 @@
         @if($discounts->hasPages())
         <div class="px-6 py-3 border-t">{{ $discounts->links() }}</div>
         @endif
+    </div>
     </div>
 </div>
 @endsection

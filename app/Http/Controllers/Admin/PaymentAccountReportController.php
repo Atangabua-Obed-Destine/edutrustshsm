@@ -60,10 +60,35 @@ class PaymentAccountReportController extends Controller implements HasMiddleware
             'total_balance' => PaymentAccount::sum('current_balance'),
         ];
 
-        $transactions = $query->orderByDesc('transaction_date')->orderByDesc('id')
-            ->paginate(50)->withQueryString();
+        // Each row's balance is that account's own balance after it, stored on
+        // the row, so the order here can change without changing any figure.
+        $list = new \App\Support\Listing($request, 'cashflow', __('Cash Flow Report'), [
+            'date' => ['label' => __('Date'), 'sort' => 'payment_account_transactions.transaction_date', 'value' => fn ($t) => $t->transaction_date],
+            'account' => ['label' => __('Account'),
+                'sort' => fn ($q, $dir) => $q->orderBy(PaymentAccount::select('title')->whereColumn('payment_accounts.id', 'payment_account_transactions.payment_account_id')->limit(1), $dir),
+                'value' => fn ($t) => $t->paymentAccount?->title],
+            'description' => ['label' => __('Description'), 'sort' => 'payment_account_transactions.title', 'value' => fn ($t) => $t->title],
+            'method' => ['label' => __('Method'), 'sort' => 'payment_account_transactions.payment_method', 'value' => fn ($t) => $t->payment_method],
+            'debit' => ['label' => __('Debit'), 'money' => true, 'value' => fn ($t) => $t->transaction_type === 'debit' ? $t->amount : null],
+            'credit' => ['label' => __('Credit'), 'money' => true, 'value' => fn ($t) => $t->transaction_type === 'credit' ? $t->amount : null],
+            'balance' => ['label' => __('Balance'), 'money' => true, 'value' => fn ($t) => $t->balance_after],
+        ], default: 'date', defaultDir: 'desc', defaultPerPage: 50);
 
-        return view('admin.payment-account.reports.cashflow', compact('accounts', 'transactions', 'summary'));
+        $list->filters([
+            __('Account') => $request->account_id ? $accounts->firstWhere('id', (int) $request->account_id)?->title : null,
+            __('From') => $request->date_from,
+            __('To') => $request->date_to,
+            __('Type') => match ($request->transaction_type) { 'credit' => __('Credit'), 'debit' => __('Debit'), default => $request->transaction_type },
+            __('Method') => $request->payment_method,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $transactions = $list->paginate($query);
+
+        return view('admin.payment-account.reports.cashflow', compact('accounts', 'transactions', 'summary', 'list'));
     }
 
     /** Single-account statement for a date range. */

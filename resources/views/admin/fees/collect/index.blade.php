@@ -481,6 +481,9 @@
                     <span style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; font-weight: 600; color: #94a3b8;">XAF</span>
                 </div>
                 <p id="amountHint" style="font-size: 0.72rem; color: #94a3b8; margin-top: 4px;"></p>
+                {{-- Where the money goes, fee by fee, worked out by the server
+                     exactly as it will be recorded. --}}
+                <div id="splitPreview" aria-live="polite" style="margin-top: 6px;"></div>
             </div>
 
             {{-- Payment Method + Date --}}
@@ -510,6 +513,25 @@
                            onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                 </div>
             </div>
+
+            {{-- Paid into: the cash box or bank account credited, so the cash
+                 book matches the till without linking receipts afterwards. --}}
+            @if($paymentAccounts->isNotEmpty())
+            <div style="margin-bottom: 18px;">
+                <label for="modalPaymentAccount" style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">
+                    {{ __('Paid into') }} <span style="color: #dc2626;">*</span>
+                </label>
+                <select id="modalPaymentAccount" name="payment_account_id" required
+                        style="width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 10px; font-size: 0.85rem; outline: none; appearance: auto; -webkit-appearance: menulist; background: #fff; box-sizing: border-box;"
+                        onfocus="this.style.borderColor='#0ea5e9'; this.style.boxShadow='0 0 0 3px rgba(14,165,233,0.1)'"
+                        onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                    <option value="">{{ __('Choose the cash box or bank account') }}</option>
+                    @foreach($paymentAccounts as $account)
+                        <option value="{{ $account->id }}">{{ $account->title }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
 
             {{-- Payer Name + Payer Phone --}}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px;">
@@ -683,6 +705,10 @@ const fmtXaf = (n) => Math.round(n).toLocaleString() + ' XAF';
         'onThisFee' => __('on this fee'),
         'onOthers' => __('on the other fees of this pupil, oldest first.'),
         'credit' => __('is more than the pupil owes and will be kept as credit.'),
+        'splitTitle' => __('Where this money goes'),
+        'leftAfter' => __('left to pay'),
+        'creditLine' => __('Kept as credit for the pupil'),
+        'arrears' => __('Arrears :year'),
     ];
 @endphp
 const CONFIRM_T = {!! json_encode([
@@ -690,12 +716,16 @@ const CONFIRM_T = {!! json_encode([
     'amountLabel' => __('Amount to record as received'),
     'student' => __('Student'), 'fee' => __('Fee'), 'method' => __('Method'), 'date' => __('Date'),
     'paidBy' => __('Paid by'), 'after' => __('Still owed after this'),
+    'paidInto' => __('Paid into'),
+    'noAccount' => __('Choose the cash box or bank account the money was paid into.'),
     'tick' => __('I have counted this and it matches the amount the family paid.'),
     'confirm' => __('Yes, record this payment'),
     'noAmount' => __('The amount must be more than zero.'),
     'future' => __('The payment date is in the future.'),
     'credit' => __('This is :amount more than the student owes in all. The extra is kept as the student\'s credit.'),
     'others' => __(':amount is more than this fee. It goes to the student\'s other fees, oldest first.'),
+    'consent' => __('The family agrees that :amount more than the pupil owes is kept as credit for future fees (otherwise give the change back and take the lower amount).'),
+    'creditRow' => __('Kept as credit'),
     'noReference' => __('This was not paid in cash, and there is no note of the transaction reference. Add it in the notes so the payment can be traced.'),
 ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
 const PAY_ERR = {!! json_encode([
@@ -705,8 +735,60 @@ const PAY_ERR = {!! json_encode([
 ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
 const PAY_T = {!! json_encode($payT, JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) !!};
 
+const splitUrl = @json(route('admin.collect-fees.split-preview'));
+let splitTimer = null, splitSeq = 0, lastSplit = null;
+
+/** The server's plan for this amount: the same one recording applies. */
+async function fetchSplit(amount) {
+    const url = new URL(splitUrl, location.href);
+    url.searchParams.set('student_fee_id', currentFeeRowId);
+    url.searchParams.set('amount', amount);
+    const res = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+    if (!res.ok) throw new Error('split preview ' + res.status);
+    return { amount, ...(await res.json()) };
+}
+
+const splitLabel = (line) => line.fee + (line.year ? ' (' + PAY_T.arrears.replace(':year', line.year) + ')' : '');
+
+function drawSplit(split) {
+    const box = document.getElementById('splitPreview');
+    box.replaceChildren();
+    if (!split || (!split.lines.length && !(split.credit > 0))) return;
+    const title = document.createElement('p');
+    title.style.cssText = 'font-size: 0.7rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .03em; margin: 0 0 2px;';
+    title.textContent = PAY_T.splitTitle;
+    const table = document.createElement('table');
+    table.style.cssText = 'width: 100%; font-size: 0.75rem; border-collapse: collapse;';
+    const row = (label, amount, note, color) => {
+        const tr = table.insertRow();
+        tr.style.borderTop = '1px solid #f1f5f9';
+        const a = tr.insertCell(); a.textContent = label; a.style.padding = '2px 0';
+        const b = tr.insertCell(); b.textContent = fmtXaf(amount); b.style.cssText = 'text-align: right; font-family: monospace; font-weight: 600; color: ' + (color || '#15803d');
+        const c = tr.insertCell(); c.textContent = note || ''; c.style.cssText = 'text-align: right; color: #94a3b8; padding-left: 8px;';
+    };
+    split.lines.forEach((line) => row(splitLabel(line), line.amount, fmtXaf(line.after) + ' ' + PAY_T.leftAfter));
+    if (split.credit > 0) row(PAY_T.creditLine, split.credit, '', '#b45309');
+    box.append(title, table);
+}
+
+function scheduleSplit() {
+    clearTimeout(splitTimer);
+    const amount = Number(document.getElementById('modalAmount').value || 0);
+    const seq = ++splitSeq;
+    if (!(amount > 0)) { lastSplit = null; drawSplit(null); return; }
+    splitTimer = setTimeout(async () => {
+        try {
+            const split = await fetchSplit(amount);
+            if (seq === splitSeq) { lastSplit = split; drawSplit(split); }
+        } catch (e) {
+            if (seq === splitSeq) { lastSplit = null; drawSplit(null); }
+        }
+    }, 250);
+}
+
 /** Say, as the bursar types, where the money will go. */
 function explainAmount(planData) {
+    scheduleSplit();
     const amount = Number(document.getElementById('modalAmount').value || 0);
     const hint = document.getElementById('amountHint');
     const parts = [PAY_T.thisFee + ': ' + fmtXaf(currentLineBalance) + ' · ' + PAY_T.allOwed + ': ' + fmtXaf(currentPupilOwes)];
@@ -766,6 +848,15 @@ function openPaymentModal(feeId, studentName, studentId, className, feeCategory,
 
     // Reset form state
     document.getElementById('modalPaymentMethod').value = 'cash';
+    // A cashier usually takes every payment into the same till, so the
+    // account chosen last time on this computer comes back pre-selected.
+    const accountSelect = document.getElementById('modalPaymentAccount');
+    if (accountSelect) {
+        const remembered = localStorage.getItem('edutrust.feeAccount');
+        const choices = [...accountSelect.options].filter(o => o.value);
+        accountSelect.value = choices.some(o => o.value === remembered) ? remembered
+            : (choices.length === 1 ? choices[0].value : '');
+    }
     document.getElementById('modalPayerName').value = '';
     document.getElementById('modalPayerPhone').value = '';
     document.getElementById('modalNotes').value = '';
@@ -807,6 +898,18 @@ document.getElementById('paymentForm').addEventListener('submit', async function
     if (amount > currentPupilOwes) issues.push({ level: 'warn', text: CONFIRM_T.credit.replace(':amount', fmtXaf(amount - currentPupilOwes)) });
     else if (amount > currentLineBalance) issues.push({ level: 'warn', text: CONFIRM_T.others.replace(':amount', fmtXaf(amount - currentLineBalance)) });
     if (method.value !== 'cash' && !document.getElementById('modalNotes').value.trim()) issues.push({ level: 'warn', text: CONFIRM_T.noReference });
+    const account = document.getElementById('modalPaymentAccount');
+    if (account && !account.value) issues.push({ level: 'stop', text: CONFIRM_T.noAccount });
+
+    // The split as it will be recorded, fee by fee, read back in the dialog.
+    const split = amount > 0
+        ? (lastSplit && lastSplit.amount === amount ? lastSplit : await fetchSplit(amount).catch(() => null))
+        : null;
+    const credit = split ? Number(split.credit) : Math.max(0, amount - currentPupilOwes);
+    const splitRows = split
+        ? [...split.lines.map((line) => ['→ ' + splitLabel(line), fmtXaf(line.amount)]),
+           ...(credit > 0 ? [['→ ' + CONFIRM_T.creditRow, fmtXaf(credit)]] : [])]
+        : [];
 
     const ok = await confirmAction({
         warning: CONFIRM_T.warning,
@@ -816,11 +919,14 @@ document.getElementById('paymentForm').addEventListener('submit', async function
             [CONFIRM_T.student, document.getElementById('modalStudentName').textContent],
             [CONFIRM_T.fee, document.getElementById('modalFeeCategory').textContent],
             [CONFIRM_T.method, method.options[method.selectedIndex].text],
+            ...(account ? [[CONFIRM_T.paidInto, account.value ? account.options[account.selectedIndex].text : '']] : []),
             [CONFIRM_T.date, payDate],
             [CONFIRM_T.paidBy, document.getElementById('modalPayerName').value.trim()],
             [CONFIRM_T.after, fmtXaf(Math.max(0, currentPupilOwes - amount))],
+            ...splitRows,
         ],
         issues,
+        consent: credit > 0 ? CONFIRM_T.consent.replace(':amount', fmtXaf(credit)) : null,
         tick: CONFIRM_T.tick,
         confirm: CONFIRM_T.confirm,
     });
@@ -836,6 +942,7 @@ document.getElementById('paymentForm').addEventListener('submit', async function
     submitBtn.innerHTML = '<svg style="animation: spin 1s linear infinite;" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> {{ __("Processing...") }}';
 
     const formData = new FormData(this);
+    if (credit > 0) formData.append('accept_credit', '1');
 
     const resetButton = () => {
         submitBtn.disabled = false;
@@ -894,6 +1001,7 @@ document.getElementById('paymentForm').addEventListener('submit', async function
     // Recorded. Whatever goes wrong drawing the page now, the payment stands,
     // and the cashier must not be told to try again.
     const feeRowId = currentFeeRowId;
+    if (formData.get('payment_account_id')) localStorage.setItem('edutrust.feeAccount', formData.get('payment_account_id'));
     closePaymentModal();
     resetButton();
     const toast = document.getElementById('successToast');
@@ -903,6 +1011,11 @@ document.getElementById('paymentForm').addEventListener('submit', async function
     setTimeout(() => { toast.style.display = 'none'; }, 8000);
     try {
         updateFeeRow(feeRowId, data);
+        // A lump sum also paid the pupil's other fees: redraw those rows too,
+        // so nobody collects again on a balance that is already settled.
+        (data.fees || []).forEach((fee) => {
+            if (String(fee.id) !== String(feeRowId)) updateFeeRow(fee.id, { ...fee, plan: null });
+        });
     } catch (err) {
         console.error(err);
         window.location.reload();

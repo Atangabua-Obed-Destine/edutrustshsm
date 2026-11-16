@@ -34,7 +34,10 @@
     </div>
     @endif
 
-    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-6" data-list-region="leaves">
+    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
         <div class="flex flex-wrap items-end gap-3">
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Year') }}</label>
@@ -75,17 +78,19 @@
         </div>
     </form>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$leaves" />
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-6 py-3 text-left">{{ __('Staff') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Type') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Dates') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('Days') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('Used / Allowance') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('Pay') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('Status') }}</th>
+                    <x-list.th :list="$list" key="staff" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="type" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="from" class="px-6 py-3 text-left">{{ __('Dates') }}</x-list.th>
+                    <x-list.th :list="$list" key="days" class="px-6 py-3 text-center" />
+                    <x-list.th :list="$list" key="used" class="px-6 py-3 text-center" />
+                    <x-list.th :list="$list" key="pay" class="px-6 py-3 text-center" />
+                    <x-list.th :list="$list" key="status" class="px-6 py-3 text-center" />
                     <th class="px-6 py-3"></th>
                 </tr>
             </thead>
@@ -165,9 +170,11 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     {{ $leaves->links() }}
+    </div>
 
     @can('staff-leave.create')
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

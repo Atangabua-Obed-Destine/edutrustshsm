@@ -67,13 +67,47 @@ class StudentController extends Controller implements HasMiddleware
         $schoolLevel = \App\Support\LevelContext::current();
         $query->whereHas('currentEnrollment.classSection.form', fn ($q) => $q->where('school_level', $schoolLevel));
 
-        $students = $query->orderBy('last_name')->orderBy('first_name')->paginate(25)->withQueryString();
-
         $classSections = ClassSection::where('is_active', true)
             ->whereHas('form', fn ($q) => $q->where('school_level', $schoolLevel))
             ->with('form')->orderBy('name')->get();
 
-        return view('admin.students.index', compact('students', 'classSections', 'currentSession'));
+        $list = $this->studentList($request)->filters([
+            __('Search') => $search ?: null,
+            __('Status') => $status ? __(ucfirst($status)) : null,
+            __('Class') => $classId ? $classSections->firstWhere('id', (int) $classId)?->name : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $students = $list->paginate($query);
+
+        return view('admin.students.index', compact('students', 'classSections', 'currentSession', 'list'));
+    }
+
+    /** The student list's columns: what sorts, and what an export writes. */
+    private function studentList(Request $request): \App\Support\Listing
+    {
+        // The class this year, as a value the list can sort on.
+        $currentClass = fn () => \App\Models\StudentEnrollment::query()
+            ->join('class_sections', 'class_sections.id', '=', 'student_enrollments.class_section_id')
+            ->join('academic_sessions', 'academic_sessions.id', '=', 'student_enrollments.academic_session_id')
+            ->whereColumn('student_enrollments.student_id', 'students.id')
+            ->where('academic_sessions.is_current', true)
+            ->where('student_enrollments.status', 'active')
+            ->select('class_sections.name')
+            ->limit(1);
+
+        return new \App\Support\Listing($request, 'students', __('Students'), [
+            'student_id' => ['label' => __('Student ID'), 'sort' => 'students.student_id', 'value' => fn ($s) => $s->student_id],
+            'name' => ['label' => __('Name'), 'sort' => ['students.last_name', 'students.first_name'], 'value' => fn ($s) => $s->full_name],
+            'gender' => ['label' => __('Gender'), 'sort' => 'students.gender', 'value' => fn ($s) => __(ucfirst((string) $s->gender))],
+            'class' => ['label' => __('Class'), 'sort' => fn ($q, $dir) => $q->orderBy($currentClass(), $dir)->orderBy('students.last_name'),
+                'value' => fn ($s) => $s->currentEnrollment?->classSection?->name],
+            'phone' => ['label' => __('Guardian Phone'), 'value' => fn ($s) => $s->guardian?->emergency_contact_phone],
+            'status' => ['label' => __('Status'), 'sort' => 'students.status', 'value' => fn ($s) => __(ucfirst((string) $s->status))],
+        ], default: 'name');
     }
 
     public function create()

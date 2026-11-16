@@ -7,6 +7,8 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\AcademicSession;
 use App\Models\ClassSection;
 use App\Models\Form;
+use App\Models\AuditLog;
+use App\Models\ResultHold;
 use App\Models\SchoolSetting;
 use App\Models\Sequence;
 use App\Models\Term;
@@ -29,8 +31,13 @@ class ReportCardController extends Controller implements HasMiddleware
     protected static function extraMiddleware(): array
     {
         return [
-            static::can('report-card.view', ['index', 'sectionsByForm', 'show', 'generate', 'publish', 'remarks', 'saveRemarks']),
+            static::can('report-card.view', ['index', 'sectionsByForm', 'show', 'generate', 'remarks', 'saveRemarks']),
             static::can('report-card.print', ['bulkDownload']),
+            // Sending report cards to parents is publishing results. It was
+            // open to anyone who could view the list, teachers included.
+            static::can('exam-publishing.publish', ['publish']),
+            static::can('exam-publishing.unpublish', ['unpublish']),
+            static::can('results-control.withhold', ['withhold', 'release']),
         ];
     }
 
@@ -80,10 +87,19 @@ class ReportCardController extends Controller implements HasMiddleware
                 ->get();
         }
 
+        // Cards kept from the family, by pupil, for the badge and Release.
+        $holds = $results->isEmpty() ? collect() : ResultHold::active()
+            ->where('academic_session_id', $sessionId)
+            ->where('term_id', $termId)
+            ->whereIn('student_id', $results->pluck('enrollment.student_id'))
+            ->with('heldBy')
+            ->get()
+            ->keyBy('student_id');
+
         return view('admin.report-cards.index', compact(
             'sessions', 'forms', 'terms', 'classSections',
             'sessionId', 'formId', 'classSectionId', 'termId',
-            'results', 'selectedClass', 'selectedTerm', 'currentSession'
+            'results', 'selectedClass', 'selectedTerm', 'currentSession', 'holds'
         ));
     }
 
@@ -213,7 +229,100 @@ class ReportCardController extends Controller implements HasMiddleware
                 ->where('academic_session_id', $request->integer('academic_session_id') ?: AcademicSession::current()?->id))
             ->update(['is_published' => true]);
 
-        return back()->with('success', $count . ' report card(s) published.');
+        AuditLog::log('published', 'report-cards', null, null, [
+            'class_section_id' => (int) $request->class_section_id, 'term_id' => (int) $request->term_id, 'count' => $count,
+        ]);
+
+        return back()->with('success', trans_choice(':count report card published.|:count report cards published.', $count, ['count' => $count]));
+    }
+
+    /**
+     * Take a class's report cards back from the parent portal: a wrong mark
+     * found after publishing. Needs a reason, kept in the audit log, and a
+     * separate permission from publishing.
+     */
+    public function unpublish(Request $request)
+    {
+        $validated = $request->validate([
+            'class_section_id' => ['required', 'exists:class_sections,id'],
+            'term_id' => ['required', 'exists:terms,id'],
+            'academic_session_id' => ['nullable', 'exists:academic_sessions,id'],
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ], ['reason.required' => __('Say why the report cards are being taken back.')]);
+
+        $count = TermResult::where('term_id', $validated['term_id'])
+            ->where('is_published', true)
+            ->whereHas('enrollment', fn ($q) => $q->where('class_section_id', $validated['class_section_id'])
+                ->where('academic_session_id', $validated['academic_session_id'] ?? AcademicSession::current()?->id))
+            ->update(['is_published' => false]);
+
+        AuditLog::log('unpublished', 'report-cards', null, null, [
+            'class_section_id' => (int) $validated['class_section_id'], 'term_id' => (int) $validated['term_id'],
+            'count' => $count, 'reason' => $validated['reason'],
+        ]);
+
+        return back()->with('success', trans_choice(':count report card taken back from the parent portal.|:count report cards taken back from the parent portal.', $count, ['count' => $count]));
+    }
+
+    /**
+     * Keep the ticked pupils' cards for this term from the parent portal,
+     * with the reason. The school still sees and prints them.
+     */
+    public function withhold(Request $request)
+    {
+        $validated = $request->validate([
+            'term_result_ids' => ['required', 'array', 'min:1'],
+            'term_result_ids.*' => ['integer', 'exists:term_results,id'],
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'term_result_ids.required' => __('Tick the pupils whose results are to be withheld.'),
+            'reason.required' => __('Say why the results are withheld.'),
+        ]);
+
+        $results = TermResult::whereIn('id', $validated['term_result_ids'])->with('enrollment')->get();
+        $held = 0;
+
+        DB::transaction(function () use ($results, $validated, &$held) {
+            foreach ($results as $result) {
+                $enrollment = $result->enrollment;
+                if (! $enrollment || ResultHold::activeFor($enrollment->student_id, $enrollment->academic_session_id, $result->term_id)) {
+                    continue;
+                }
+
+                ResultHold::create([
+                    'branch_id' => $enrollment->branch_id,
+                    'student_id' => $enrollment->student_id,
+                    'academic_session_id' => $enrollment->academic_session_id,
+                    'term_id' => $result->term_id,
+                    'reason' => $validated['reason'],
+                    'held_by' => auth()->id(),
+                    'held_at' => now(),
+                ]);
+                $held++;
+            }
+        });
+
+        return back()->with('success', trans_choice('Results withheld for :count pupil.|Results withheld for :count pupils.', $held, ['count' => $held]));
+    }
+
+    /** Let the family see the card again; the hold stays as history. */
+    public function release(Request $request, ResultHold $hold)
+    {
+        $validated = $request->validate([
+            'release_reason' => ['required', 'string', 'min:3', 'max:500'],
+        ], ['release_reason.required' => __('Say why the results are released.')]);
+
+        if ($hold->released_at) {
+            return back()->with('error', __('These results have already been released.'));
+        }
+
+        $hold->update([
+            'release_reason' => $validated['release_reason'],
+            'released_by' => auth()->id(),
+            'released_at' => now(),
+        ]);
+
+        return back()->with('success', __('Results released: the family can see this report card again.'));
     }
 
     /**

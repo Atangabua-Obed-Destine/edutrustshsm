@@ -76,7 +76,7 @@
                                 <td class="px-5 py-3 text-right font-semibold text-gray-800">{{ number_format($levy->amount, 0) }} {{ $currency }}</td>
                                 <td class="px-5 py-3 text-center text-gray-600">{{ $levy->payments_count }}</td>
                                 <td class="px-5 py-3 text-right">
-                                    <form method="POST" action="{{ route('admin.pta.levies.destroy', $levy) }}" onsubmit="return confirm('{{ __('Delete this levy?') }}')">
+                                    <form method="POST" action="{{ route('admin.pta.levies.destroy', $levy) }}" data-ask="{{ __('Delete this levy?') }}">
                                         @csrf @method('DELETE')
                                         <button class="text-xs text-red-600 hover:text-red-700">{{ __('Delete') }}</button>
                                     </form>
@@ -146,7 +146,7 @@
                             <form method="POST" action="{{ route('admin.pta.announcements.toggle', $a) }}">@csrf
                                 <button class="text-xs text-teal-600 hover:text-teal-700">{{ $a->isPublished() ? __('Unpublish') : __('Publish') }}</button>
                             </form>
-                            <form method="POST" action="{{ route('admin.pta.announcements.destroy', $a) }}" onsubmit="return confirm('{{ __('Delete?') }}')">@csrf @method('DELETE')
+                            <form method="POST" action="{{ route('admin.pta.announcements.destroy', $a) }}" data-ask="{{ __('Delete?') }}">@csrf @method('DELETE')
                                 <button class="text-xs text-red-600 hover:text-red-700">{{ __('Delete') }}</button>
                             </form>
                         </div>
@@ -193,7 +193,7 @@
                                 <input type="file" name="minutes" accept=".pdf,.doc,.docx" class="text-xs w-36">
                                 <button class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200">{{ __('Upload Minutes') }}</button>
                             </form>
-                            <form method="POST" action="{{ route('admin.pta.meetings.destroy', $m) }}" onsubmit="return confirm('{{ __('Delete?') }}')">@csrf @method('DELETE')
+                            <form method="POST" action="{{ route('admin.pta.meetings.destroy', $m) }}" data-ask="{{ __('Delete?') }}">@csrf @method('DELETE')
                                 <button class="text-xs text-red-600 hover:text-red-700">{{ __('Delete') }}</button>
                             </form>
                         </div>

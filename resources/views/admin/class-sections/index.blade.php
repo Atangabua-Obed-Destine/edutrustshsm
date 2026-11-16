@@ -41,7 +41,7 @@
                         <a href="{{ route('admin.class-sections.edit', $cs) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">{{ __('Edit') }}</a>
                         <form method="POST" action="{{ route('admin.class-sections.destroy', $cs) }}" class="inline">
                             @csrf @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium" onclick="return confirm('{{ __('Delete this class section?') }}')">{{ __('Delete') }}</button>
+                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium" data-ask="{{ __('Delete this class section?') }}">{{ __('Delete') }}</button>
                         </form>
                     </td>
                 </tr>

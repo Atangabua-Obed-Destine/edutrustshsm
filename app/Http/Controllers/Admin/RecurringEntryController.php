@@ -45,17 +45,43 @@ class RecurringEntryController extends Controller implements HasMiddleware
 
     public function index(Request $request)
     {
-        $templates = RecurringJournalEntry::with('lines')
+        $query = RecurringJournalEntry::with('lines')
             ->when($request->filled('status'), fn ($q) => $q->where('is_active', $request->input('status') === 'active'))
             ->when($request->filled('frequency'), fn ($q) => $q->where('frequency', $request->input('frequency')))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = '%'.$request->input('search').'%';
                 $q->where(fn ($w) => $w->where('title', 'like', $term)->orWhere('description', 'like', $term));
-            })
-            ->orderByDesc('is_active')
-            ->orderBy('next_run_date')
-            ->paginate(20)
-            ->withQueryString();
+            });
+
+        $frequencies = RecurringJournalEntry::FREQUENCIES;
+        $list = new \App\Support\Listing($request, 'recurring-entries', __('Recurring Entries'), [
+            'title' => ['label' => __('Title'), 'sort' => 'recurring_journal_entries.title', 'value' => fn ($t) => $t->title],
+            'frequency' => ['label' => __('Frequency'), 'sort' => 'recurring_journal_entries.frequency',
+                'value' => fn ($t) => __($frequencies[$t->frequency] ?? $t->frequency)],
+            'amount' => ['label' => __('Amount'), 'money' => true,
+                'sort' => fn ($q, $dir) => $q->orderBy(\App\Models\RecurringJournalEntryLine::selectRaw('COALESCE(SUM(debit), 0)')
+                    ->whereColumn('recurring_journal_entry_lines.recurring_journal_entry_id', 'recurring_journal_entries.id'), $dir),
+                'value' => fn ($t) => $t->totalDebit()],
+            // Paused templates have no next run, so active ones stay first.
+            'next_run' => ['label' => __('Next Run'),
+                'sort' => fn ($q, $dir) => $q->orderByDesc('recurring_journal_entries.is_active')->orderBy('recurring_journal_entries.next_run_date', $dir),
+                'value' => fn ($t) => $t->is_active ? $t->next_run_date : null],
+            'runs' => ['label' => __('Runs'), 'sort' => 'recurring_journal_entries.runs_generated', 'value' => fn ($t) => $t->runs_generated],
+            'status' => ['label' => __('Status'), 'sort' => 'recurring_journal_entries.is_active',
+                'value' => fn ($t) => ($t->is_active ? __('Active') : __('Paused')).($t->isBalanced() ? '' : ' · '.__('Not balanced'))],
+        ], default: 'next_run', defaultDir: 'asc', defaultPerPage: 25);
+
+        $list->filters([
+            __('Search') => $request->input('search'),
+            __('Status') => match ($request->input('status')) { 'active' => __('Active'), 'paused' => __('Paused'), default => null },
+            __('Frequency') => $request->filled('frequency') ? __($frequencies[$request->input('frequency')] ?? $request->input('frequency')) : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $templates = $list->paginate($query);
 
         $summary = [
             'active' => RecurringJournalEntry::active()->count(),
@@ -67,7 +93,8 @@ class RecurringEntryController extends Controller implements HasMiddleware
             'templates' => $templates,
             'summary' => $summary,
             'upcoming' => $this->recurring->upcoming(30),
-            'frequencies' => RecurringJournalEntry::FREQUENCIES,
+            'frequencies' => $frequencies,
+            'list' => $list,
         ]);
     }
 

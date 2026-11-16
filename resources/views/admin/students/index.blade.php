@@ -16,9 +16,11 @@
 
     <x-out-of-scope-notice />
 
-    {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <form method="GET" action="{{ route('admin.students.index') }}" class="flex flex-col sm:flex-row gap-3">
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-4" data-list-region="students">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
+        <form method="GET" action="{{ route('admin.students.index') }}" class="flex flex-col sm:flex-row gap-2" data-auto-submit>
+            @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
             <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search by name or ID...') }}"
                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm">
             <select name="status" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm">
@@ -43,16 +45,17 @@
 
     {{-- Students Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$students" />
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
                     <tr>
-                        <th class="px-4 py-3 text-left">{{ __('Student ID') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Name') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Gender') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Class') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Guardian Phone') }}</th>
-                        <th class="px-4 py-3 text-center">{{ __('Status') }}</th>
+                        <x-list.th :list="$list" key="student_id" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="name" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="gender" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="class" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="phone" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="status" class="px-4 py-3 text-center" />
                         <th class="px-4 py-3 text-center">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
@@ -102,6 +105,7 @@
             {{ $students->links() }}
         </div>
         @endif
+    </div>
     </div>
 </div>
 @endsection

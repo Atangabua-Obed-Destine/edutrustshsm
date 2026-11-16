@@ -7,16 +7,14 @@
     $money = fn ($v) => number_format((float) $v, 0, '.', ' ');
 @endphp
 
-<div class="max-w-7xl mx-auto space-y-6">
+{{-- Filters, sorting and paging redraw this whole screen, totals included (data-list-region). --}}
+<div class="max-w-7xl mx-auto space-y-6" data-list-region="partial-payments">
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
             <a href="{{ route('admin.fee-reports.index') }}" class="text-xs text-gray-400 hover:text-gray-600">&larr; {{ __('Fee Reports & Analytics') }}</a>
             <h1 class="text-2xl font-bold text-gray-800 mt-1">{{ __('Partial Payments') }}</h1>
             <p class="text-sm text-gray-500 mt-1">{{ __('Fees a family has started paying but not finished, oldest due date first.') }}</p>
         </div>
-        @can('fee-report.export')
-        <a href="{{ route('admin.fee-reports.partial.csv', request()->query()) }}" class="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium">{{ __('Export CSV') }}</a>
-        @endcan
     </div>
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -33,7 +31,8 @@
         @endforeach
     </div>
 
-    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
         <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">{{ __('Session') }}</label>
             <select name="session_id" class="w-full rounded-lg border-gray-300 text-sm">
@@ -68,18 +67,20 @@
         <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">{{ __('Filter') }}</button>
     </form>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$fees" :exportable="auth()->user()->can('fee-report.export')" />
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-4 py-3 text-left">{{ __('Student') }}</th>
-                    <th class="px-4 py-3 text-left">{{ __('Class') }}</th>
-                    <th class="px-4 py-3 text-left">{{ __('Fee Category') }}</th>
-                    <th class="px-4 py-3 text-right">{{ __('Total') }}</th>
-                    <th class="px-4 py-3 text-right">{{ __('Paid') }}</th>
-                    <th class="px-4 py-3 text-right">{{ __('Remaining') }}</th>
-                    <th class="px-4 py-3 text-left">{{ __('Due Date') }}</th>
-                    <th class="px-4 py-3 text-center">{{ __('Payments') }}</th>
+                    <x-list.th :list="$list" key="student" class="px-4 py-3 text-left" />
+                    <x-list.th :list="$list" key="class" class="px-4 py-3 text-left" />
+                    <x-list.th :list="$list" key="category" class="px-4 py-3 text-left" />
+                    <x-list.th :list="$list" key="total" class="px-4 py-3 text-right" />
+                    <x-list.th :list="$list" key="paid" class="px-4 py-3 text-right" />
+                    <x-list.th :list="$list" key="remaining" class="px-4 py-3 text-right" />
+                    <x-list.th :list="$list" key="due_date" class="px-4 py-3 text-left" />
+                    <x-list.th :list="$list" key="payments" class="px-4 py-3 text-center" />
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -106,6 +107,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     <div>{{ $fees->links() }}</div>

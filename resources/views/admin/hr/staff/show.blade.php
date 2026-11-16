@@ -63,7 +63,7 @@
                     <p class="text-xs text-gray-400">{{ $note->created_at->format('d/m/Y H:i') }} · {{ $note->createdBy?->full_name ?? '—' }}</p>
                 </div>
                 @can('staff.delete')
-                <form method="POST" action="{{ route('admin.staff.notes.destroy', $note) }}" onsubmit="return confirm('{{ __('Delete this note?') }}')">
+                <form method="POST" action="{{ route('admin.staff.notes.destroy', $note) }}" data-ask="{{ __('Delete this note?') }}">
                     @csrf @method('DELETE')
                     <button type="submit" class="text-xs text-red-600 hover:underline">{{ __('Delete') }}</button>
                 </form>

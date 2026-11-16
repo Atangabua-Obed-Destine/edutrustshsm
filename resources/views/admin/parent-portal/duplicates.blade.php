@@ -25,7 +25,7 @@
         @foreach($groups as $group)
             <form method="POST" action="{{ route('admin.parent-portal.merge') }}"
                   class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
-                  onsubmit="return confirm(@json(__('Merge these records into the one you selected to keep? This cannot be undone.')))">
+                  data-ask="{{ __('Merge these records into the one you selected to keep? This cannot be undone.') }}">
                 @csrf
 
                 <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">

@@ -13,3 +13,53 @@
 /* Alpine: elements marked x-cloak stay hidden until Alpine has started,
    instead of flashing open on a slow connection. */
 [x-cloak] { display: none !important; }
+
+/* ── Desktop shell (resources/js/shell.js) ─────────────────────────────── */
+
+/* Toasts: bottom right, just above the status bar, clear of the page's
+   own buttons, which sit at the top. Newest nearest the bar. */
+.toast-stack {
+    position: fixed; bottom: 2.5rem; right: 1rem; z-index: 10040;
+    display: flex; flex-direction: column; justify-content: flex-end; gap: .5rem;
+    width: 22rem; max-width: calc(100vw - 2rem); pointer-events: none;
+}
+.toast {
+    pointer-events: auto; display: flex; align-items: flex-start; gap: .75rem;
+    border-width: 1px; border-radius: .6rem; padding: .65rem .75rem .65rem .9rem;
+    font-size: .875rem; line-height: 1.35; box-shadow: 0 10px 25px -8px rgb(15 23 42 / .25);
+    animation: toast-in .18s ease-out;
+}
+.toast-close { margin: -.15rem -.15rem 0 0; padding: 0 .3rem; font-size: 1.15rem; line-height: 1; opacity: .55; cursor: pointer; }
+.toast-close:hover { opacity: 1; }
+.toast-leaving { opacity: 0; transform: translateX(1rem); transition: opacity .18s, transform .18s; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(.4rem); } to { opacity: 1; transform: none; } }
+
+/* Busy bar: a thin line along the top while a page or a save is on its way. */
+#busy-bar {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 10080;
+    background: #14b8a6; box-shadow: 0 0 6px #14b8a6; opacity: 0; pointer-events: none;
+}
+#busy-bar.busy-on { opacity: 1; width: 85%; transition: width 8s cubic-bezier(.1, .7, .2, 1); }
+#busy-bar.busy-done { opacity: 0; width: 100%; transition: width .2s, opacity .3s .1s; }
+button:disabled[data-busy-disabled] { cursor: progress; opacity: .6; }
+
+/* Compact rows: more of a list on one screen. Wins over page padding,
+   inline styles included, but only for padding. */
+html[data-density="compact"] main table :is(th, td) {
+    padding-top: .4rem !important; padding-bottom: .4rem !important;
+}
+html[data-density="compact"] main table :is(th, td):first-child { padding-left: .75rem !important; }
+
+/* Status bar connection dot. */
+#sb-conn .sb-dot { width: .5rem; height: .5rem; border-radius: 9999px; background: #10b981; }
+#sb-conn[data-state="offline"] .sb-dot { background: #dc2626; }
+#sb-conn[data-state="unreachable"] .sb-dot { background: #f59e0b; }
+#sb-conn[data-state="offline"], #sb-conn[data-state="unreachable"] { font-weight: 600; color: #b91c1c; }
+kbd.sb-key {
+    font-family: ui-monospace, monospace; font-size: .7rem; padding: 0 .3rem;
+    border: 1px solid #d1d5db; border-bottom-width: 2px; border-radius: .25rem; background: #f9fafb;
+}
+
+@media print {
+    #status-bar, #toast-stack, #busy-bar { display: none !important; }
+}

@@ -277,6 +277,27 @@
         </div>
         @else
 
+        @php
+            $__canCorrect = $submission && in_array($submission->status, ['approved', 'published'], true)
+                && auth()->user()->can('results-control.correct');
+        @endphp
+
+        {{-- When entry closes for this sequence this year (Exam Sequences screen). --}}
+        @if($deadline)
+        <div class="mx-6 mt-4 rounded-lg px-4 py-2.5 text-sm {{ $deadline->isClosed() ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-slate-50 border border-slate-200 text-slate-700' }}" data-deadline>
+            @if($deadline->isClosed())
+                <strong>{{ __('Mark entry closed on :date.', ['date' => $deadline->closes_on->format('d/m/Y')]) }}</strong>
+                @can('results-control.deadline')
+                    {{ __('You can still enter and submit these marks; teachers cannot.') }}
+                @else
+                    {{ __('Ask the principal or deputy to enter these marks or to move the deadline.') }}
+                @endcan
+            @else
+                {{ __('Mark entry for this sequence closes at the end of :date.', ['date' => $deadline->closes_on->format('d/m/Y')]) }}
+            @endif
+        </div>
+        @endif
+
         {{-- Marks Form --}}
         <form method="POST" action="{{ route('admin.marks.save') }}" id="marksForm">
             @csrf
@@ -285,7 +306,8 @@
             <input type="hidden" name="sequence_id" value="{{ $sequence->id }}">
 
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                {{-- data-grid: Up and Down move between pupils (shell.js). --}}
+                <table class="w-full text-sm" data-grid>
                     <thead>
                         <tr style="background-color: #1e293b; color: #fff;">
                             <th class="px-4 py-3 text-left w-12 font-medium">{{ __('S/N') }}</th>
@@ -295,13 +317,16 @@
                             <th class="px-4 py-3 text-center w-20 font-medium">{{ __('Absent') }}</th>
                             <th class="hidden md:table-cell px-4 py-3 text-center w-20 font-medium">{{ __('Grade') }}</th>
                             <th class="hidden md:table-cell px-4 py-3 text-center w-24 font-medium">{{ __('Note') }}</th>
+                            @if($__canCorrect)
+                            <th class="px-4 py-3 text-center w-24 font-medium">{{ __('Correct') }}</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @foreach($enrollments as $i => $enrollment)
                         @php
                             $mark = $existingMarks[$enrollment->id] ?? null;
-                            $isLocked = $submission && in_array($submission->status, ['submitted', 'approved']);
+                            $isLocked = $submission && ! in_array($submission->status, ['draft', 'returned'], true);
                             $score = $mark && !$mark->is_absent ? $mark->score : '';
                             $rowBg = $i % 2 === 0 ? '' : 'background-color: #f9fafb;';
                         @endphp
@@ -357,6 +382,16 @@
                                     <span class="text-gray-300">—</span>
                                 @endif
                             </td>
+                            @if($__canCorrect)
+                            <td class="px-4 py-2.5 text-center">
+                                <button type="button" data-correct
+                                        data-enrollment="{{ $enrollment->id }}"
+                                        data-name="{{ $enrollment->student->last_name }} {{ $enrollment->student->first_name }}"
+                                        data-score="{{ $mark && ! $mark->is_absent ? $mark->score : '' }}"
+                                        data-absent="{{ $mark && $mark->is_absent ? '1' : '0' }}"
+                                        class="text-xs font-medium text-amber-700 hover:text-amber-900 underline">{{ __('Correct') }}</button>
+                            </td>
+                            @endif
                         </tr>
                         @endforeach
                     </tbody>
@@ -389,16 +424,82 @@
             @endif
         </form>
 
-        @if($submission && $submission->status === 'draft' && $submission->marks_entered > 0)
+        {{-- One mark changed after approval, with the reason (MarkCorrectionService). --}}
+        @if($__canCorrect)
+        <dialog id="correctDialog" style="margin: auto; border: none; border-radius: 12px; padding: 0; width: min(440px, 92vw); box-shadow: 0 20px 50px rgba(0,0,0,0.25);">
+            <form method="POST" action="{{ route('admin.marks.correct', $submission) }}" style="padding: 20px;">
+                @csrf
+                <input type="hidden" name="enrollment_id" id="correctEnrollment">
+                <h3 class="text-base font-bold text-gray-900">{{ __('Correct a mark') }}: <span id="correctName"></span></h3>
+                <p class="text-xs text-gray-500 mt-1">{{ __('These marks are :status. The sheet stays as it is; the change is recorded with your reason, and the report cards are recalculated.', ['status' => __(ucfirst($submission->status))]) }}</p>
+                <p class="text-sm text-gray-700 mt-3">{{ __('On the sheet now') }}: <strong id="correctNow"></strong></p>
+                <div class="mt-3 flex items-center gap-4">
+                    <label class="text-sm font-medium text-gray-700">{{ __('New mark') }}
+                        <input type="number" name="score" id="correctScore" min="0" max="{{ $maxMark }}" step="0.25" class="ml-2 w-24 px-2 py-1 border border-gray-300 rounded text-center">
+                    </label>
+                    <label class="text-sm text-gray-700 flex items-center gap-1.5">
+                        <input type="checkbox" name="is_absent" value="1" id="correctAbsent"> {{ __('Absent') }}
+                    </label>
+                </div>
+                <label for="correctReason" class="block text-sm font-medium text-gray-700 mt-3">{{ __('Reason') }}</label>
+                <textarea name="reason" id="correctReason" rows="3" required minlength="10" maxlength="500" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="{{ __('e.g. Script re-marked: two questions had not been added in.') }}"></textarea>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="document.getElementById('correctDialog').close()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm">{{ __('Cancel') }}</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-white" style="background-color: #b45309;">{{ __('Correct the mark') }}</button>
+                </div>
+            </form>
+        </dialog>
+        <script>
+        document.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-correct]');
+            if (!b) return;
+            const absent = b.dataset.absent === '1';
+            document.getElementById('correctEnrollment').value = b.dataset.enrollment;
+            document.getElementById('correctName').textContent = b.dataset.name;
+            document.getElementById('correctNow').textContent = absent ? @json(__('Absent')) : (b.dataset.score || '—');
+            const score = document.getElementById('correctScore');
+            const box = document.getElementById('correctAbsent');
+            score.value = absent ? '' : b.dataset.score;
+            box.checked = absent;
+            score.disabled = absent;
+            box.onchange = () => { score.disabled = box.checked; if (box.checked) score.value = ''; };
+            document.getElementById('correctReason').value = '';
+            document.getElementById('correctDialog').showModal();
+            score.focus();
+        });
+        </script>
+        @endif
+
+        @if($corrections->isNotEmpty())
+        <div class="px-6 pb-4" data-corrections>
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">{{ __('Corrected after approval') }}</h4>
+            <ul class="space-y-1 text-sm text-gray-700">
+                @foreach($corrections as $c)
+                <li>
+                    <span class="text-gray-400">{{ $c->created_at->format('d/m/Y H:i') }}</span>
+                    &middot; <strong>{{ $c->mark?->enrollment?->student?->full_name }}</strong>:
+                    {{ \App\Models\MarkCorrection::describe($c->old_score, $c->old_absent) }} → {{ \App\Models\MarkCorrection::describe($c->new_score, $c->new_absent) }}
+                    &middot; {{ $c->reason }} <span class="text-gray-400">({{ $c->correctedBy?->full_name ?? '—' }})</span>
+                </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+
+        {{-- A returned sheet is corrected and sent back the same way; without
+             'returned' here the teacher could fix it but never resubmit it. --}}
+        @if($submission && in_array($submission->status, ['draft', 'returned'], true) && $submission->marks_entered > 0)
+        @php $__resubmit = $submission->status === 'returned'; @endphp
         <div class="px-6 pb-4 flex flex-wrap items-center gap-3">
             @php $__confirm1 = [
-                      'title' => __('Submit these marks?'),
+                      'title' => $__resubmit ? __('Resubmit these marks?') : __('Submit these marks?'),
                       'warning' => __('The sheet goes to the Vice Principal for approval. You cannot change a mark until it is approved or returned to you.'),
                       'rows' => [[__('Class'), $classSection->name ?? ''], [__('Subject'), $subject->name ?? ''], [__('Sequence'), $sequence->name ?? ''], [__('Marks entered'), $submission->marks_entered.' / '.$submission->total_students]],
                       'issues' => $submission->marks_entered < $submission->total_students ? [['level' => 'warn', 'text' => trans_choice('{1} :count student has no mark and is not marked absent.|[2,*] :count students have no mark and are not marked absent.', $submission->total_students - $submission->marks_entered, ['count' => $submission->total_students - $submission->marks_entered])]] : [],
                       'check' => 'marksUnsaved',
                       'tick' => __('I have checked every mark on this sheet.'),
-                      'confirm' => __('Yes, submit for approval'),
+                      'confirm' => $__resubmit ? __('Yes, resubmit for approval') : __('Yes, submit for approval'),
                   ]; @endphp
             <form method="POST" action="{{ route('admin.marks.submit', $submission) }}" class="inline"
                   data-confirm='@json($__confirm1)'>
@@ -409,7 +510,7 @@
                         onmouseover="this.style.backgroundColor='#1d4ed8'"
                         onmouseout="this.style.backgroundColor='#2563eb'">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    {{ __('Submit for Approval') }}
+                    {{ $__resubmit ? __('Resubmit for Approval') : __('Submit for Approval') }}
                 </button>
             </form>
         </div>

@@ -113,6 +113,8 @@ class ClassCouncilController extends Controller implements HasMiddleware
                 : $this->councils->statistics($council),
             'tally' => $this->councils->awardTally($council),
             'awards' => ClassCouncilEntry::awards(),
+            'yearEnd' => $council->isYearEnd(),
+            'yearDecisions' => ClassCouncilEntry::yearDecisions(),
             'staff' => User::holdingRole('super_admin', 'admin', 'teacher', 'staff')
                 ->where('is_active', true)->orderBy('first_name')->get(),
             'passMark' => (float) (SchoolSetting::current()?->pass_mark ?: 10),
@@ -145,6 +147,7 @@ class ClassCouncilController extends Controller implements HasMiddleware
             'entries' => ['required', 'array'],
             'entries.*.award' => ['required', Rule::in(array_keys(ClassCouncilEntry::awards()))],
             'entries.*.conduct' => ['nullable', 'in:excellent,very_good,good,fair,poor'],
+            'entries.*.year_decision' => ['nullable', Rule::in(array_keys(ClassCouncilEntry::yearDecisions()))],
             'entries.*.remark' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -163,7 +166,7 @@ class ClassCouncilController extends Controller implements HasMiddleware
                 'award' => $values['award'],
                 'conduct' => $values['conduct'] ?? null,
                 'remark' => $values['remark'] ?? null,
-            ]);
+            ] + (array_key_exists('year_decision', $values) ? ['year_decision' => $values['year_decision']] : []));
 
             $saved++;
         }

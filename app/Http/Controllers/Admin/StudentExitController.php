@@ -63,8 +63,19 @@ class StudentExitController extends Controller implements HasMiddleware
             $query->whereYear('withdrawal_date', $year);
         }
 
+        $list = $this->archiveList($request)->filters([
+            __('Search') => $search ?: null,
+            __('How they left') => $status ? __(ucfirst((string) $status)) : null,
+            __('Year') => $year ?: null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
         return view('admin.students.archive', [
-            'students' => $query->orderByDesc('withdrawal_date')->orderBy('last_name')->paginate(25)->withQueryString(),
+            'students' => $list->paginate($query),
+            'list' => $list,
             // Grouped in PHP rather than with YEAR(), which is MySQL's and
             // would fail on any other engine.
             'years' => Student::whereNotNull('withdrawal_date')
@@ -73,6 +84,35 @@ class StudentExitController extends Controller implements HasMiddleware
                 ->unique()->sortDesc()->values(),
             'filters' => $request->only(['search', 'status', 'year']),
         ]);
+    }
+
+    /** The former pupils list's columns: what sorts, and what an export writes. */
+    private function archiveList(Request $request): \App\Support\Listing
+    {
+        // The class of the last enrolment, as a value the list can sort on.
+        $lastClass = fn () => \App\Models\StudentEnrollment::query()
+            ->join('class_sections', 'class_sections.id', '=', 'student_enrollments.class_section_id')
+            ->whereColumn('student_enrollments.student_id', 'students.id')
+            ->orderByDesc('student_enrollments.enrollment_date')
+            ->select('class_sections.name')
+            ->limit(1);
+
+        $last = fn (Student $s) => $s->enrollments->sortByDesc('enrollment_date')->first();
+
+        return new \App\Support\Listing($request, 'former-pupils', __('Former Pupils'), [
+            'student_id' => ['label' => __('Student ID'), 'sort' => 'students.student_id', 'value' => fn ($s) => $s->student_id],
+            'name' => ['label' => __('Pupil'), 'sort' => ['students.last_name', 'students.first_name'],
+                'value' => fn ($s) => trim($s->first_name.' '.$s->last_name)],
+            'class' => ['label' => __('Last class'), 'sort' => fn ($q, $dir) => $q->orderBy($lastClass(), $dir)->orderBy('students.last_name'),
+                'value' => fn ($s) => $last($s)?->classSection?->name],
+            'status' => ['label' => __('How they left'), 'sort' => 'students.status',
+                'value' => fn ($s) => $s->status === 'withdrawn' && $s->destination_school ? __('Transferred') : __(ucfirst((string) $s->status))],
+            'destination' => ['label' => __('Destination school'), 'value' => fn ($s) => $s->destination_school],
+            'last_day' => ['label' => __('Last day'),
+                'sort' => fn ($q, $dir) => $q->orderBy('students.withdrawal_date', $dir)->orderBy('students.last_name'),
+                'value' => fn ($s) => $s->withdrawal_date ? \Illuminate\Support\Carbon::parse($s->withdrawal_date) : null],
+            'note' => ['label' => __('Note'), 'value' => fn ($s) => $s->withdrawal_reason],
+        ], default: 'last_day', defaultDir: 'desc');
     }
 
     /** The form for recording that one pupil has left. */
@@ -133,13 +173,25 @@ class StudentExitController extends Controller implements HasMiddleware
         abort_unless($this->exits->hasLeft($student), 404);
 
         $student->load(['guardian', 'enrollments.academicSession', 'enrollments.classSection.form']);
+        $last = $student->enrollments
+            ->sortByDesc(fn ($e) => $e->academicSession?->start_date ?? $e->enrollment_date)
+            ->first();
+
+        // Every copy printed goes in the register with its own serial.
+        $issued = \App\Models\IssuedDocument::issue(\App\Models\IssuedDocument::LEAVING_CERTIFICATE, $student, [
+            __('Pupil') => $student->first_name.' '.$student->last_name,
+            __('Matricule') => $student->student_id,
+            __('Date of birth') => $student->date_of_birth?->format('d/m/Y'),
+            __('Last class') => $last?->classSection?->name,
+            __('Academic Year') => $last?->academicSession?->name,
+            __('Date left') => $student->withdrawal_date?->format('d/m/Y'),
+        ]);
 
         return Pdf::loadView('admin.students.leaving-certificate', [
             'student' => $student,
             'school' => SchoolSetting::current(),
-            'last' => $student->enrollments
-                ->sortByDesc(fn ($e) => $e->academicSession?->start_date ?? $e->enrollment_date)
-                ->first(),
+            'last' => $last,
+            'issued' => $issued,
         ])->setPaper('a4')->download('leaving-certificate-'.str($student->student_id)->slug().'.pdf');
     }
 }

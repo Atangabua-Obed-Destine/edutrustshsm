@@ -133,7 +133,14 @@
                                 @else
                                     <span class="text-gray-400 text-xs">{{ __('No Data') }}</span>
                                 @endif
-                                @if($enrollment->ineligible_reason)
+                                @if($enrollment->council_decision)
+                                    <div class="text-[11px] font-semibold mt-1 leading-tight {{ $enrollment->council_decision === 'promote' ? 'text-emerald-700' : 'text-amber-700' }}" data-council-decision>
+                                        {{ __('Class council: :decision', ['decision' => \App\Models\ClassCouncilEntry::yearDecisions()[$enrollment->council_decision] ?? $enrollment->council_decision]) }}
+                                    </div>
+                                    @if($enrollment->council_decision === 'leave')
+                                        <div class="text-[11px] text-gray-500 leading-tight">{{ __('Record the exit on the pupil\'s page.') }}</div>
+                                    @endif
+                                @elseif($enrollment->ineligible_reason)
                                     {{-- Say why now, rather than refusing the promotion after it is submitted. --}}
                                     <div class="text-[11px] text-gray-500 mt-1 leading-tight">{{ $enrollment->ineligible_reason }}</div>
                                 @endif
@@ -142,7 +149,7 @@
                                 <div class="flex items-center justify-center gap-2">
                                     {{-- Promotion is gated on a complete, passing year, so the option is
                                          off where the server would refuse it anyway. --}}
-                                    <label class="flex items-center gap-1 {{ $enrollment->is_eligible ? 'cursor-pointer' : 'cursor-not-allowed opacity-40' }}" @if(! $enrollment->is_eligible) title="{{ $enrollment->ineligible_reason }}" @endif>
+                                    <label class="flex items-center gap-1 {{ $enrollment->is_eligible ? 'cursor-pointer' : 'cursor-not-allowed opacity-40' }}" @if(! $enrollment->is_eligible) title="{{ $enrollment->council_decision ? __('The class council decided otherwise.') : $enrollment->ineligible_reason }}" @endif>
                                         <input type="radio" name="decisions[{{ $i }}][action]" value="promote" {{ $enrollment->recommended_decision === 'promote' ? 'checked' : '' }} @disabled(! $enrollment->is_eligible) class="text-emerald-600 focus:ring-emerald-500 disabled:opacity-50" onchange="toggleTargetClass({{ $enrollment->id }}, true)">
                                         <span class="text-xs text-gray-600">P</span>
                                     </label>
@@ -155,7 +162,7 @@
                                         <span class="text-xs text-gray-600">G</span>
                                     </label>
                                     <label class="flex items-center gap-1 cursor-pointer">
-                                        <input type="radio" name="decisions[{{ $i }}][action]" value="skip" class="text-gray-400 focus:ring-gray-400" onchange="toggleTargetClass({{ $enrollment->id }}, false)">
+                                        <input type="radio" name="decisions[{{ $i }}][action]" value="skip" {{ $enrollment->recommended_decision === 'skip' ? 'checked' : '' }} class="text-gray-400 focus:ring-gray-400" onchange="toggleTargetClass({{ $enrollment->id }}, false)">
                                         <span class="text-xs text-gray-600">S</span>
                                     </label>
                                 </div>

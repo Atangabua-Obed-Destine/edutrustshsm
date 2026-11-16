@@ -81,11 +81,11 @@
             </form>
             <button type="button" @click="setPass = !setPass" class="text-xs bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700">{{ __('Set Password Directly') }}</button>
             @if($guardian->canAccessPortal())
-                <form method="POST" action="{{ route('admin.parent-portal.reset-password', $guardian) }}" onsubmit="return confirm('{{ __('Reset password? The parent will need a new invite or a new password to log in.') }}')">
+                <form method="POST" action="{{ route('admin.parent-portal.reset-password', $guardian) }}" data-ask="{{ __('Reset password? The parent will need a new invite or a new password to log in.') }}">
                     @csrf
                     <button class="text-xs bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">{{ __('Reset Password') }}</button>
                 </form>
-                <form method="POST" action="{{ route('admin.parent-portal.disable', $guardian) }}" onsubmit="return confirm('{{ __('Revoke portal access?') }}')">
+                <form method="POST" action="{{ route('admin.parent-portal.disable', $guardian) }}" data-ask="{{ __('Revoke portal access?') }}">
                     @csrf
                     <button class="text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg hover:bg-red-100">{{ __('Revoke Access') }}</button>
                 </form>
@@ -165,7 +165,7 @@
                                                 </form>
                                             @endunless
                                             <form method="POST" action="{{ route('admin.parent-portal.students.detach', [$guardian, $child]) }}" class="mt-1.5"
-                                                  onsubmit="return confirm(@json(__('Remove this link? The pupil and the parent both stay on file.')))">
+                                                  data-ask="{{ __('Remove this link? The pupil and the parent both stay on file.') }}">
                                                 @csrf @method('DELETE')
                                                 <button class="text-xs text-rose-600 hover:text-rose-700">{{ __('Remove link') }}</button>
                                             </form>

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Payment;
+use App\Models\PaymentAccount;
+use App\Models\PaymentAccountTransaction;
 use App\Models\PaymentAllocation;
 use App\Models\PaymentPlan;
 use App\Models\SchoolSetting;
@@ -10,6 +12,8 @@ use App\Models\StudentCredit;
 use App\Models\StudentFee;
 use App\Support\BranchContext;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Single source of truth for recording an official fee Payment: allocating it
@@ -30,7 +34,9 @@ class PaymentRecorder
      * @param  array  $data  keys: student_enrollment_id, amount, payment_method,
      *                       payment_date, target_fee_id?, allocations?, payer_name?,
      *                       payer_phone?, bank_name?, transaction_ref?,
-     *                       proof_document?, notes?, received_by?, branch_id?
+     *                       proof_document?, notes?, received_by?, branch_id?,
+     *                       payment_account_id? (the cash box or bank credited),
+     *                       accept_credit? (see assertCreditAccepted)
      *
      *                       `allocations` is an operator-chosen split:
      *                       [['fee_id' => int, 'amount' => float], ...]. Each is
@@ -41,12 +47,15 @@ class PaymentRecorder
     public function record(array $data): Payment
     {
         return DB::transaction(function () use ($data) {
+            $this->assertCreditAccepted($data);
+
             $payment = Payment::create([
                 // Stamped explicitly: BelongsToBranch skips stamping in
                 // All-Branches mode, which would leave the row invisible to
                 // every branch-scoped query afterwards.
                 'branch_id'             => $data['branch_id'] ?? $this->currentBranchId(),
                 'receipt_number'        => $this->nextReceiptNumber(),
+                'verify_code'           => Payment::newVerifyCode(),
                 'student_enrollment_id' => $data['student_enrollment_id'],
                 'amount'                => $data['amount'],
                 'payment_method'        => $data['payment_method'],
@@ -70,9 +79,62 @@ class PaymentRecorder
 
             $this->syncPaymentPlans($payment, $allocated);
             $this->captureOverpayment($payment, (float) $data['amount'], $allocated);
+            $this->creditPaymentAccount($payment, $data['payment_account_id'] ?? null);
 
             return $payment->load('allocations');
         });
+    }
+
+    /**
+     * The validation rule for "Paid into" on every screen that takes a fee.
+     *
+     * Required as soon as the school has an active cash box or bank account,
+     * so the cash book matches the till without anyone linking receipts by
+     * hand afterwards. A school that keeps no accounts can still take fees.
+     *
+     * @return array<int, mixed>
+     */
+    public static function accountRules(): array
+    {
+        return [
+            PaymentAccount::active()->exists() ? 'required' : 'nullable',
+            'integer',
+            Rule::exists('payment_accounts', 'id')->where('status', true),
+        ];
+    }
+
+    /**
+     * Put the money into the cash box or bank account it was paid into.
+     *
+     * Fee receipts used to be recorded without an account, so they reached
+     * the cash book only when someone linked each one on the "unlinked"
+     * screen. A credit drawn from an existing balance is not new money and
+     * moves no account.
+     */
+    protected function creditPaymentAccount(Payment $payment, $accountId): void
+    {
+        if (! $accountId || in_array($payment->payment_method, Payment::NON_CASH_METHODS, true)) {
+            return;
+        }
+
+        $account = PaymentAccount::active()->whereKey($accountId)->lockForUpdate()->first();
+
+        if (! $account) {
+            throw ValidationException::withMessages([
+                'payment_account_id' => __('That account is closed or does not exist. Choose another.'),
+            ]);
+        }
+
+        app(PaymentAccountService::class)->credit($account, $payment->amount, [
+            'transaction_date' => $payment->payment_date,
+            'title' => __('Fee receipt :r', ['r' => $payment->receipt_number]),
+            'reference_type' => PaymentAccountTransaction::REF_FEE_PAYMENT,
+            'reference_id' => $payment->id,
+            'payment_method' => $payment->payment_method,
+            'payment_reference' => $payment->transaction_ref,
+        ]);
+
+        $payment->update(['payment_account_id' => $account->id]);
     }
 
     /**
@@ -111,9 +173,86 @@ class PaymentRecorder
     }
 
     /**
-     * Allocate an amount across outstanding fees. A targeted fee is paid first
-     * (the collect-fees behaviour); any remainder spills over to the student's
-     * other outstanding fees, oldest first.
+     * Where an amount would go, fee by fee, without recording anything.
+     *
+     * The collection screen shows this before the bursar confirms, and
+     * record() applies the very same plan, so what was shown is what is
+     * saved. The order:
+     *   1. an operator-chosen split, line by line, each capped at what the
+     *      fee still owes;
+     *   2. the fee the payment was taken against, if it still owes;
+     *   3. the pupil's other fees, earlier years first (a debt does not lapse
+     *      because the pupil moved up a class), then oldest first;
+     *   4. whatever is left is credit, held for the pupil.
+     *
+     * @param  array  $explicit  [['fee_id' => int, 'amount' => float], ...]
+     * @return array{lines: list<array{fee: StudentFee, amount: float, balance_before: float, balance_after: float}>, allocated: float, credit: float}
+     */
+    public function plan(int $enrollmentId, float $amount, ?int $targetFeeId = null, array $explicit = []): array
+    {
+        $fees = $this->pupilFees($enrollmentId)
+            ->with(['feeCategory', 'enrollment.academicSession'])
+            ->orderBy('academic_sessions.start_date')
+            ->orderBy('student_fees.id')
+            ->get()
+            ->keyBy('id');
+
+        $targetFeeId = $targetFeeId ? (int) $targetFeeId : null;
+        $owing = $fees->map(fn (StudentFee $fee) => max(0.0, (float) $fee->balance))->all();
+        $remaining = round($amount, 2);
+        $applied = [];
+
+        $take = function (int $feeId, float $wanted) use (&$owing, &$remaining, &$applied): void {
+            $use = round(min($owing[$feeId] ?? 0.0, $wanted, $remaining), 2);
+            if ($use <= 0) {
+                return;
+            }
+            $applied[$feeId] = round(($applied[$feeId] ?? 0.0) + $use, 2);
+            $owing[$feeId] -= $use;
+            $remaining = round($remaining - $use, 2);
+        };
+
+        foreach ($explicit as $line) {
+            $requested = (float) ($line['amount'] ?? 0);
+            if ($requested > 0 && $fees->has((int) ($line['fee_id'] ?? 0))) {
+                $take((int) $line['fee_id'], $requested);
+            }
+        }
+
+        if ($targetFeeId && $fees->has($targetFeeId)) {
+            $take($targetFeeId, $remaining);
+        }
+
+        foreach ($fees->keys() as $feeId) {
+            if ($remaining <= 0) {
+                break;
+            }
+            if ($feeId !== $targetFeeId) {
+                $take($feeId, $remaining);
+            }
+        }
+
+        $lines = [];
+        foreach ($applied as $feeId => $used) {
+            $fee = $fees[$feeId];
+            $lines[] = [
+                'fee' => $fee,
+                'amount' => $used,
+                'balance_before' => (float) $fee->balance,
+                'balance_after' => round((float) $fee->balance - $used, 2),
+            ];
+        }
+
+        return [
+            'lines' => $lines,
+            'allocated' => round(array_sum($applied), 2),
+            'credit' => max(0.0, $remaining),
+        ];
+    }
+
+    /**
+     * Apply the plan for this payment: one allocation per fee, balances
+     * updated.
      *
      * @return array<int, float> student_fee_id => amount actually applied
      */
@@ -123,76 +262,56 @@ class PaymentRecorder
         ?int $targetFeeId = null,
         array $explicit = []
     ): array {
-        $remaining = $amount;
         $applied = [];
 
-        // Operator-chosen split, honoured in the order given.
-        foreach ($explicit as $line) {
-            if ($remaining <= 0) {
-                break;
-            }
+        foreach ($this->plan($payment->student_enrollment_id, $amount, $targetFeeId, $explicit)['lines'] as $line) {
+            PaymentAllocation::create([
+                'branch_id'      => $payment->branch_id,
+                'payment_id'     => $payment->id,
+                'student_fee_id' => $line['fee']->id,
+                'amount'         => $line['amount'],
+            ]);
 
-            $requested = (float) ($line['amount'] ?? 0);
-            if ($requested <= 0) {
-                continue;
-            }
+            $fee = $line['fee'];
+            $fee->paid_amount = (float) $fee->paid_amount + $line['amount'];
+            $fee->recalculate()->save();
 
-            $fee = $this->pupilFees($payment)
-                ->where('student_fees.id', $line['fee_id'] ?? 0)
-                ->first();
-
-            if (! $fee) {
-                continue;
-            }
-
-            // Cap this line at what was requested, but decrement the payment's
-            // real remainder by what was actually used — passing the capped
-            // figure back as the remainder would discard the rest of the payment.
-            [, $used] = $this->applyToFee($payment, $fee, min($requested, $remaining));
-
-            if ($used > 0) {
-                $applied[$fee->id] = ($applied[$fee->id] ?? 0) + $used;
-                $remaining -= $used;
-            }
-        }
-
-        if ($targetFeeId) {
-            $target = $this->pupilFees($payment)
-                ->where('student_fees.id', $targetFeeId)
-                ->where('student_fees.balance', '>', 0)
-                ->first();
-
-            if ($target) {
-                [$remaining, $used] = $this->applyToFee($payment, $target, $remaining);
-                if ($used > 0) {
-                    $applied[$target->id] = $used;
-                }
-            }
-        }
-
-        if ($remaining > 0) {
-            // Last year's unpaid fees come first: a debt does not lapse
-            // because the pupil moved up a class.
-            $outstanding = $this->pupilFees($payment)
-                ->when($targetFeeId, fn ($q) => $q->where('student_fees.id', '!=', $targetFeeId))
-                ->where('student_fees.balance', '>', 0)
-                ->orderBy('academic_sessions.start_date')
-                ->orderBy('student_fees.id')
-                ->get();
-
-            foreach ($outstanding as $fee) {
-                if ($remaining <= 0) {
-                    break;
-                }
-
-                [$remaining, $used] = $this->applyToFee($payment, $fee, $remaining);
-                if ($used > 0) {
-                    $applied[$fee->id] = $used;
-                }
-            }
+            $applied[$fee->id] = $line['amount'];
         }
 
         return $applied;
+    }
+
+    /**
+     * Money beyond what the pupil owes becomes credit, and nobody should find
+     * that out from the receipt. A screen that takes fees says the family
+     * agreed by sending accept_credit; without it, the payment is refused
+     * with the figure, so the bursar can hand the change back instead.
+     *
+     * Only checked when the caller passes the key: imports and the payment
+     * reversal tests record without a person at the counter.
+     */
+    protected function assertCreditAccepted(array $data): void
+    {
+        if (! array_key_exists('accept_credit', $data) || $data['accept_credit']
+            || in_array($data['payment_method'] ?? null, Payment::NON_CASH_METHODS, true)) {
+            return;
+        }
+
+        $credit = $this->plan(
+            (int) $data['student_enrollment_id'],
+            (float) $data['amount'],
+            $data['target_fee_id'] ?? null,
+            $data['allocations'] ?? []
+        )['credit'];
+
+        if ($credit >= 0.01) {
+            throw ValidationException::withMessages([
+                'accept_credit' => __(':amount FCFA of this is more than the pupil owes. Keep it as the pupil\'s credit only if the family agrees: tick "Keep the extra as credit" and record it again. Otherwise take the lower amount and give the change back.', [
+                    'amount' => number_format($credit, 0, ',', ' '),
+                ]),
+            ]);
+        }
     }
 
     /**
@@ -202,41 +321,15 @@ class PaymentRecorder
      * what was not paid on it is still owed: the school collects it at the
      * same counter, on the same receipt.
      */
-    protected function pupilFees(Payment $payment)
+    protected function pupilFees(int $enrollmentId)
     {
-        $studentId = \App\Models\StudentEnrollment::whereKey($payment->student_enrollment_id)->value('student_id');
+        $studentId = \App\Models\StudentEnrollment::whereKey($enrollmentId)->value('student_id');
 
         return StudentFee::query()
             ->select('student_fees.*')
             ->join('student_enrollments', 'student_enrollments.id', '=', 'student_fees.student_enrollment_id')
             ->leftJoin('academic_sessions', 'academic_sessions.id', '=', 'student_enrollments.academic_session_id')
             ->where('student_enrollments.student_id', $studentId);
-    }
-
-    /**
-     * Apply as much of $remaining as fits to one fee.
-     *
-     * @return array{0: float, 1: float} [leftover, amount applied]
-     */
-    protected function applyToFee(Payment $payment, StudentFee $fee, float $remaining): array
-    {
-        $allocAmount = min((float) $fee->balance, $remaining);
-
-        if ($allocAmount <= 0) {
-            return [$remaining, 0.0];
-        }
-
-        PaymentAllocation::create([
-            'branch_id'      => $payment->branch_id,
-            'payment_id'     => $payment->id,
-            'student_fee_id' => $fee->id,
-            'amount'         => $allocAmount,
-        ]);
-
-        $fee->paid_amount = (float) $fee->paid_amount + $allocAmount;
-        $fee->recalculate()->save();
-
-        return [$remaining - $allocAmount, $allocAmount];
     }
 
     /**

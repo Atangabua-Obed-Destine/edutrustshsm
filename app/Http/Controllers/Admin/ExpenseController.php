@@ -46,10 +46,42 @@ class ExpenseController extends Controller implements HasMiddleware
             $query->where('category_id', $categoryId);
         }
 
-        $expenses = $query->orderByDesc('id')->paginate(25)->withQueryString();
         $total = (clone $query)->sum('amount');
 
-        return view('admin.account.expense.index', compact('expenses', 'categories', 'from', 'to', 'total'));
+        $list = $this->expenseList($request)->filters([
+            __('Title') => $title ?: null,
+            __('Category') => $categoryId ? $categories->firstWhere('id', (int) $categoryId)?->title : null,
+            __('From Date') => $from,
+            __('To Date') => $to,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $expenses = $list->paginate($query);
+
+        return view('admin.account.expense.index', compact('expenses', 'categories', 'from', 'to', 'total', 'list'));
+    }
+
+    /** The expense list's columns: what sorts, and what an export writes. */
+    private function expenseList(Request $request): \App\Support\Listing
+    {
+        return new \App\Support\Listing($request, 'expenses', __('Expense List'), [
+            'title' => ['label' => __('Title'), 'sort' => 'expenses.title', 'value' => fn ($e) => $e->title],
+            'category' => ['label' => __('Category'),
+                'sort' => fn ($q, $dir) => $q->orderBy(ExpenseCategory::select('title')->whereColumn('expense_categories.id', 'expenses.category_id')->limit(1), $dir),
+                'value' => fn ($e) => $e->category?->title],
+            'invoice_id' => ['label' => __('Invoice ID'), 'sort' => 'expenses.invoice_id', 'value' => fn ($e) => $e->invoice_id],
+            'amount' => ['label' => __('Amount'), 'sort' => 'expenses.amount', 'money' => true, 'value' => fn ($e) => $e->amount],
+            'date' => ['label' => __('Date'), 'sort' => 'expenses.date', 'value' => fn ($e) => $e->date],
+            // Newest entered first, as before: a back-dated entry still shows at the top just after it is saved. Sort only, never exported.
+            'added' => ['label' => __('Date'), 'sort' => 'expenses.id'],
+            'method' => ['label' => __('Method'), 'sort' => 'expenses.payment_method', 'value' => fn ($e) => $e->payment_method],
+            'account' => ['label' => __('Account'),
+                'sort' => fn ($q, $dir) => $q->orderBy(PaymentAccount::select('title')->whereColumn('payment_accounts.id', 'expenses.payment_account_id')->limit(1), $dir),
+                'value' => fn ($e) => $e->paymentAccount?->title ?? __('Unlinked')],
+        ], default: 'added', defaultDir: 'desc');
     }
 
     public function create()

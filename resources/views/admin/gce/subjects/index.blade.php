@@ -91,7 +91,7 @@
                             @endcan
                             @can('gce-registration.delete')
                             <form method="POST" action="{{ route('admin.gce.subjects.destroy', $gceSubject) }}"
-                                  onsubmit="return confirm('{{ __('Delete this board subject?') }}')">
+                                  data-ask="{{ __('Delete this board subject?') }}">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-500 hover:text-red-600">{{ __('Delete') }}</button>
                             </form>

@@ -32,19 +32,41 @@ class JournalEntryController extends Controller implements HasMiddleware
 
     public function index(Request $request)
     {
-        $entries = JournalEntry::with('fiscalYear')
+        $query = JournalEntry::with('fiscalYear')
             ->when($request->fiscal_year_id, fn ($q, $v) => $q->where('fiscal_year_id', $v))
             ->when($request->journal_type, fn ($q, $v) => $q->where('journal_type', $v))
             ->when($request->status === 'posted', fn ($q) => $q->where('is_posted', true))
             ->when($request->status === 'draft', fn ($q) => $q->where('is_posted', false))
             ->when($request->start_date, fn ($q, $v) => $q->whereDate('entry_date', '>=', $v))
-            ->when($request->end_date, fn ($q, $v) => $q->whereDate('entry_date', '<=', $v))
-            ->orderByDesc('entry_date')->orderByDesc('id')
-            ->paginate(25)->withQueryString();
+            ->when($request->end_date, fn ($q, $v) => $q->whereDate('entry_date', '<=', $v));
 
         $fiscalYears = FiscalYear::orderByDesc('start_date')->get();
 
-        return view('admin.accounting.journal.index', compact('entries', 'fiscalYears'));
+        $list = new \App\Support\Listing($request, 'journal-entries', __('Journal Entries'), [
+            'entry_number' => ['label' => __('Entry #'), 'sort' => 'journal_entries.entry_number', 'value' => fn ($e) => $e->entry_number],
+            'date' => ['label' => __('Date'), 'sort' => 'journal_entries.entry_date', 'value' => fn ($e) => $e->entry_date],
+            'type' => ['label' => __('Type'), 'sort' => 'journal_entries.journal_type', 'value' => fn ($e) => __(ucfirst((string) $e->journal_type))],
+            'description' => ['label' => __('Description'), 'sort' => 'journal_entries.description', 'value' => fn ($e) => $e->description],
+            'total_debit' => ['label' => __('Total Debit'), 'sort' => 'journal_entries.total_debit', 'money' => true, 'value' => fn ($e) => $e->total_debit],
+            'total_credit' => ['label' => __('Total Credit'), 'sort' => 'journal_entries.total_credit', 'money' => true, 'value' => fn ($e) => $e->total_credit],
+            'status' => ['label' => __('Status'), 'sort' => 'journal_entries.is_posted', 'value' => fn ($e) => $e->is_posted ? __('Posted') : __('Draft')],
+        ], default: 'date', defaultDir: 'desc');
+
+        $list->filters([
+            __('Fiscal Year') => $request->fiscal_year_id ? $fiscalYears->firstWhere('id', (int) $request->fiscal_year_id)?->name : null,
+            __('Type') => $request->journal_type ? __(ucfirst((string) $request->journal_type)) : null,
+            __('Status') => match ($request->status) { 'posted' => __('Posted'), 'draft' => __('Draft'), default => null },
+            __('Start Date') => $request->start_date,
+            __('End Date') => $request->end_date,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $entries = $list->paginate($query);
+
+        return view('admin.accounting.journal.index', compact('entries', 'fiscalYears', 'list'));
     }
 
     public function create()

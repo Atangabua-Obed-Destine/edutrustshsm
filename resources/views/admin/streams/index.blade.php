@@ -57,7 +57,7 @@
                         <div class="flex items-center justify-end gap-2">
                             <a href="{{ route('admin.streams.edit', $stream) }}" class="text-blue-600 hover:text-blue-800 text-xs font-medium">{{ __('Edit') }}</a>
                             @if($stream->forms_count === 0)
-                            <form method="POST" action="{{ route('admin.streams.destroy', $stream) }}" class="inline" onsubmit="return confirm('{{ __('Delete this stream?') }}')">
+                            <form method="POST" action="{{ route('admin.streams.destroy', $stream) }}" class="inline" data-ask="{{ __('Delete this stream?') }}">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button>
                             </form>

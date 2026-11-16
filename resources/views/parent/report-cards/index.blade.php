@@ -23,6 +23,15 @@
                 $avgColor = $avg >= 10 ? '#16a34a' : '#dc2626';
                 $nursery = \App\Services\NurseryAssessmentService::isNursery($r->enrollment->classSection?->form) && ! $r->isRecorded();
             @endphp
+            @if($r->withheld)
+            <div class="pp-card" style="padding:20px; border:1px solid #fde68a; background:#fffbeb;" data-withheld>
+                <div style="font-size:0.95rem; font-weight:700; color:#0f172a;">{{ $r->term->name ?? '—' }}</div>
+                <div style="font-size:0.76rem; color:#64748b; margin-top:2px;">{{ $r->enrollment->academicSession->name ?? '' }}</div>
+                <p style="font-size:0.84rem; color:#92400e; font-weight:600; margin-top:12px;">{{ __('Withheld by the school') }}</p>
+                <p style="font-size:0.78rem; color:#78350f; margin-top:4px;">{{ __('Please contact the school to see this report card.') }}</p>
+            </div>
+            @continue
+            @endif
             <a href="{{ route('parent.report-cards.show', [$studentModel->id, $r->id]) }}" class="pp-card" style="display:block; padding:20px; transition:transform 0.15s, box-shadow 0.15s;"
                onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.1)'"
                onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.07)'">

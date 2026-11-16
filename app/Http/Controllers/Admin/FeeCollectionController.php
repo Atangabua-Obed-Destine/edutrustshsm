@@ -9,6 +9,7 @@ use App\Models\ClassSection;
 use App\Models\FeeCategory;
 use App\Models\Form;
 use App\Models\Payment;
+use App\Models\PaymentAccount;
 use App\Models\SchoolSetting;
 use App\Models\Stream;
 use App\Models\PaymentPlan;
@@ -30,8 +31,8 @@ class FeeCollectionController extends Controller implements HasMiddleware
     {
         return [
             static::can('fee-collection.view', ['index', 'streamsByForm', 'sectionsByForm']),
-            static::can('fee-collection.collect', ['storePayment']),
-            static::can('fee-collection.receipt', ['receipt']),
+            static::can('fee-collection.collect', ['storePayment', 'splitPreview']),
+            static::can('fee-collection.receipt', ['receipt', 'receipts']),
         ];
     }
 
@@ -134,11 +135,15 @@ class FeeCollectionController extends Controller implements HasMiddleware
         $outstandingByEnrollment = $studentFees
             ->mapWithKeys(fn ($f) => [$f->student_enrollment_id => (float) ($owedByStudent[$f->enrollment?->student_id] ?? $f->balance)]);
 
+        // The cash box or bank account each payment goes into.
+        $paymentAccounts = PaymentAccount::active()->orderBy('title')->get(['id', 'title']);
+
         return view('admin.fees.collect.index', compact(
             'sessions', 'forms', 'categories', 'streams', 'sections',
             'sessionId', 'formId', 'streamId', 'sectionId', 'categoryId', 'status',
             'studentFees', 'loaded',
-            'totalExpected', 'totalPaid', 'totalBalance', 'outstandingByEnrollment'
+            'totalExpected', 'totalPaid', 'totalBalance', 'outstandingByEnrollment',
+            'paymentAccounts'
         ));
     }
 
@@ -166,16 +171,13 @@ class FeeCollectionController extends Controller implements HasMiddleware
             'payer_name' => ['nullable', 'string', 'max:150'],
             'payer_phone' => ['nullable', 'string', 'max:20'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'payment_account_id' => PaymentRecorder::accountRules(),
+        ], [
+            'payment_account_id.required' => __('Choose the cash box or bank account the money was paid into.'),
         ]);
 
         $studentFee = StudentFee::with('enrollment')->findOrFail($validated['student_fee_id']);
-
-        // An arrear from last year is paid on the enrolment the pupil is on
-        // now, so the receipt carries this year's class.
-        $enrollmentId = StudentEnrollment::where('student_id', $studentFee->enrollment?->student_id)
-            ->where('status', 'active')
-            ->orderByDesc('id')
-            ->value('id') ?? $studentFee->student_enrollment_id;
+        $enrollmentId = $this->payingEnrollmentId($studentFee);
 
         // Recording, allocation, balances and payment-plan advancement all live
         // in PaymentRecorder so this screen, the payments screen and parent
@@ -189,6 +191,8 @@ class FeeCollectionController extends Controller implements HasMiddleware
             'payer_name'            => $validated['payer_name'] ?? null,
             'payer_phone'           => $validated['payer_phone'] ?? null,
             'notes'                 => $validated['notes'] ?? null,
+            'payment_account_id'    => $validated['payment_account_id'] ?? null,
+            'accept_credit'         => $request->boolean('accept_credit'),
         ]);
 
         $studentFee->refresh();
@@ -224,10 +228,92 @@ class FeeCollectionController extends Controller implements HasMiddleware
             'status' => $studentFee->status,
             'payment_id' => $payment->id,
             'plan' => $planInfo,
+            // Every fee this payment reached, for the screen to redraw.
+            'fees' => StudentFee::whereIn('id', $payment->allocations->pluck('student_fee_id'))
+                ->get(['id', 'paid_amount', 'balance', 'status'])
+                ->map(fn (StudentFee $fee) => [
+                    'id' => $fee->id,
+                    'paid_amount' => $fee->paid_amount,
+                    'balance' => $fee->balance,
+                    'status' => $fee->status,
+                ])->values(),
+        ]);
+    }
+
+    /**
+     * Where the amount being typed would go, fee by fee, before anything is
+     * recorded: the same plan PaymentRecorder then applies.
+     */
+    public function splitPreview(Request $request, PaymentRecorder $recorder)
+    {
+        $validated = $request->validate([
+            'student_fee_id' => ['required', 'integer', 'exists:student_fees,id'],
+            'amount' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $studentFee = StudentFee::with('enrollment')->findOrFail($validated['student_fee_id']);
+        $enrollmentId = $this->payingEnrollmentId($studentFee);
+        $currentYear = StudentEnrollment::whereKey($enrollmentId)->value('academic_session_id');
+
+        $plan = $recorder->plan($enrollmentId, (float) $validated['amount'], $studentFee->id);
+
+        return response()->json([
+            'lines' => collect($plan['lines'])->map(fn (array $line) => [
+                'fee' => $line['fee']->feeCategory?->name ?? __('Fee'),
+                'year' => (int) $line['fee']->enrollment?->academic_session_id !== (int) $currentYear
+                    ? $line['fee']->enrollment?->academicSession?->name
+                    : null,
+                'amount' => $line['amount'],
+                'after' => $line['balance_after'],
+            ])->values(),
+            'allocated' => $plan['allocated'],
+            'credit' => $plan['credit'],
+        ]);
+    }
+
+    /**
+     * The enrolment a payment is recorded on. An arrear from last year is
+     * paid on the enrolment the pupil is on now, so the receipt carries this
+     * year's class.
+     */
+    private function payingEnrollmentId(StudentFee $studentFee): int
+    {
+        return StudentEnrollment::where('student_id', $studentFee->enrollment?->student_id)
+            ->where('status', 'active')
+            ->orderByDesc('id')
+            ->value('id') ?? $studentFee->student_enrollment_id;
+    }
+
+    /**
+     * Several receipts printed in one go (ticked on the payments list), each
+     * with its school copy, one per page.
+     */
+    public function receipts(Request $request)
+    {
+        $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter()->unique()->take(100);
+        abort_if($ids->isEmpty(), 404);
+
+        $receipts = Payment::whereIn('id', $ids)->orderBy('id')->get()
+            ->map(fn (Payment $payment) => $this->receiptData($payment));
+        abort_if($receipts->isEmpty(), 404);
+
+        return view('admin.fees.collect.receipts', [
+            'receipts' => $receipts,
+            'school' => SchoolSetting::current(),
         ]);
     }
 
     public function receipt(Payment $payment)
+    {
+        return view('admin.fees.collect.receipt', $this->receiptData($payment));
+    }
+
+    /**
+     * Everything one printed receipt shows.
+     *
+     * @return array<string, mixed>
+     */
+    private function receiptData(Payment $payment): array
     {
         $payment->load([
             'enrollment.student.guardian',
@@ -236,6 +322,7 @@ class FeeCollectionController extends Controller implements HasMiddleware
             'enrollment.academicSession',
             'enrollment.term',
             'receivedBy',
+            'reversedBy',
             'allocations.studentFee.feeCategory',
             'allocations.studentFee.enrollment.academicSession',
             'allocations.studentFee.paymentPlan.installments',
@@ -276,9 +363,9 @@ class FeeCollectionController extends Controller implements HasMiddleware
         // on every receipt, not only when the bursar remembers.
         $arrearsOwed = (float) StudentFee::arrearsOf($payment->enrollment?->student_id, $payment->enrollment?->academic_session_id)->sum('balance');
 
-        return view('admin.fees.collect.receipt', compact(
+        return compact(
             'payment', 'school', 'allFees', 'allPayments',
             'totalFees', 'totalPaidToDate', 'overallBalance', 'heldAsCredit', 'arrearsOwed'
-        ));
+        );
     }
 }

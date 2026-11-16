@@ -10,16 +10,13 @@
             <h1 class="text-2xl font-bold text-gray-900">{{ __('Audit Log') }}</h1>
             <p class="mt-1 text-sm text-gray-500">{{ __('Who changed what, and when.') }}</p>
         </div>
-        @can('audit-log.export')
-        <a href="{{ route('admin.audit-log.export', request()->query()) }}"
-           class="inline-flex items-center px-4 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-medium text-sm transition">
-            {{ __('Export CSV') }}
-        </a>
-        @endcan
     </div>
 
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-6" data-list-region="audit-log">
     {{-- Filters --}}
-    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+    <form method="GET" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4" data-auto-submit>
+        @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             <select name="user_id" class="rounded-lg border-gray-300 text-sm">
                 <option value="">{{ __('All users') }}</option>
@@ -62,15 +59,17 @@
         @endif
     </form>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$logs" :exportable="auth()->user()->can('audit-log.export')" />
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-6 py-3 text-left">{{ __('When') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('User') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Action') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Record') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('IP') }}</th>
+                    <x-list.th :list="$list" key="when" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="user" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="action" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="record" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="ip" class="px-6 py-3 text-left" />
                     <th class="px-6 py-3"></th>
                 </tr>
             </thead>
@@ -109,8 +108,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     {{ $logs->links() }}
+    </div>
 </div>
 @endsection

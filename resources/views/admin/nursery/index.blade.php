@@ -103,7 +103,7 @@
                 @can('report-card.view')
                     @if($pupils->isNotEmpty() && $complete === $pupils->count())
                         <form method="POST" action="{{ route('admin.report-cards.publish') }}"
-                              onsubmit="return confirm('{{ __('Publish every report in this class to parents?') }}')">
+                              data-ask="{{ __('Publish every report in this class to parents?') }}">
                             @csrf
                             <input type="hidden" name="class_section_id" value="{{ $section->id }}">
                             <input type="hidden" name="term_id" value="{{ $term->id }}">

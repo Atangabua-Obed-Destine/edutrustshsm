@@ -61,17 +61,21 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    {{-- Sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-6" data-list-region="fixed-assets">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <x-list.toolbar :list="$list" :rows="$assets" />
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-6 py-3 text-left">{{ __('Asset') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Category') }}</th>
-                    <th class="px-6 py-3 text-left">{{ __('Acquired') }}</th>
-                    <th class="px-6 py-3 text-right">{{ __('Cost') }}</th>
-                    <th class="px-6 py-3 text-right">{{ __('Depreciated') }}</th>
-                    <th class="px-6 py-3 text-right">{{ __('Book Value') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('Status') }}</th>
+                    <x-list.th :list="$list" key="asset" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="category" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="acquired" class="px-6 py-3 text-left" />
+                    <x-list.th :list="$list" key="cost" class="px-6 py-3 text-right" />
+                    <x-list.th :list="$list" key="depreciated" class="px-6 py-3 text-right" />
+                    <x-list.th :list="$list" key="book_value" class="px-6 py-3 text-right" />
+                    <x-list.th :list="$list" key="status" class="px-6 py-3 text-center" />
                     <th class="px-6 py-3"></th>
                 </tr>
             </thead>
@@ -106,9 +110,11 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     {{ $assets->links() }}
+    </div>
 
     @can('fixed-asset.create')
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

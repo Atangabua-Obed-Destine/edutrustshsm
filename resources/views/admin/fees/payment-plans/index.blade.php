@@ -27,9 +27,12 @@
         <div style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.875rem;">{{ session('error') }}</div>
     @endif
 
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div data-list-region="payment-plans">
     {{-- Filter Card --}}
     <div style="background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 24px;">
-        <form method="GET" style="display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;">
+        <form method="GET" style="display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;" data-auto-submit>
+            @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
             {{-- Status --}}
             <div style="min-width: 180px;">
                 <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 6px;">{{ __('Status') }}</label>
@@ -68,19 +71,20 @@
 
     {{-- Table Card --}}
     <div style="background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+        <x-list.toolbar :list="$list" :rows="$plans" />
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
                         <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap;">#</th>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Student') }}</th>
+                        <x-list.th :list="$list" key="student" style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap;" />
                         <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Fee') }}</th>
-                        <th style="padding: 12px 16px; text-align: right; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Total Amount') }}</th>
-                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Installments') }}</th>
-                        <th style="padding: 12px 16px; text-align: right; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Paid') }}</th>
-                        <th style="padding: 12px 16px; text-align: right; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Remaining') }}</th>
-                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Progress') }}</th>
-                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Status') }}</th>
+                        <x-list.th :list="$list" key="total" style="padding: 12px 16px; text-align: right; font-weight: 600; color: #475569; white-space: nowrap;" />
+                        <x-list.th :list="$list" key="installments" style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap;" />
+                        <x-list.th :list="$list" key="paid" style="padding: 12px 16px; text-align: right; font-weight: 600; color: #475569; white-space: nowrap;" />
+                        <x-list.th :list="$list" key="remaining" style="padding: 12px 16px; text-align: right; font-weight: 600; color: #475569; white-space: nowrap;" />
+                        <x-list.th :list="$list" key="progress" style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap;" />
+                        <x-list.th :list="$list" key="status" style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap;" />
                         <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap;">{{ __('Action') }}</th>
                     </tr>
                 </thead>
@@ -143,7 +147,7 @@
                                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </a>
                                     @if($plan->status === 'active')
-                                        <form method="POST" action="{{ route('admin.payment-plans.cancel', $plan) }}" onsubmit="return confirm('{{ __('Cancel this payment plan?') }}')" style="display:inline;">
+                                        <form method="POST" action="{{ route('admin.payment-plans.cancel', $plan) }}" data-ask="{{ __('Cancel this payment plan?') }}" style="display:inline;">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" title="{{ __('Cancel Plan') }}"
@@ -176,6 +180,7 @@
                 {{ $plans->links() }}
             </div>
         @endif
+    </div>
     </div>
 </div>
 @endsection

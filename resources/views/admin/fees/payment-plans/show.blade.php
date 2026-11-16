@@ -180,7 +180,7 @@
     {{-- Cancel button --}}
     @if($paymentPlan->status === 'active')
         <div style="margin-top: 20px;">
-            <form method="POST" action="{{ route('admin.payment-plans.cancel', $paymentPlan) }}" onsubmit="return confirm('{{ __('Are you sure you want to cancel this payment plan?') }}')">
+            <form method="POST" action="{{ route('admin.payment-plans.cancel', $paymentPlan) }}" data-ask="{{ __('Are you sure you want to cancel this payment plan?') }}">
                 @csrf
                 @method('PATCH')
                 <button type="submit"

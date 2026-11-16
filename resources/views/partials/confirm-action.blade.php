@@ -16,7 +16,9 @@
 
     Options: title, warning, amount (number) or amountField, amountLabel,
     currency, rows [[label, value | "field:name"]], issues [{level, text}]
-    or check (name of a global function (form) => issues), tick, confirm, back.
+    or check (name of a global function (form) => issues), tick, confirm, back,
+    consent (a second box that must also be ticked, for a separate decision
+    such as keeping extra money as credit).
 --}}
 <div id="confirm-action" style="z-index: 10050" class="fixed inset-0 hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title">
     <div class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl">
@@ -35,6 +37,11 @@
             <dl id="confirm-action-rows" class="mb-4 divide-y divide-gray-100 rounded-lg border border-gray-200 text-sm"></dl>
 
             <ul id="confirm-action-issues" class="mb-4 space-y-2"></ul>
+
+            <label id="confirm-action-consent-row" class="mb-3 hidden items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+                <input type="checkbox" id="confirm-action-consent" class="mt-0.5 h-4 w-4 rounded border-amber-400">
+                <span id="confirm-action-consent-text"></span>
+            </label>
 
             <label id="confirm-action-tick-row" class="flex items-start gap-2 text-sm font-medium text-gray-800">
                 <input type="checkbox" id="confirm-action-tick" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#1f3a5f]">
@@ -133,8 +140,16 @@
             + (issues.length ? ' bg-amber-600 hover:bg-amber-700' : ' bg-emerald-600 hover:bg-emerald-700');
         $('confirm-action-back').textContent = o.back || T.back;
 
-        tick.onchange = () => { go.disabled = !tick.checked; };
-        go.onclick = () => { if (tick.checked && !blocked) close(true); };
+        const consent = $('confirm-action-consent');
+        const consentRow = $('confirm-action-consent-row');
+        consent.checked = false;
+        consentRow.classList.toggle('hidden', !o.consent || blocked);
+        consentRow.classList.toggle('flex', !!o.consent && !blocked);
+        $('confirm-action-consent-text').textContent = o.consent || '';
+        const ready = () => tick.checked && (!o.consent || consent.checked);
+
+        tick.onchange = consent.onchange = () => { go.disabled = !ready(); };
+        go.onclick = () => { if (ready() && !blocked) close(true); };
         $('confirm-action-back').onclick = () => close(false);
         modal.onclick = (e) => { if (e.target === modal) close(false); };
 

@@ -35,19 +35,27 @@ class StudentCreditController extends Controller implements HasMiddleware
 
     public function index(Request $request)
     {
-        $credits = StudentCredit::with([
+        $query = StudentCredit::with([
             'enrollment.student:id,student_id,first_name,last_name',
             'enrollment.classSection:id,name',
             'payment:id,receipt_number',
         ])
             ->withCount(['refunds as open_refunds_count' => fn ($q) => $q->whereIn('status', ['requested', 'approved'])])
-            ->when($request->input('only_available'), fn ($q) => $q->available())
-            ->orderByDesc('id')
-            ->paginate(25)
-            ->withQueryString();
+            ->when($request->input('only_available'), fn ($q) => $q->available());
+
+        $list = $this->creditList($request)->filters([
+            __('Show only available') => $request->input('only_available') ? __('Yes') : null,
+        ]);
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $credits = $list->paginate($query);
 
         return view('admin.fees.credits.index', [
             'credits' => $credits,
+            'list' => $list,
             'totalAvailable' => (float) StudentCredit::where('balance', '>', 0)->sum('balance'),
             'studentsHolding' => StudentCredit::where('balance', '>', 0)
                 ->distinct('student_enrollment_id')->count('student_enrollment_id'),
@@ -55,6 +63,37 @@ class StudentCreditController extends Controller implements HasMiddleware
                 StudentCreditRefund::STATUS_REQUESTED, StudentCreditRefund::STATUS_APPROVED,
             ])->count(),
         ]);
+    }
+
+    /** The student credit list's columns: what sorts, and what an export writes. */
+    private function creditList(Request $request): \App\Support\Listing
+    {
+        // The pupil's name and class, as values the list can sort on.
+        $student = fn (string $column) => StudentEnrollment::query()
+            ->join('students', 'students.id', '=', 'student_enrollments.student_id')
+            ->whereColumn('student_enrollments.id', 'student_credits.student_enrollment_id')
+            ->select('students.'.$column)
+            ->limit(1);
+        $class = fn () => StudentEnrollment::query()
+            ->join('class_sections', 'class_sections.id', '=', 'student_enrollments.class_section_id')
+            ->whereColumn('student_enrollments.id', 'student_credits.student_enrollment_id')
+            ->select('class_sections.name')
+            ->limit(1);
+
+        return new \App\Support\Listing($request, 'student-credits', __('Student Credits'), [
+            'student' => ['label' => __('Student'), 'sort' => fn ($q, $dir) => $q->orderBy($student('last_name'), $dir)->orderBy($student('first_name'), $dir),
+                'value' => fn ($c) => trim($c->enrollment?->student?->first_name.' '.$c->enrollment?->student?->last_name)],
+            'student_id' => ['label' => __('Student ID'), 'value' => fn ($c) => $c->enrollment?->student?->student_id],
+            'class' => ['label' => __('Class'), 'sort' => fn ($q, $dir) => $q->orderBy($class(), $dir),
+                'value' => fn ($c) => $c->enrollment?->classSection?->name],
+            'source' => ['label' => __('Source'), 'sort' => 'student_credits.source', 'value' => fn ($c) => __(ucfirst(str_replace('_', ' ', (string) $c->source)))],
+            'receipt' => ['label' => __('Receipt #'), 'value' => fn ($c) => $c->payment?->receipt_number],
+            'amount' => ['label' => __('Amount'), 'sort' => 'student_credits.amount', 'money' => true, 'value' => fn ($c) => $c->amount],
+            'used' => ['label' => __('Used'), 'sort' => 'student_credits.used_amount', 'money' => true, 'value' => fn ($c) => $c->used_amount],
+            'available' => ['label' => __('Available'), 'sort' => 'student_credits.balance', 'money' => true, 'value' => fn ($c) => $c->balance],
+            // Newest first, as the list always opened.
+            'date' => ['label' => __('Date'), 'sort' => 'student_credits.id', 'value' => fn ($c) => $c->created_at],
+        ], default: 'date', defaultDir: 'desc');
     }
 
     /** Apply a student's available credit to their outstanding fees. */

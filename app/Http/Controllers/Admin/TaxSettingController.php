@@ -28,12 +28,32 @@ class TaxSettingController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $settings = TaxSetting::with('taxGroup')->orderBy('bracket_order')->paginate(20);
+        $query = TaxSetting::with('taxGroup');
+
+        $list = new \App\Support\Listing($request, 'tax-settings', __('Tax Settings'), [
+            'title' => ['label' => __('Title'), 'sort' => 'tax_settings.tax_title', 'value' => fn ($s) => $s->tax_title],
+            'group' => ['label' => __('Group'),
+                'sort' => fn ($q, $dir) => $q->orderBy(TaxGroup::select('title')->whereColumn('tax_groups.id', 'tax_settings.tax_group_id')->limit(1), $dir),
+                'value' => fn ($s) => $s->taxGroup?->title ?? __('Standalone')],
+            'bracket_order' => ['label' => __('Bracket Order'), 'sort' => 'tax_settings.bracket_order', 'value' => fn ($s) => $s->bracket_order],
+            'min' => ['label' => __('Min'), 'sort' => 'tax_settings.min_amount', 'money' => true, 'value' => fn ($s) => $s->min_amount],
+            'max' => ['label' => __('Max'), 'sort' => 'tax_settings.max_amount', 'money' => true, 'value' => fn ($s) => $s->max_amount],
+            // A rate or a fixed amount, written as the screen writes it.
+            'value' => ['label' => __('Value'),
+                'value' => fn ($s) => $s->tax_type == 1 ? rtrim(rtrim(number_format((float) $s->percentage, 4), '0'), '.').'%' : number_format((float) $s->fixed_amount, 0)],
+            'paid_by' => ['label' => __('Paid By'), 'sort' => 'tax_settings.paid_by', 'value' => fn ($s) => __(ucfirst((string) $s->paid_by))],
+        ], default: 'bracket_order');
+
+        if ($download = $list->export($query)) {
+            return $download;
+        }
+
+        $settings = $list->paginate($query);
         $groups = TaxGroup::where('status', true)->orderBy('display_order')->get();
         $dependables = TaxSetting::where('is_dependent', false)->get(['id', 'tax_title']);
-        return view('admin.hr.tax.settings.index', compact('settings', 'groups', 'dependables'));
+        return view('admin.hr.tax.settings.index', compact('settings', 'groups', 'dependables', 'list'));
     }
 
     public function store(Request $request)

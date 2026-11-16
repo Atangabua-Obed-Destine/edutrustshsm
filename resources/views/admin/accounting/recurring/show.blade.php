@@ -27,7 +27,7 @@
             @can('recurring-entry.edit')
             @if($template->is_active)
             <form method="POST" action="{{ route('admin.recurring-entries.skip-next', $template) }}"
-                  onsubmit="return confirm('{{ __('Skip the next run? No entry will be generated for it.') }}')">@csrf
+                  data-ask="{{ __('Skip the next run? No entry will be generated for it.') }}">@csrf
                 <button type="submit" class="border border-gray-300 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm">{{ __('Skip next') }}</button>
             </form>
             <form method="POST" action="{{ route('admin.recurring-entries.pause', $template) }}">@csrf
@@ -50,7 +50,7 @@
             @can('recurring-entry.delete')
             @if($template->runs_generated === 0)
             <form method="POST" action="{{ route('admin.recurring-entries.destroy', $template) }}"
-                  onsubmit="return confirm('{{ __('Delete this recurring entry?') }}')">@csrf @method('DELETE')
+                  data-ask="{{ __('Delete this recurring entry?') }}">@csrf @method('DELETE')
                 <button type="submit" class="border border-red-200 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg text-sm">{{ __('Delete') }}</button>
             </form>
             @endif

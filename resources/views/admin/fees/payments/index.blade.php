@@ -13,9 +13,12 @@
         </a>
     </div>
 
+    {{-- Filters, sorting and paging redraw only this part (data-list-region). --}}
+    <div class="space-y-4" data-list-region="payments">
     {{-- Search --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <form method="GET" class="flex gap-3">
+            @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}"><input type="hidden" name="dir" value="{{ request('dir') }}">@endif
             <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search by receipt number, student name or ID...') }}"
                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">{{ __('Search') }}</button>
@@ -23,24 +26,35 @@
     </div>
 
     {{-- Payments Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    @php($canPrint = auth()->user()->can('fee-collection.receipt'))
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" data-bulk-scope>
+        <x-list.toolbar :list="$list" :rows="$payments" />
+        @if($canPrint)
+        <x-list.bulk>
+            <form method="GET" action="{{ route('admin.collect-fees.receipts') }}" target="_blank" data-bulk-form data-no-swap data-no-busy>
+                <button type="submit">{{ __('Print receipts') }}</button>
+            </form>
+        </x-list.bulk>
+        @endif
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
                     <tr>
-                        <th class="px-4 py-3 text-left">{{ __('Receipt #') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Student') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Class') }}</th>
-                        <th class="px-4 py-3 text-right">{{ __('Amount (XAF)') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Method') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Date') }}</th>
-                        <th class="px-4 py-3 text-left">{{ __('Received By') }}</th>
+                        @if($canPrint)<th class="w-8 pl-4 py-3"><x-list.check-all /></th>@endif
+                        <x-list.th :list="$list" key="receipt" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="student" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="class" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="amount" class="px-4 py-3 text-right" />
+                        <x-list.th :list="$list" key="method" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="date" class="px-4 py-3 text-left" />
+                        <x-list.th :list="$list" key="received_by" class="px-4 py-3 text-left" />
                         <th class="px-4 py-3 text-center">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($payments as $payment)
                     <tr class="hover:bg-gray-50">
+                        @if($canPrint)<td class="pl-4 py-3"><x-list.check :value="$payment->id" :label="__('Tick receipt :r', ['r' => $payment->receipt_number])" /></td>@endif
                         <td class="px-4 py-3 font-mono text-xs text-blue-600 font-medium">
                             {{ $payment->receipt_number }}
                             @if($payment->isReversed())
@@ -62,7 +76,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="{{ $canPrint ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-400">
                             <p class="font-medium">{{ __('No payments recorded yet.') }}</p>
                         </td>
                     </tr>
@@ -73,6 +87,7 @@
         @if($payments->hasPages())
         <div class="px-4 py-3 border-t border-gray-200">{{ $payments->links() }}</div>
         @endif
+    </div>
     </div>
 </div>
 @endsection

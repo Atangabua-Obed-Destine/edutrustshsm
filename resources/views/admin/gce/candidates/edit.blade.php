@@ -88,7 +88,7 @@
 
             @can('gce-registration.delete')
             <form method="POST" action="{{ route('admin.gce.candidates.destroy', $candidate) }}"
-                  onsubmit="return confirm('{{ __('Remove this entry?') }}')">
+                  data-ask="{{ __('Remove this entry?') }}">
                 @csrf @method('DELETE')
                 <button type="submit" class="w-full text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 rounded-lg px-4 py-2">
                     {{ __('Remove Entry') }}

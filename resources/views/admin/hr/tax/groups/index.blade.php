@@ -37,7 +37,7 @@
                     <td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs {{ $g->status ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">{{ $g->status ? __('Active') : __('Inactive') }}</span></td>
                     <td class="px-4 py-3 text-right space-x-2 whitespace-nowrap">
                         <a href="{{ route('admin.tax-groups.edit', $g) }}" class="text-blue-600 hover:text-blue-800 text-xs font-medium">{{ __('Edit') }}</a>
-                        <form method="POST" action="{{ route('admin.tax-groups.destroy', $g) }}" class="inline" onsubmit="return confirm('{{ __('Delete this group and its brackets?') }}')">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button></form>
+                        <form method="POST" action="{{ route('admin.tax-groups.destroy', $g) }}" class="inline" data-ask="{{ __('Delete this group and its brackets?') }}">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button></form>
                     </td>
                 </tr>
                 @empty

@@ -41,7 +41,7 @@
                             <input type="hidden" name="status" value="{{ $item->status ? 0 : 1 }}">
                             <button class="text-amber-600 hover:text-amber-800 text-xs font-medium">{{ $item->status ? __('Disable') : __('Enable') }}</button>
                         </form>
-                        <form method="POST" action="{{ route($destroyRouteName, $item) }}" class="inline" onsubmit="return confirm('{{ __('Delete this item?') }}')">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button></form>
+                        <form method="POST" action="{{ route($destroyRouteName, $item) }}" class="inline" data-ask="{{ __('Delete this item?') }}">@csrf @method('DELETE')<button class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Delete') }}</button></form>
                     </td>
                 </tr>
                 @empty
